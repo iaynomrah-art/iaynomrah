@@ -33,6 +33,16 @@
 - Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
   - Environment variables automatically assigned to Vercel project
 
+## Project Structure
+
+For a detailed breakdown of the folder organization, see [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md).
+
+- **`app/`**: Next.js App Router (Routes & Pages).
+- **`components/`**: UI components (Shadcn, Tables, Layout).
+- **`helper/`**: Data access layer (Supabase fetchers).
+- **`lib/`**: Utilities and shared config.
+- **`types/`**: TypeScript definitions.
+
 ## Demo
 
 You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
