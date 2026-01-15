@@ -1,8 +1,10 @@
 import React from 'react'
+import { getUnits } from '@/helper/units'
 
-const page = () => {
+const page = async () => {
+    const units = await getUnits();
     return (
-        <div>page</div>
+        <pre>{JSON.stringify(units, null, 2)}</pre>
     )
 }
 

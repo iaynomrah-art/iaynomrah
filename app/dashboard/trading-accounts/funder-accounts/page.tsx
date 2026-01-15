@@ -1,8 +1,10 @@
 import React from 'react'
+import { getCredentials } from '@/helper/credentials'
 
-const page = () => {
+const page = async () => {
+    const credentials = await getCredentials();
     return (
-        <div>page</div>
+        <pre>{JSON.stringify(credentials, null, 2)}</pre>
     )
 }
 

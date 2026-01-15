@@ -81,7 +81,6 @@ export async function packageTable() {
       instrument,
       funder:funders(name)
     `)
-    .order("created_at", { ascending: false });
 
   if (error) {
     console.error("Error fetching package table data:", error);

@@ -69,16 +69,3 @@ export async function deleteFunder(id: number) {
   return true;
 }
 
-export async function fundersTable() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("funders")
-    .select("id, name, allias, reset_time")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching funders table data:", error);
-    return [];
-  }
-  return data;
-}

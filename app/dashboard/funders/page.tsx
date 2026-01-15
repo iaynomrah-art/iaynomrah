@@ -1,8 +1,11 @@
+import { getFunders } from '@/helper/funders'
 import React from 'react'
 
-const page = () => {
+const page = async () => {
+    const funders = await getFunders();
+
     return (
-        <div>page</div>
+        <pre>{JSON.stringify(funders, null, 2)}</pre>
     )
 }
 

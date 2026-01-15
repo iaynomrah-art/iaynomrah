@@ -1,8 +1,10 @@
 import React from 'react'
+import { getPackages } from '@/helper/package'
 
-const page = () => {
+const page = async () => {
+    const packages = await getPackages();
     return (
-        <div>page</div>
+        <pre>{JSON.stringify(packages, null, 2)}</pre>
     )
 }
 
