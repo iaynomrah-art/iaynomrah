@@ -1,0 +1,10 @@
+export interface Franchise {
+  id: number;
+  created_at: string;
+  name: string | null;
+  code: string | null;
+  description: string | null;
+}
+
+export type CreateFranchise = Omit<Franchise, "id" | "created_at">;
+export type UpdateFranchise = Partial<CreateFranchise>;
