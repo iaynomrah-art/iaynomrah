@@ -1,0 +1,91 @@
+import { createClient } from "@/lib/supabase/server";
+
+export async function getPackages() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("package")
+    .select("*, funders(*)")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching packages:", error);
+    return [];
+  }
+  return data;
+}
+
+export async function getPackageById(id: number) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("package")
+    .select("*, funders(*)")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    console.error("Error fetching package:", error);
+    return null;
+  }
+  return data;
+}
+
+export async function createPackage(formData: any) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("package")
+    .insert([formData])
+    .select();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data;
+}
+
+export async function updatePackage(id: number, formData: any) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("package")
+    .update(formData)
+    .eq("id", id)
+    .select();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data;
+}
+
+export async function deletePackage(id: number) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("package")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return true;
+}
+
+export async function packageTable() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("package")
+    .select(`
+      id,
+      name,
+      balance,
+      phase,
+      instrument,
+      funder:funders(name)
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching package table data:", error);
+    return [];
+  }
+  return data;
+}

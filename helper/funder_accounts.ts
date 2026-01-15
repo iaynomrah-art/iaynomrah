@@ -1,0 +1,103 @@
+import { createClient } from "@/lib/supabase/server";
+
+export async function getFunderAccounts() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("funder_account")
+    .select(`
+      *,
+      package(*, funders(*)),
+      accounts(*),
+      credentials(*),
+      units(*)
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching funder accounts:", error);
+    return [];
+  }
+  return data;
+}
+
+export async function getFunderAccountById(id: number) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("funder_account")
+    .select(`
+      *,
+      package(*, funders(*)),
+      accounts(*),
+      credentials(*),
+      units(*)
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    console.error("Error fetching funder account:", error);
+    return null;
+  }
+  return data;
+}
+
+export async function createFunderAccount(formData: any) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("funder_account")
+    .insert([formData])
+    .select();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data;
+}
+
+export async function updateFunderAccount(id: number, formData: any) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("funder_account")
+    .update(formData)
+    .eq("id", id)
+    .select();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data;
+}
+
+export async function deleteFunderAccount(id: number) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("funder_account")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return true;
+}
+
+export async function funderAccountsTable() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("funder_account")
+    .select(`
+      id,
+      status,
+      created_at,
+      unit:units(unit_name),
+      account:accounts(id, first_name, last_name, email),
+      package:package(name)
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching funder accounts table data:", error);
+    return [];
+  }
+  return data;
+}
