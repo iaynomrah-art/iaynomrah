@@ -1,7 +1,8 @@
 import React, { Suspense } from 'react'
 import { getFunders } from '@/helper/funders'
 import { SearchBarHeader } from '@/components/ui/search-bar-header'
-import { FundersTable, FundersTableSkeleton } from '@/components/tables/funders'
+import { FundersTable } from '@/components/tables/funders'
+import { FundersTableSkeleton } from '@/components/skeleton/FundersTableSkeleton'
 import Link from 'next/link'
 
 const FundersList = async () => {

@@ -20,6 +20,7 @@ Reusable UI components.
 - **`components/tables/`**: Data-dense table views.
 - **`components/card/`**: Real-time interactive card grids (e.g., `UnitsRealtime.tsx`, `CardUnit.tsx`).
 - **`components/modal/`**: confirmation dialogs and forms (e.g., `ArchieveUniit.tsx`).
+- **`components/form/`**: Multi-purpose form components (e.g., `FunderForm.tsx`).
 - **`components/skeleton/`**: Custom loading placeholders (e.g., `UnitSkeleton.tsx`).
 - **`components/layout/`**: Global layout elements like the `DashboardSidebar`.
 

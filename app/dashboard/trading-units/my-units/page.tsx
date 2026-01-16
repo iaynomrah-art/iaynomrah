@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react'
 import { getUnitsWithCounts } from '@/helper/units'
 import { SearchBarHeader } from '@/components/ui/search-bar-header'
-import { UnitsRealtime } from '@/components/card/UnitsRealtime'
+import { UnitsRealtime } from '@/components/list/UnitsRealtime'
 import { UnitSkeleton } from '@/components/skeleton/UnitSkeleton'
 import { Button } from '@/components/ui/button'
 

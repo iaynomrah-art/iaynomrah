@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { UnitCard } from "./CardUnit";
+import { UnitCard } from "../card/CardUnit";
 import { createClient } from "@/lib/supabase/client";
 import { getUnitsWithCounts, updateUnitStatus, archiveUnit } from "@/helper/units";
 import { getFranchiseStyles } from "@/lib/utils";

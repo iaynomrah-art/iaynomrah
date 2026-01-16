@@ -59,6 +59,8 @@ export async function updateFunder(id: number, formData: UpdateFunder) {
   if (error) {
     throw new Error(error.message);
   }
+
+  revalidatePath("/dashboard/funders");
   return data;
 }
 
@@ -72,6 +74,6 @@ export async function deleteFunder(id: number) {
   if (error) {
     throw new Error(error.message);
   }
-  return true;
+    revalidatePath("/dashboard/funders");
+    return true;
 }
-
