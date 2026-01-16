@@ -1,3 +1,5 @@
+"use client"
+
 import React from "react"
 import {
     Table,
@@ -10,49 +12,32 @@ import {
 import { Button } from "@/components/ui/button"
 import { Pencil, Trash2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Funder } from "@/types/funder"
 
-const formatResetTime = (time?: string | null) => {
-    if (!time) return "-";
-
-    // Extract HH:mm from various formats (ISO, HH:mm:ss, HH:mm)
-    let hours = "";
-    let minutes = "";
-
-    if (time.includes('T')) {
-        const date = new Date(time);
-        if (!isNaN(date.getTime())) {
-            hours = date.getHours().toString().padStart(2, '0');
-            minutes = date.getMinutes().toString().padStart(2, '0');
-        }
-    } else {
-        const parts = time.split(':');
-        if (parts.length >= 2) {
-            hours = parts[0].padStart(2, '0');
-            minutes = parts[1].padStart(2, '0');
-        }
-    }
-
-    if (hours && minutes) {
-        return `${hours}:${minutes} GMT+08:00 (Hong Kong)`;
-    }
-
-    return `${time} GMT+08:00 (Hong Kong)`;
+interface Unit {
+    id: number
+    unit_name: string
+    api_base_url?: string
+    created_at: string
+    franchise?: {
+        name: string
+        [key: string]: any
+    } | null
+    [key: string]: any
 }
 
-interface FundersTableProps {
-    data: Funder[]
+interface UnitsTableProps {
+    data: any[]
 }
 
-export const FundersTable = ({ data }: FundersTableProps) => {
+export const UnitsTable = ({ data }: UnitsTableProps) => {
     return (
         <div className="w-full">
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">FUNDER NAME</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">FUNDER ALIAS</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">RESET TIME</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">UNIT NAME</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">FRANCHISE</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">API BASE URL</TableHead>
                         <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -60,15 +45,21 @@ export const FundersTable = ({ data }: FundersTableProps) => {
                     {data.length === 0 ? (
                         <TableRow className="border-[#1a1a1a]">
                             <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                                No funders found.
+                                No units found.
                             </TableCell>
                         </TableRow>
                     ) : (
-                        data.map((funder) => (
-                            <TableRow key={funder.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
-                                <TableCell className="text-white py-4 font-medium text-sm">{funder.name}</TableCell>
-                                <TableCell className="text-white py-4 text-sm">{funder.allias || "-"}</TableCell>
-                                <TableCell className="text-white py-4 text-sm">{formatResetTime(funder.reset_time)}</TableCell>
+                        data.map((unit) => (
+                            <TableRow key={unit.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
+                                <TableCell className="text-white py-4 font-medium text-sm">
+                                    {unit.unit_name || "-"}
+                                </TableCell>
+                                <TableCell className="text-white py-4 text-sm">
+                                    {unit.franchise?.name || "-"}
+                                </TableCell>
+                                <TableCell className="text-white py-4 text-sm font-mono">
+                                    {unit.api_base_url || "-"}
+                                </TableCell>
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
                                         <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors">
@@ -88,15 +79,15 @@ export const FundersTable = ({ data }: FundersTableProps) => {
     )
 }
 
-export const FundersTableSkeleton = () => {
+export const UnitsTableSkeleton = () => {
     return (
         <div className="w-full">
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">FUNDER NAME</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">FUNDER ALIAS</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">RESET TIME</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">UNIT NAME</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">FRANCHISE</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">API BASE URL</TableHead>
                         <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -110,7 +101,7 @@ export const FundersTableSkeleton = () => {
                                 <Skeleton className="h-4 w-[100px] bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[180px] bg-[#1a1a1a]" />
+                                <Skeleton className="h-4 w-[200px] bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
                                 <div className="flex items-center gap-2">

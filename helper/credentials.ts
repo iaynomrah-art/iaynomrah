@@ -78,7 +78,7 @@ export async function credentialsTable() {
       id,
       password,
       account:accounts!user_id(first_name, last_name, email),
-      funder:funders(name)
+      funder:funders(name, allias, allias_color, text_color)
     `)
     .order("created_at", { ascending: false });
 

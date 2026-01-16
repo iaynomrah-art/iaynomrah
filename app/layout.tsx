@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import NextjsTopLoader from "nextjs-toploader";
+import { Toaster } from "@/components/ui/sonner";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -36,6 +37,7 @@ export default function RootLayout({
         >
           <NextjsTopLoader />
           {children}
+          <Toaster position="top-right" richColors />
         </ThemeProvider>
       </body>
     </html>
