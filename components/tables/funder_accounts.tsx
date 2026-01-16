@@ -10,10 +10,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { Pencil, Trash2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Badge } from "@/components/ui/badge"
 
 interface FunderAccount {
     id: number
-    status: string
+    status: boolean
     created_at: string,
     units?: {
         unit_name: string
@@ -73,8 +74,13 @@ export const FunderAccountsTable = ({ data }: FunderAccountsTableProps) => {
                                 <TableCell className="text-white py-4 text-sm">
                                     {item.package?.name || "-"}
                                 </TableCell>
-                                <TableCell className="text-white py-4 text-sm capitalize">
-                                    {item.status || "-"}
+                                <TableCell className="text-white py-4 text-sm capitalize w-fit">
+                                    <Badge
+                                        className={item.status ? "bg-green-500 text-white" : "bg-red-500 text-white" + "px-2 py-1 hover:bg-current hover:text-current"}
+                                    >
+                                        {item.status ? "Active" : "Inactive"}
+                                    </Badge>
+
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
                                     {new Date(item.created_at).toLocaleDateString()}
