@@ -12,15 +12,19 @@ When adding a new feature (e.g., "Settings"):
 2. Add a `page.tsx` for the main view.
 3. If the page needs data, create a helper in `helper/settings.ts`.
 
-## 2. Data Fetching Pattern
+## 2. Data Fetching & Real-time Pattern
 Always use the `helper/` directory for database interactions.
-- **Server Side**: Use `helper` functions in `page.tsx`.
-- **Client Side**: For real-time updates or complex filtering, pass the initial data from the Page to a Client Component.
+- **Server Side**: Fetch initial data in `page.tsx`.
+- **Interactivity**: Use Client Components for real-time dashboards.
+- **Real-time**: Subscribe to `supabase.channel` in `useEffect` within client-side "Container" components (e.g., `UnitsRealtime.tsx`).
 
 ## 3. UI Components
-- **General UI**: Add to `components/ui/` using shadcn CLI.
-- **Specific Tables**: Add to `components/tables/` to keep page logic clean.
-- **Layouts**: Use `app/dashboard/layout.tsx` for persistent UI like sidebars.
+- **General UI**: Add to `components/ui/` via shadcn.
+- **Data Views**: 
+    - Use `components/tables/` for density.
+    - Use `components/card/` for interactive, status-driven modules.
+- **Interactions**: Use `components/modal/` for complex actions (Archive, Status Change) to keep views decluttered.
+- **Loading States**: Add specific placeholders to `components/skeleton/`.
 
 ## 4. Type Safety
 Define all interfaces in `types/`. Do not use `any` unless absolutely necessary.

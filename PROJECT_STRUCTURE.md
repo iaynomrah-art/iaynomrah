@@ -16,9 +16,12 @@ Contains the application's routes and pages using the Next.js App Router.
 
 ### 📂 `components/`
 Reusable UI components.
-- **`components/ui/`**: Low-level UI primitives (buttons, inputs, cards) powered by **shadcn/ui** and Radix UI.
-- **`components/tables/`**: Specialized table components for displaying complex data (e.g., `funders.tsx`, `accounts.tsx`).
-- **`components/layout/`**: Global layout elements like the `DashboardSidebar` and navigation bars.
+- **`components/ui/`**: Low-level UI primitives (buttons, inputs, cards) powered by **shadcn/ui**.
+- **`components/tables/`**: Data-dense table views.
+- **`components/card/`**: Real-time interactive card grids (e.g., `UnitsRealtime.tsx`, `CardUnit.tsx`).
+- **`components/modal/`**: confirmation dialogs and forms (e.g., `ArchieveUniit.tsx`).
+- **`components/skeleton/`**: Custom loading placeholders (e.g., `UnitSkeleton.tsx`).
+- **`components/layout/`**: Global layout elements like the `DashboardSidebar`.
 
 ### 📂 `helper/`
 The data access layer. These files contain asynchronous functions that interact directly with the **Supabase** client.
@@ -49,6 +52,9 @@ Static data or configuration files used for seeding or reference.
 
 ## Data Flow Pattern
 1. **Database**: Supabase tables (defined in `db.sql`).
-2. **Helpers**: `helper/*.ts` fetch data using the Supabase Server Client.
-3. **Pages**: `app/**/page.tsx` (Server Components) call helpers and pass data to components.
-4. **Components**: UI components receive data as props and display it. Client components handle interactivity (searches, filters).
+2. **Helpers**: `helper/*.ts` contain Server Actions/Functions for fetching (GET) and mutating (UPDATE/CREATE/ARCHIVE) data.
+3. **Pages**: `app/**/page.tsx` (Server Components) perform initial data fetching to prevent layout shift.
+4. **Interactive Components**:
+   - **Static/Table**: UI components receive data as props.
+   - **Real-time/Card**: Client components use `createClient` from `@/lib/supabase/client` to subscribe to `postgres_changes`, keeping the UI in sync with the database automatically.
+5. **Modals**: Complex interactions (like archiving or status changes) are handled via Shadcn Dialog components and server actions.
