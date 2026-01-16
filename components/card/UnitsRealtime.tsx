@@ -3,8 +3,11 @@
 import React, { useEffect, useState } from "react";
 import { UnitCard } from "./CardUnit";
 import { createClient } from "@/lib/supabase/client";
-import { getUnitsWithCounts } from "@/helper/units";
+import { getUnitsWithCounts, updateUnitStatus, archiveUnit } from "@/helper/units";
 import { getFranchiseStyles } from "@/lib/utils";
+import { UnitStatus } from "@/types/units";
+import { ArchiveUnitModal } from "@/components/modal/ArchieveUniit";
+import { toast } from "sonner";
 
 interface UnitsRealtimeProps {
     initialData: any[];
@@ -13,6 +16,10 @@ interface UnitsRealtimeProps {
 export function UnitsRealtime({ initialData }: UnitsRealtimeProps) {
     const [units, setUnits] = useState(initialData);
     const supabase = createClient();
+
+    const [selectedUnit, setSelectedUnit] = useState<{ id: number, name: string } | null>(null);
+    const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+    const [isArchiving, setIsArchiving] = useState(false);
 
     const fetchLatestData = async () => {
         const latestData = await getUnitsWithCounts();
@@ -37,45 +44,75 @@ export function UnitsRealtime({ initialData }: UnitsRealtimeProps) {
         };
     }, []);
 
-    const handleStatusChange = async (unitId: number, newStatus: string) => {
+    const handleStatusChange = async (unitId: number, newStatus: UnitStatus) => {
         try {
-            const { error } = await supabase
-                .from("units")
-                .update({ status: newStatus })
-                .eq("id", unitId);
-
-            if (error) throw error;
-            // No need for setUnits here as realtime will trigger fetchLatestData
+            await updateUnitStatus(unitId, newStatus);
         } catch (error: any) {
             console.error("Error updating unit status:", error);
+            toast.error("Failed to update status");
+        }
+    }
+
+    const handleArchiveClick = (id: number, name: string) => {
+        setSelectedUnit({ id, name });
+        setIsArchiveModalOpen(true);
+    }
+
+    const handleArchiveConfirm = async () => {
+        if (!selectedUnit) return;
+
+        setIsArchiving(true);
+        try {
+            await archiveUnit(selectedUnit.id);
+            toast.success(`${selectedUnit.name} archived successfully`);
+            setIsArchiveModalOpen(false);
+            setSelectedUnit(null);
+        } catch (error: any) {
+            console.error("Error archiving unit:", error);
+            toast.error("Failed to archive unit");
+        } finally {
+            setIsArchiving(false);
         }
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6">
-            {units.map((unit) => {
-                const styles = getFranchiseStyles(unit.franchise?.code);
-                return (
-                    <UnitCard
-                        key={unit.id}
-                        id={unit.id}
-                        code={unit.unit_name}
-                        shortName={unit.franchise?.code || "UN"}
-                        company={unit.franchise?.name}
-                        status={unit.status || "disabled"}
-                        serial={unit.unit_id?.substring(0, 8).toUpperCase() || "N/A"}
-                        owner="System" // Hardcoded for now
-                        {...styles}
-                        onStatusChange={handleStatusChange}
-                        tags={unit.funder_counts?.map((fc: any) => ({
-                            label: fc.allias,
-                            count: fc.count,
-                            bgColor: fc.allias_color,
-                            textColor: fc.text_color
-                        })) || []}
-                    />
-                );
-            })}
-        </div>
+        <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6">
+                {units
+                    .filter(unit => !unit.archived) // Only show non-archived units
+                    .map((unit) => {
+                        const styles = getFranchiseStyles(unit.franchise?.code);
+                        return (
+                            <UnitCard
+                                key={unit.id}
+                                id={unit.id}
+                                code={unit.unit_name}
+                                shortName={unit.franchise?.code || "UN"}
+                                company={unit.franchise?.name}
+                                status={unit.status || "disabled"}
+                                serial={unit.unit_id?.substring(0, 8).toUpperCase() || "N/A"}
+                                owner="System"
+                                {...styles}
+                                onStatusChange={handleStatusChange}
+                                onArchive={handleArchiveClick}
+                                tags={unit.funder_counts?.map((fc: any) => ({
+                                    label: fc.allias,
+                                    count: fc.count,
+                                    bgColor: fc.allias_color,
+                                    textColor: fc.text_color
+                                })) || []}
+                            />
+                        );
+                    })}
+            </div>
+
+            <ArchiveUnitModal
+                isOpen={isArchiveModalOpen}
+                onClose={() => setIsArchiveModalOpen(false)}
+                onConfirm={handleArchiveConfirm}
+                unitName={selectedUnit?.name || ""}
+                isPending={isArchiving}
+            />
+        </>
     );
 }

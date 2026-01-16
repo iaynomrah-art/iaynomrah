@@ -136,3 +136,44 @@ export async function deleteUnit(id: number) {
   }
   return true;
 }
+
+export async function updateUnitStatus(id: number, status: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("units")
+    .update({ status })
+    .eq("id", id)
+    .select();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data;
+}
+export async function archiveUnit(id: number) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("units")
+    .update({ archived: true })
+    .eq("id", id)
+    .select();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data;
+}
+
+export async function unarchiveUnit(id: number) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("units")
+    .update({ archived: false })
+    .eq("id", id)
+    .select();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data;
+}

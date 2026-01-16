@@ -42,6 +42,7 @@ export interface UnitCardProps {
     badgeText: string;      // purple-100
     tags?: UnitTag[];
     onStatusChange?: (id: number, status: UnitStatus) => void;
+    onArchive?: (id: number, name: string) => void;
 }
 
 export function UnitCard({
@@ -56,7 +57,8 @@ export function UnitCard({
     badgeBg,
     badgeText,
     tags = [],
-    onStatusChange
+    onStatusChange,
+    onArchive
 }: UnitCardProps) {
     const getStatusConfig = (status: UnitStatus) => {
         switch (status) {
@@ -201,6 +203,7 @@ export function UnitCard({
                             size="icon"
                             title="Archive Unit"
                             className="text-white hover:bg-gray-700"
+                            onClick={() => onArchive?.(id, code)}
                         >
                             <Archive className="h-4 w-4" />
                         </Button>
