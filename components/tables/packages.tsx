@@ -1,4 +1,6 @@
-import React from "react"
+"use client"
+
+import React, { useState } from "react"
 import {
     Table,
     TableBody,
@@ -10,6 +12,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { Pencil, Trash2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { DeletePackageModal } from "@/components/modal/Delete/DeletePackage"
+import { deletePackage } from "@/helper/package"
+import { toast } from "sonner"
+import Link from "next/link"
 
 interface Package {
     id: number
@@ -28,6 +34,31 @@ interface PackagesTableProps {
 }
 
 export const PackagesTable = ({ data }: PackagesTableProps) => {
+    const [selectedPackage, setSelectedPackage] = useState<{ id: number, name: string } | null>(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDeleteClick = (id: number, name: string) => {
+        setSelectedPackage({ id, name });
+        setIsDeleteModalOpen(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!selectedPackage) return;
+
+        setIsDeleting(true);
+        try {
+            await deletePackage(selectedPackage.id);
+            toast.success("Package deleted successfully");
+            setIsDeleteModalOpen(false);
+            setSelectedPackage(null);
+        } catch (error: any) {
+            toast.error(error.message || "Failed to delete package");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <div className="w-full">
             <Table>
@@ -60,10 +91,18 @@ export const PackagesTable = ({ data }: PackagesTableProps) => {
                                 <TableCell className="text-white py-4 text-sm">{item.instrument || "-"}</TableCell>
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors">
+                                        <Link
+                                            href={`/dashboard/funders/add-package?id=${item.id}`}
+                                            className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors"
+                                        >
                                             <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-red-500 transition-colors">
+                                        </Link>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-red-500 transition-colors"
+                                            onClick={() => handleDeleteClick(item.id, item.name)}
+                                        >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -73,6 +112,14 @@ export const PackagesTable = ({ data }: PackagesTableProps) => {
                     )}
                 </TableBody>
             </Table>
+
+            <DeletePackageModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleDeleteConfirm}
+                packageName={selectedPackage?.name || ""}
+                isPending={isDeleting}
+            />
         </div>
     )
 }

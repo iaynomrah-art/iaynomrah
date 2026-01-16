@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import {
     Table,
     TableBody,
@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button"
 import { Pencil, Trash2, Copy, Check } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
+import { DeleteCredentialModal } from "@/components/modal/Delete/DeleteCredential"
+import { deleteCredential } from "@/helper/credentials"
 
 interface Credential {
     id: number
@@ -21,6 +23,7 @@ interface Credential {
     funder_id: number | null
     password?: string
     username?: string
+    name?: string
     funders?: {
         name: string
         allias: string
@@ -41,8 +44,10 @@ interface CredentialsTableProps {
 }
 
 export const CredentialsTable = ({ data }: CredentialsTableProps) => {
-
-    const [copiedId, setCopiedId] = React.useState<number | null>(null)
+    const [copiedId, setCopiedId] = useState<number | null>(null)
+    const [selectedCredential, setSelectedCredential] = useState<{ id: number, name: string } | null>(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const handleCopy = async (password: string, id: number) => {
         try {
@@ -54,6 +59,27 @@ export const CredentialsTable = ({ data }: CredentialsTableProps) => {
             toast.error("Failed to copy password")
         }
     }
+
+    const handleDeleteClick = (id: number, name: string) => {
+        setSelectedCredential({ id, name });
+        setIsDeleteModalOpen(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!selectedCredential) return;
+
+        setIsDeleting(true);
+        try {
+            await deleteCredential(selectedCredential.id);
+            toast.success("Credential deleted successfully");
+            setIsDeleteModalOpen(false);
+            setSelectedCredential(null);
+        } catch (error: any) {
+            toast.error(error.message || "Failed to delete credential");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     return (
         <div className="w-full">
@@ -118,7 +144,12 @@ export const CredentialsTable = ({ data }: CredentialsTableProps) => {
                                         <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors">
                                             <Pencil className="h-4 w-4" />
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-red-500 transition-colors">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-red-500 transition-colors"
+                                            onClick={() => handleDeleteClick(credential.id, credential.name || "this credential")}
+                                        >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -128,6 +159,14 @@ export const CredentialsTable = ({ data }: CredentialsTableProps) => {
                     )}
                 </TableBody>
             </Table>
+
+            <DeleteCredentialModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleDeleteConfirm}
+                credentialName={selectedCredential?.name || ""}
+                isPending={isDeleting}
+            />
         </div>
     )
 }

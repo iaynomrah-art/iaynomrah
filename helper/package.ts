@@ -1,4 +1,7 @@
+"use server"
+
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 
 export async function getPackages() {
   const supabase = await createClient();
@@ -39,6 +42,7 @@ export async function createPackage(formData: any) {
   if (error) {
     throw new Error(error.message);
   }
+  revalidatePath("/dashboard/funders/packages");
   return data;
 }
 
@@ -53,6 +57,7 @@ export async function updatePackage(id: number, formData: any) {
   if (error) {
     throw new Error(error.message);
   }
+  revalidatePath("/dashboard/funders/packages");
   return data;
 }
 
@@ -66,6 +71,7 @@ export async function deletePackage(id: number) {
   if (error) {
     throw new Error(error.message);
   }
+  revalidatePath("/dashboard/funders/packages");
   return true;
 }
 

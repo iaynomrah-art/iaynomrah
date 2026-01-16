@@ -1,4 +1,6 @@
-import React from "react"
+"use client"
+
+import React, { useState } from "react"
 import {
     Table,
     TableBody,
@@ -11,6 +13,9 @@ import { Button } from "@/components/ui/button"
 import { Pencil, Trash2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
+import { DeleteFunderAccountModal } from "@/components/modal/Delete/DeleteFunderAccount"
+import { deleteFunderAccount } from "@/helper/funder_accounts"
+import { toast } from "sonner"
 
 interface FunderAccount {
     id: number
@@ -38,6 +43,32 @@ interface FunderAccountsTableProps {
 }
 
 export const FunderAccountsTable = ({ data }: FunderAccountsTableProps) => {
+    const [selectedFunderAccount, setSelectedFunderAccount] = useState<{ id: number, name: string } | null>(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDeleteClick = (id: number, firstName?: string, lastName?: string) => {
+        const name = firstName && lastName ? `${firstName} ${lastName}` : "this funder account";
+        setSelectedFunderAccount({ id, name });
+        setIsDeleteModalOpen(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!selectedFunderAccount) return;
+
+        setIsDeleting(true);
+        try {
+            await deleteFunderAccount(selectedFunderAccount.id);
+            toast.success("Funder account deleted successfully");
+            setIsDeleteModalOpen(false);
+            setSelectedFunderAccount(null);
+        } catch (error: any) {
+            toast.error(error.message || "Failed to delete funder account");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <div className="w-full">
             <Table>
@@ -76,7 +107,7 @@ export const FunderAccountsTable = ({ data }: FunderAccountsTableProps) => {
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm capitalize w-fit">
                                     <Badge
-                                        className={item.status ? "bg-green-500 text-white" : "bg-red-500 text-white" + "px-2 py-1 hover:bg-current hover:text-current"}
+                                        className={item.status ? "bg-green-500 text-white" : "bg-red-500 text-white"}
                                     >
                                         {item.status ? "Active" : "Inactive"}
                                     </Badge>
@@ -90,7 +121,12 @@ export const FunderAccountsTable = ({ data }: FunderAccountsTableProps) => {
                                         <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors">
                                             <Pencil className="h-4 w-4" />
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-red-500 transition-colors">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-red-500 transition-colors"
+                                            onClick={() => handleDeleteClick(item.id, item.accounts?.first_name, item.accounts?.last_name)}
+                                        >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -100,6 +136,14 @@ export const FunderAccountsTable = ({ data }: FunderAccountsTableProps) => {
                     )}
                 </TableBody>
             </Table>
+
+            <DeleteFunderAccountModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleDeleteConfirm}
+                accountName={selectedFunderAccount?.name || ""}
+                isPending={isDeleting}
+            />
         </div>
     )
 }

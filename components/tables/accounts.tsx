@@ -1,4 +1,6 @@
-import React from "react"
+"use client"
+
+import React, { useState } from "react"
 import {
     Table,
     TableBody,
@@ -10,6 +12,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { Pencil, Trash2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { DeleteAccountModal } from "@/components/modal/Delete/DeleteAccount"
+import { deleteAccount } from "@/helper/accounts"
+import { toast } from "sonner"
 
 interface Account {
     id: number
@@ -31,6 +36,31 @@ interface AccountsTableProps {
 }
 
 export const AccountsTable = ({ data }: AccountsTableProps) => {
+    const [selectedAccount, setSelectedAccount] = useState<{ id: number, name: string } | null>(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDeleteClick = (id: number, firstName: string, lastName: string) => {
+        setSelectedAccount({ id, name: `${firstName} ${lastName}` });
+        setIsDeleteModalOpen(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!selectedAccount) return;
+
+        setIsDeleting(true);
+        try {
+            await deleteAccount(selectedAccount.id);
+            toast.success("User account deleted successfully");
+            setIsDeleteModalOpen(false);
+            setSelectedAccount(null);
+        } catch (error: any) {
+            toast.error(error.message || "Failed to delete account");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <div className="w-full">
             <Table>
@@ -64,7 +94,12 @@ export const AccountsTable = ({ data }: AccountsTableProps) => {
                                         <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors">
                                             <Pencil className="h-4 w-4" />
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-red-500 transition-colors">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-red-500 transition-colors"
+                                            onClick={() => handleDeleteClick(account.id, account.first_name, account.last_name)}
+                                        >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -74,7 +109,7 @@ export const AccountsTable = ({ data }: AccountsTableProps) => {
                                 <TableCell className="text-white py-4">{account.middle_name || "-"}</TableCell>
                                 <TableCell className="text-white py-4">{account.last_name}</TableCell>
                                 <TableCell className="text-white py-4">{account.email}</TableCell>
-                                <TableCell className="text-white py-4">{account.address + ", " + account.city + ", " + account.province + ", " + account.zip_code || "-"}</TableCell>
+                                <TableCell className="text-white py-4">{`${account.address || ""}${account.city ? ", " + account.city : ""}${account.province ? ", " + account.province : ""}${account.zip_code ? ", " + account.zip_code : ""}` || "-"}</TableCell>
                                 <TableCell className="text-white py-4">{account.contact_number || "-"}</TableCell>
                                 <TableCell className="text-white py-4">{account.contact_number_2 || "-"}</TableCell>
                                 <TableCell className="text-white py-4">{account.id_type || "-"}</TableCell>
@@ -84,6 +119,14 @@ export const AccountsTable = ({ data }: AccountsTableProps) => {
                     )}
                 </TableBody>
             </Table>
+
+            <DeleteAccountModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleDeleteConfirm}
+                accountName={selectedAccount?.name || ""}
+                isPending={isDeleting}
+            />
         </div>
     )
 }

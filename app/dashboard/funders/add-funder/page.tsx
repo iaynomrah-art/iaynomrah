@@ -31,7 +31,7 @@ const page = async ({ searchParams }: PageProps) => {
 
                 {/* Form Section */}
                 <div className="p-6">
-                    <FunderForm initialData={initialData} />
+                    <FunderForm key={funderId || 'new'} initialData={initialData} />
                 </div>
             </div>
         </div>

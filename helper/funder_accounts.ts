@@ -1,4 +1,7 @@
+"use server"
+
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 
 export async function getFunderAccounts() {
   const supabase = await createClient();
@@ -51,6 +54,7 @@ export async function createFunderAccount(formData: any) {
   if (error) {
     throw new Error(error.message);
   }
+  revalidatePath("/dashboard/trading-accounts/funder-accounts");
   return data;
 }
 
@@ -65,6 +69,7 @@ export async function updateFunderAccount(id: number, formData: any) {
   if (error) {
     throw new Error(error.message);
   }
+  revalidatePath("/dashboard/trading-accounts/funder-accounts");
   return data;
 }
 
@@ -78,12 +83,13 @@ export async function deleteFunderAccount(id: number) {
   if (error) {
     throw new Error(error.message);
   }
+  revalidatePath("/dashboard/trading-accounts/funder-accounts");
   return true;
 }
 
 export async function funderAccountsTable() {
   const supabase = await createClient();
-  const { data, error } = await supabase
+   const { data, error } = await supabase
     .from("funder_account")
     .select(`
       id,
