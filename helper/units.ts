@@ -1,3 +1,5 @@
+"use server"
+
 import { createClient } from "@/lib/supabase/server";
 
 export async function getUnits() {
@@ -12,6 +14,72 @@ export async function getUnits() {
     return [];
   }
   return data;
+}
+
+export async function getUnitsWithCounts() {
+    const supabase = await createClient();
+    const { data: units, error: unitsError } = await supabase
+        .from("units")
+        .select("*, franchise(*)")
+        .order("created_at", { ascending: false });
+
+    if (unitsError) {
+        console.error("Error fetching units:", unitsError);
+        return [];
+    }
+
+    const { data: accounts, error: accountsError } = await supabase
+        .from("funder_account")
+        .select(`
+            unit_id, 
+            status,
+            package:package_id (
+                funders:funder_id (
+                    allias,
+                    allias_color,
+                    text_color
+                )
+            )
+        `)
+        .eq('status', true); // Only active accounts
+
+    if (accountsError) {
+        console.error("Error fetching accounts for counts:", accountsError);
+        return units.map(unit => ({ ...unit, funder_counts: [] }));
+    }
+
+    return units.map(unit => {
+        const unitAccounts = accounts.filter(a => Number(a.unit_id) === Number(unit.id));
+        
+        // Group by funder alias
+        const funderMap: Record<string, { count: number, allias_color: string, text_color: string }> = {};
+        
+        unitAccounts.forEach(acc => {
+            const funder = (acc.package as any)?.funders;
+            if (funder && funder.allias) {
+                if (!funderMap[funder.allias]) {
+                    funderMap[funder.allias] = { 
+                        count: 0, 
+                        allias_color: funder.allias_color || "#1c64f2", 
+                        text_color: funder.text_color || "white" 
+                    };
+                }
+                funderMap[funder.allias].count++;
+            }
+        });
+
+        const funder_counts = Object.entries(funderMap).map(([allias, data]) => ({
+            allias,
+            count: data.count,
+            allias_color: data.allias_color,
+            text_color: data.text_color
+        }));
+
+        return {
+            ...unit,
+            funder_counts
+        }
+    });
 }
 
 export async function getUnitById(id: number) {

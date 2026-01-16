@@ -1,35 +1,31 @@
 import React, { Suspense } from 'react'
-import { getUnits } from '@/helper/units'
+import { getUnitsWithCounts } from '@/helper/units'
 import { SearchBarHeader } from '@/components/ui/search-bar-header'
-import { UnitsTable, UnitsTableSkeleton } from '@/components/tables/units'
+import { UnitsRealtime } from '@/components/card/UnitsRealtime'
+import { UnitSkeleton } from '@/components/skeleton/UnitSkeleton'
+import { Button } from '@/components/ui/button'
+
 
 const UnitsList = async () => {
-    const units = await getUnits();
-    return (
-        <div className="px-6 pb-6">
-            <UnitsTable data={units} />
-        </div>
-    );
+    const units = await getUnitsWithCounts();
+    return <UnitsRealtime initialData={units} />;
 };
 
 const page = () => {
     return (
-        <div suppressHydrationWarning className="p-6 bg-[#050505] min-h-full">
-            <div className="flex flex-col rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-2xl overflow-hidden">
-                {/* Header Section */}
-                <div className="px-6 pt-6 pb-10">
-                    <SearchBarHeader
-                        title="My Units"
-                        addButtonText="Add Unit"
-                    />
-                </div>
+        <div suppressHydrationWarning className="min-h-full bg-[#050505] flex flex-col">
+            {/* Header Section */}
+            <div className="px-6 pt-6">
+                <SearchBarHeader
+                    title="My Units"
+                    addButtonText="Add Unit"
+                    showFilter={false}
+                />
+            </div>
 
-                {/* Content Section */}
-                <Suspense fallback={
-                    <div className="px-6 pb-6">
-                        <UnitsTableSkeleton />
-                    </div>
-                }>
+            {/* Content Section */}
+            <div className="flex-1">
+                <Suspense fallback={<UnitSkeleton />}>
                     <UnitsList />
                 </Suspense>
             </div>
