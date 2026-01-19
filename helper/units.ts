@@ -177,3 +177,25 @@ export async function unarchiveUnit(id: number) {
   }
   return data;
 }
+
+export async function checkUnitHealth(apiBaseUrl: string) {
+    try {
+        // Normalize URL - remove trailing slash if any
+        const baseUrl = apiBaseUrl.endsWith('/') 
+            ? apiBaseUrl.slice(0, -1) 
+            : apiBaseUrl;
+            
+        const response = await fetch(`${baseUrl}/api/v1/health`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+            },
+            next: { revalidate: 0 }, // Ensure no caching
+        });
+
+        return response.status === 200;
+    } catch (error) {
+        console.error(`Health check failed for ${apiBaseUrl}:`, error);
+        return false;
+    }
+}

@@ -43,6 +43,7 @@ export interface UnitCardProps {
     tags?: UnitTag[];
     onStatusChange?: (id: number, status: UnitStatus) => void;
     onArchive?: (id: number, name: string) => void;
+    onEdit?: (id: number) => void;
 }
 
 export function UnitCard({
@@ -58,7 +59,8 @@ export function UnitCard({
     badgeText,
     tags = [],
     onStatusChange,
-    onArchive
+    onArchive,
+    onEdit
 }: UnitCardProps) {
     const getStatusConfig = (status: UnitStatus) => {
         switch (status) {
@@ -194,6 +196,7 @@ export function UnitCard({
                             size="icon"
                             title="Edit Unit"
                             className="text-white hover:bg-gray-700"
+                            onClick={() => onEdit?.(id)}
                         >
                             <Pencil className="h-4 w-4" />
                         </Button>

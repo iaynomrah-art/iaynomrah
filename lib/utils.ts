@@ -50,6 +50,7 @@ export const hasEnvVars =
 
 export const tabs = [
     { id: 'trading-accounts', label: 'Trading Accounts' },
-    { id: 'ongoing-trades', label: 'Ongoing Trades' },
     { id: 'paired-accounts', label: 'Paired Accounts' },
+    { id: 'ongoing-trades', label: 'Ongoing Trades' },
+
 ]

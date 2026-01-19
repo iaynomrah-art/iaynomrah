@@ -1,0 +1,144 @@
+"use client"
+
+import React, { useState, useEffect } from "react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Unit, UnitStatus } from "@/types/units"
+import { Franchise } from "@/types/franchise"
+import { getFranchises } from "@/helper/franchise"
+import { createUnit, updateUnit } from "@/helper/units"
+import { toast } from "sonner"
+import { Loader2 } from "lucide-react"
+
+interface UnitFormProps {
+    initialData?: Unit | null
+    onSuccess: () => void
+}
+
+const UNIT_STATUSES: UnitStatus[] = ["enabled", "disabled", "processing", "slow network", "not connected", "pc issue"]
+
+export function UnitForm({ initialData, onSuccess }: UnitFormProps) {
+    const isEditing = !!initialData
+    const [isLoading, setIsLoading] = useState(false)
+    const [franchises, setFranchises] = useState<Franchise[]>([])
+
+    const [formData, setFormData] = useState({
+        unit_name: initialData?.unit_name || "",
+        api_base_url: initialData?.api_base_url || "",
+        franchise_id: initialData?.franchise_id || "",
+        status: initialData?.status || "disabled" as UnitStatus
+    })
+
+    useEffect(() => {
+        const fetchFranchises = async () => {
+            const data = await getFranchises()
+            setFranchises(data)
+        }
+        fetchFranchises()
+    }, [])
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setIsLoading(true)
+
+        try {
+            if (isEditing && initialData) {
+                await updateUnit(initialData.id, formData)
+                toast.success("Unit updated successfully")
+            } else {
+                await createUnit(formData)
+                toast.success("Unit created successfully")
+            }
+            onSuccess()
+        } catch (error: any) {
+            console.error("Error saving unit:", error)
+            toast.error(error.message || "Failed to save unit")
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="unit_name">Unit Name</Label>
+                    <Input
+                        id="unit_name"
+                        placeholder="e.g. Unit 01"
+                        value={formData.unit_name}
+                        onChange={(e) => setFormData({ ...formData, unit_name: e.target.value })}
+                        required
+                        className="bg-[#050505] border-[#1a1a1a] focus:border-blue-500/50"
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="franchise_id">Franchise</Label>
+                    <select
+                        id="franchise_id"
+                        value={formData.franchise_id || ""}
+                        onChange={(e) => setFormData({ ...formData, franchise_id: e.target.value })}
+                        required
+                        className="flex h-10 w-full rounded-md border border-[#1a1a1a] bg-[#050505] px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 focus:border-blue-500/50"
+                    >
+                        <option value="" disabled>Select a franchise</option>
+                        {franchises.map((f) => (
+                            <option key={f.id} value={f.id}>
+                                {f.name} ({f.code})
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="api_base_url">API Base URL</Label>
+                    <Input
+                        id="api_base_url"
+                        placeholder="http://192.168.1.100:8000"
+                        value={formData.api_base_url || ""}
+                        onChange={(e) => setFormData({ ...formData, api_base_url: e.target.value })}
+                        className="bg-[#050505] border-[#1a1a1a] focus:border-blue-500/50"
+                    />
+                    <p className="text-[10px] text-muted-foreground">The base URL where the unit API is hosted.</p>
+                </div>
+
+                {isEditing && (
+                    <div className="space-y-2">
+                        <Label htmlFor="status">Status</Label>
+                        <select
+                            id="status"
+                            value={formData.status || ""}
+                            onChange={(e) => setFormData({ ...formData, status: e.target.value as UnitStatus })}
+                            className="flex h-10 w-full rounded-md border border-[#1a1a1a] bg-[#050505] px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 focus:border-blue-500/50"
+                        >
+                            {UNIT_STATUSES.map((status) => (
+                                <option key={status} value={status}>
+                                    {status.charAt(0) + status.slice(1)}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex gap-3 pt-4 justify-end">
+                <Button
+                    type="submit"
+                    disabled={isLoading}
+                    className="bg-blue-600 hover:bg-blue-500 text-white min-w-[120px]"
+                >
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                        </>
+                    ) : (
+                        isEditing ? "Update Unit" : "Add Unit"
+                    )}
+                </Button>
+            </div>
+        </form>
+    )
+}

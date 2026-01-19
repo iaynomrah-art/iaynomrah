@@ -35,8 +35,8 @@ const Page = () => {
                     {/* Tab Content Container */}
                     <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-6 lg:p-8 shadow-2xl overflow-hidden min-h-[600px]">
                         {activeTab === 'trading-accounts' && <TradingAccountsPage />}
-                        {activeTab === 'ongoing-trades' && <OngoingTradesPage />}
                         {activeTab === 'paired-accounts' && <PairedAccountsPage />}
+                        {activeTab === 'ongoing-trades' && <OngoingTradesPage />}
                     </div>
                 </div>
             </div>
