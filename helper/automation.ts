@@ -1,4 +1,3 @@
-'use client'
 
 import { TradingAccount } from "../types/trading_accounts"
 import axios from "axios"
