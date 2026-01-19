@@ -13,7 +13,7 @@ const UnitsList = async () => {
 
 const page = () => {
     return (
-        <div suppressHydrationWarning className="min-h-full bg-[#050505] flex flex-col">
+        <div suppressHydrationWarning className="min-h-full bg-[#050505] flex flex-col h-full">
             {/* Header Section */}
             <div className="px-6 pt-6">
                 <SearchBarHeader

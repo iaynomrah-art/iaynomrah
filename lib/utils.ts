@@ -48,3 +48,8 @@ export const hasEnvVars =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 
+export const tabs = [
+    { id: 'trading-accounts', label: 'Trading Accounts' },
+    { id: 'ongoing-trades', label: 'Ongoing Trades' },
+    { id: 'paired-accounts', label: 'Paired Accounts' },
+]

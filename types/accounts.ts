@@ -1,13 +1,16 @@
-export interface Account {
-  id: number;
-  created_at: string;
+export interface Account {  
+  
   first_name: string | null;
   last_name: string | null;
   middle_name: string | null;
   email: string;
   address: string;
   city: string;
-  province: string;
+  
+
+
+
+
   zip_code: number;
   contact_number: number;
   contact_number_2: number | null;

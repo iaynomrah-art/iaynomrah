@@ -17,7 +17,7 @@ const PackagesList = async () => {
 
 const page = () => {
     return (
-        <div suppressHydrationWarning className="p-6 bg-[#050505]">
+        <div suppressHydrationWarning className="p-6 bg-[#050505] h-full">
             <div className="flex flex-col rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-2xl overflow-hidden">
                 {/* Header Section */}
                 <Link href="/dashboard/funders/add-package" className="px-6 pt-6 pb-10">
