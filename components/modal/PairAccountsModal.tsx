@@ -189,7 +189,7 @@ export const PairAccountsModal = ({
             onConfirm(pairs)
         } catch (error: any) {
             console.error("Pairing error:", error)
-            toast.error(error.response?.data?.message || "Failed to pair accounts")
+            toast.error("Failed to pair accounts")
         }
     }
 
