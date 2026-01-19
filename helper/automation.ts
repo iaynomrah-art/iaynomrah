@@ -5,8 +5,18 @@ import axios from "axios"
 export const loginToAccount = async (account: TradingAccount) => {
     const result = await axios.post(`${account.units?.api_base_url}api/v1/runner/CtraderLogin.1.0.4.nupkg`, {     
         arguments: {
-            username: account.credentials?.username,
-            password: account.credentials?.password,
+            username: String(account.credentials?.username || ""),
+            password: String(account.credentials?.password || ""),
+        }  
+    })
+
+    return result.data
+}
+
+export const inputCtraderOrder = async (apiBaseUrl: string, payload: any) => {
+    const result = await axios.post(`${apiBaseUrl}api/v1/runner/CtraderIInputOrder.1.0.1.nupkg`, {     
+        arguments: {
+            ...payload
         }  
     })
 

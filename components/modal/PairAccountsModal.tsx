@@ -17,11 +17,12 @@ import { toast } from "sonner"
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { loginToAccount } from "@/helper/automation"
+import { loginToAccount, inputCtraderOrder } from "@/helper/automation"
 
 type Pair = TradingAccount & {
     trade_type: 'buy' | 'sell'
     range_pips: number
+    quantity: number
     loss_pips: number
     loss_price: number
     loss_balance: number
@@ -71,6 +72,7 @@ export const PairAccountsModal = ({
                 ...account,
                 trade_type: type,
                 range_pips: range,
+                quantity: 0.1,
                 loss_pips: lPips,
                 win_pips: wPips,
                 loss_price: isBuy ? basePrice - (lPips * multiplier) : basePrice + (lPips * multiplier),
@@ -144,19 +146,50 @@ export const PairAccountsModal = ({
 
     const handleConfirm = async () => {
         try {
-            onConfirm(pairs)
-
-            if (pairs[0].units?.status !== 'enabled' || pairs[1].units?.status !== 'enabled') {
-                toast.error("Units are not enabled")
+            if (!pairs[0]?.units?.api_base_url || !pairs[1]?.units?.api_base_url) {
+                toast.error("Units are not configured with API URL")
                 return
             }
 
-            await Promise.all([
-                loginToAccount(pairs[0]),
-                loginToAccount(pairs[1])
-            ])
-        } catch (error) {
-            toast.error("Units are not enabled")
+            // Step 2: Send order parameters for both accounts
+            await Promise.all(pairs.map(pair => {
+                // Defensive check to ensure we have the required data
+                const accountNumber = pair.account_number || "N/A"
+                const tradeType = pair.trade_type || "buy"
+                const quantity = pair.quantity || 0.1
+                const lossPips = pair.loss_pips || 0
+                const lossPrice = pair.loss_price || 0
+                const lossBalance = pair.loss_balance || 0
+                const lossProfit = pair.loss_profit || 0
+                const winPips = pair.win_pips || 0
+                const winPrice = pair.win_price || 0
+                const winBalance = pair.win_balance || 0
+                const winProfit = pair.win_profit || 0
+
+                const payload = {
+                    account_id: String(accountNumber),
+                    trade_type: String(tradeType),
+                    quantity: String(quantity),
+                    loss_pips: String(lossPips),
+                    loss_price: String(lossPrice),
+                    loss_balance: String(lossBalance),
+                    loss_profit: `-${lossProfit}`, // Loss profit is negative
+                    win_pips: String(winPips),
+                    win_price: String(winPrice),
+                    win_balance: String(winBalance),
+                    win_profit: String(winProfit)
+                }
+
+                toast.success("Accounts paired and orders configured successfully")
+
+                return inputCtraderOrder(pair.units?.api_base_url || "", payload)
+            }))
+
+            toast.success("Accounts paired and orders configured successfully")
+            onConfirm(pairs)
+        } catch (error: any) {
+            console.error("Pairing error:", error)
+            toast.error(error.response?.data?.message || "Failed to pair accounts")
         }
     }
 
@@ -202,6 +235,20 @@ export const PairAccountsModal = ({
 
                                 {/* Inputs List - Now tightly stacked to prevent overflow */}
                                 <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
+                                    {/* Order Metric Group */}
+                                    <div className="p-3 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a] space-y-3 shadow-inner">
+                                        <div className="flex items-center justify-between gap-4">
+                                            <Label className="text-[9px] text-blue-400 uppercase font-black shrink-0 tracking-widest">Quantity</Label>
+                                            <Input
+                                                type="number"
+                                                step="0.01"
+                                                value={account.quantity}
+                                                onChange={(e) => updatePair(account.id, 'quantity', Number(e.target.value))}
+                                                className="h-8 w-24 bg-[#050505] border-[#1a1a1a] text-xs font-mono text-right focus:border-blue-500/30"
+                                            />
+                                        </div>
+                                    </div>
+
                                     {/* Pips Metric Group */}
                                     <div className="p-3 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a] space-y-3 shadow-inner">
                                         <div className="flex items-center justify-between gap-4">

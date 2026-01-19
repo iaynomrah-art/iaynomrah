@@ -62,7 +62,7 @@ const TradingAccountsPage = () => {
             const matchesPhase = selectedPhases.length === 0 || selectedPhases.some(phase => item.package?.phase?.toLowerCase().includes(phase))
             const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(item.account_status)
 
-            const matchesPairable = !pairableOnly || (item.account_status !== 'Paired' && ['Idle', 'Trading'].includes(item.account_status))
+            const matchesPairable = !pairableOnly || (item.account_status !== 'paired' && ['idle', 'trading'].includes(item.account_status))
 
             return matchesFunder && matchesPhase && matchesStatus && matchesPairable
         })
@@ -198,7 +198,7 @@ const TradingAccountsPage = () => {
                                             : "text-muted-foreground hover:bg-[#0d0d0d] hover:text-white"
                                     )}
                                 >
-                                    <span>{status}</span>
+                                    <span className="capitalize">{status}</span>
                                     {selectedStatuses.includes(status) && <Check className="h-3 w-3" />}
                                 </button>
                             ))}

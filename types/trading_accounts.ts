@@ -3,6 +3,17 @@ import { Unit } from "./units";
 import { Package } from "./package";
 import { Credential } from "./credentials";
 
+export type TradeStatus =
+  | "idle"
+  | "trading"
+  | "paired"
+  | "abs"
+  | "brc"
+  | "brc-check"
+  | "waiting"
+  | "oh"
+  | "kyc"
+  | "for payout";
 export interface TradingAccount {
   id: number;
   created_at: string;
@@ -11,7 +22,7 @@ export interface TradingAccount {
   funder_account_id: number;
   package_id: number | null;
   challenge_type: string | null;
-  account_status: string;
+  account_status: TradeStatus;
   live_equity: number;
   daily_pnl: number;
   rdd: number;

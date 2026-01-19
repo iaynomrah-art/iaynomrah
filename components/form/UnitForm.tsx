@@ -9,7 +9,8 @@ import { Franchise } from "@/types/franchise"
 import { getFranchises } from "@/helper/franchise"
 import { createUnit, updateUnit } from "@/helper/units"
 import { toast } from "sonner"
-import { Loader2 } from "lucide-react"
+import { Loader2, ExternalLink } from "lucide-react"
+import Link from "next/link"
 
 interface UnitFormProps {
     initialData?: Unit | null
@@ -93,7 +94,17 @@ export function UnitForm({ initialData, onSuccess }: UnitFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="api_base_url">API Base URL</Label>
+                    <div className="flex items-center gap-2">
+                        <Link
+                            href={`${formData.api_base_url}`}
+                            target="_blank"
+                            className="text-blue-500 hover:text-blue-400 transition-colors flex items-center gap-1 text-[10px] font-medium"
+                        >
+                            <ExternalLink className="h-3 w-3" />
+                            <span>Root</span>
+                        </Link>
+                        <Label htmlFor="api_base_url">API Base URL</Label>
+                    </div>
                     <Input
                         id="api_base_url"
                         placeholder="http://192.168.1.100:8000"
