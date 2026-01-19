@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 
 export async function getTradingAccounts(type?: string) {
   const supabase = await createClient();
-  let query = supabase.from("trading_accounts").select("*, funders(*), units(*), package(*)");
+  let query = supabase.from("trading_accounts").select("*, funders(*), units(*), package(*), credentials(*)");
   
   if (type) {
     // Check if type matches phase or challenge_type

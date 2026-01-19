@@ -13,9 +13,11 @@ import { Button } from "@/components/ui/button"
 import { TradingAccount } from "@/types/trading_accounts"
 import { CheckSquare, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { loginToAccount } from "@/helper/automation"
 
 type Pair = TradingAccount & {
     trade_type: 'buy' | 'sell'
@@ -140,8 +142,22 @@ export const PairAccountsModal = ({
         })
     }
 
-    const handleConfirm = () => {
-        onConfirm(pairs)
+    const handleConfirm = async () => {
+        try {
+            onConfirm(pairs)
+
+            if (pairs[0].units?.status !== 'enabled' || pairs[1].units?.status !== 'enabled') {
+                toast.error("Units are not enabled")
+                return
+            }
+
+            await Promise.all([
+                loginToAccount(pairs[0]),
+                loginToAccount(pairs[1])
+            ])
+        } catch (error) {
+            toast.error("Units are not enabled")
+        }
     }
 
     return (
@@ -173,7 +189,7 @@ export const PairAccountsModal = ({
                                                     color: account.funders?.text_color || '#fff',
                                                 }}
                                             >
-                                                {account.funders?.allias || account.funder_name}
+                                                {account.funders?.allias}
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">

@@ -5,6 +5,7 @@ import { TradingAccountsTable } from "@/components/tables/TradingAccountsTable"
 import { getTradingAccounts } from "@/helper/trading_accounts"
 import { getFunders } from "@/helper/funders"
 import { Funder } from "@/types/funder"
+import { TradingAccount } from "@/types/trading_accounts"
 import { cn } from "@/lib/utils"
 import { Check, FilterX, CheckSquare } from "lucide-react"
 import { PairAccountsModal } from "../../modal/PairAccountsModal"
@@ -25,7 +26,7 @@ const STATUSES = [
 ]
 
 const TradingAccountsPage = () => {
-    const [data, setData] = useState<any[]>([])
+    const [data, setData] = useState<TradingAccount[]>([])
     const [funders, setFunders] = useState<Funder[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [selectedAccounts, setSelectedAccounts] = useState<number[]>([])
@@ -57,8 +58,8 @@ const TradingAccountsPage = () => {
 
     const filteredData = useMemo(() => {
         return data.filter(item => {
-            const matchesFunder = selectedFunders.length === 0 || selectedFunders.includes(item.funder_name)
-            const matchesPhase = selectedPhases.length === 0 || selectedPhases.includes(item.phase.toLowerCase())
+            const matchesFunder = selectedFunders.length === 0 || selectedFunders.includes(item.funders?.name || '')
+            const matchesPhase = selectedPhases.length === 0 || selectedPhases.some(phase => item.package?.phase?.toLowerCase().includes(phase))
             const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(item.account_status)
 
             const matchesPairable = !pairableOnly || (item.account_status !== 'Paired' && ['Idle', 'Trading'].includes(item.account_status))

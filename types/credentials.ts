@@ -7,6 +7,7 @@ export interface Credential {
   user_id: number | null;
   funder_id: number | null;
   password: string | null;
+  username: string | null;
   account?: Account;
   funder?: Funder;
 }

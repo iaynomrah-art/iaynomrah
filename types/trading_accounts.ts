@@ -1,18 +1,15 @@
 import { Funder } from "./funder";
 import { Unit } from "./units";
 import { Package } from "./package";
+import { Credential } from "./credentials";
 
 export interface TradingAccount {
   id: number;
   created_at: string;
   updated_at: string;
-  unit_number: string;
-  unit_id: number | null;
   account_number: string;
   funder_account_id: number;
   package_id: number | null;
-  funder_name: string;
-  funder_id: number | null;
   challenge_type: string | null;
   account_status: string;
   live_equity: number;
@@ -28,4 +25,5 @@ export interface TradingAccount {
   // Joined fields
   funders?: Funder | null;
   units?: Unit | null;
+  credentials: Credential | null
 }

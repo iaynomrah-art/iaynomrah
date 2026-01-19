@@ -30,8 +30,6 @@ type SortConfig = {
 export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelectionChange }: TradingAccountsTableProps) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: null })
 
-    console.log(data)
-
     // Filter data by type if provided (matching phase or challenge_type)
     const filteredData = useMemo(() => {
         if (!type || type === "All") return data
@@ -191,7 +189,7 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                                                     borderColor: account.funders?.allias_color ? `${account.funders.allias_color}40` : '#333'
                                                 }}
                                             >
-                                                {account.funders?.allias || account.funder_name}
+                                                {account.funders?.allias}
                                             </div>
                                             <div
                                                 className={cn(
@@ -207,7 +205,9 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                                                 {account.package?.phase || 'N/A'}
                                             </div>
                                         </div>
-                                        <span className="text-[11px] tracking-wider text-white/90">{account.account_number}</span>
+                                        <span className="text-[11px] tracking-wider text-white/90">{account.credentials?.id}</span>
+                                        <span className="text-[11px] tracking-wider text-white/90">{account.package?.name}</span>
+                                        <span className="text-[11px] tracking-wider text-white/90">{account.units?.unit_name}</span>
                                     </div>
                                 </TableCell>
                                 <TableCell className="py-6">
