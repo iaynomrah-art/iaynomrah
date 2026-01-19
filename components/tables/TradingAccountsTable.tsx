@@ -30,11 +30,13 @@ type SortConfig = {
 export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelectionChange }: TradingAccountsTableProps) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: null })
 
+    console.log(data)
+
     // Filter data by type if provided (matching phase or challenge_type)
     const filteredData = useMemo(() => {
         if (!type || type === "All") return data
         return data.filter(item =>
-            item.phase?.toLowerCase().includes(type.toLowerCase()) ||
+            item.package?.phase?.toLowerCase().includes(type.toLowerCase()) ||
             item.challenge_type?.toLowerCase().includes(type.toLowerCase())
         )
     }, [data, type])
@@ -180,15 +182,30 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                                 </TableCell>
                                 <TableCell className="text-white py-6 font-mono text-xs font-semibold">
                                     <div className="flex flex-col gap-1.5">
-                                        <div
-                                            className="px-2 py-0.5 rounded text-[10px] font-bold w-fit border border-transparent shadow-sm"
-                                            style={{
-                                                backgroundColor: account.funders?.allias_color ? `${account.funders.allias_color}20` : '#1a1a1a',
-                                                color: account.funders?.text_color || '#fff',
-                                                borderColor: account.funders?.allias_color ? `${account.funders.allias_color}40` : '#333'
-                                            }}
-                                        >
-                                            {account.funders?.allias || account.funder_name}
+                                        <div className="flex items-center gap-2">
+                                            <div
+                                                className="px-2 py-0.5 rounded text-[10px] font-bold w-fit border border-transparent shadow-sm"
+                                                style={{
+                                                    backgroundColor: account.funders?.allias_color ? `${account.funders.allias_color}20` : '#1a1a1a',
+                                                    color: account.funders?.text_color || '#fff',
+                                                    borderColor: account.funders?.allias_color ? `${account.funders.allias_color}40` : '#333'
+                                                }}
+                                            >
+                                                {account.funders?.allias || account.funder_name}
+                                            </div>
+                                            <div
+                                                className={cn(
+                                                    "px-2 py-0.5 rounded text-[10px] font-bold w-fit border shadow-sm uppercase",
+                                                    {
+                                                        'bg-blue-500/10 text-blue-400 border-blue-500/30': account.package?.phase?.toLowerCase().includes('phase 1'),
+                                                        'bg-purple-500/10 text-purple-400 border-purple-500/30': account.package?.phase?.toLowerCase().includes('phase 2'),
+                                                        'bg-emerald-500/10 text-emerald-400 border-emerald-500/30': account.package?.phase?.toLowerCase() === 'live',
+                                                        'bg-gray-500/10 text-gray-400 border-gray-500/30': !account.package?.phase
+                                                    }
+                                                )}
+                                            >
+                                                {account.package?.phase || 'N/A'}
+                                            </div>
                                         </div>
                                         <span className="text-[11px] tracking-wider text-white/90">{account.account_number}</span>
                                     </div>

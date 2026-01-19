@@ -1,5 +1,6 @@
 import { Funder } from "./funder";
 import { Unit } from "./units";
+import { Package } from "./package";
 
 export interface TradingAccount {
   id: number;
@@ -12,7 +13,6 @@ export interface TradingAccount {
   package_id: number | null;
   funder_name: string;
   funder_id: number | null;
-  phase: string;
   challenge_type: string | null;
   account_status: string;
   live_equity: number;
@@ -24,7 +24,7 @@ export interface TradingAccount {
   remaining_target_profit: number | null;
   is_connected: boolean;
   last_seen_at: string;
-  
+  package?: Package | null;
   // Joined fields
   funders?: Funder | null;
   units?: Unit | null;
