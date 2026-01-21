@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Unit, UnitStatus } from "@/types/units"
 import { Franchise } from "@/types/franchise"
 import { getFranchises } from "@/helper/franchise"
-import { createUnit, updateUnit } from "@/helper/units"
+import { createUnit, updateUnit, getUnits } from "@/helper/units"
 import { toast } from "sonner"
 import { Loader2, ExternalLink } from "lucide-react"
 import Link from "next/link"
@@ -15,14 +15,17 @@ import Link from "next/link"
 interface UnitFormProps {
     initialData?: Unit | null
     onSuccess: () => void
+    franchises?: Franchise[]
+    units?: Unit[]
 }
 
 const UNIT_STATUSES: UnitStatus[] = ["enabled", "disabled", "processing", "slow network", "not connected", "pc issue"]
 
-export function UnitForm({ initialData, onSuccess }: UnitFormProps) {
+export function UnitForm({ initialData, onSuccess, franchises: initialFranchises, units: initialUnits }: UnitFormProps) {
     const isEditing = !!initialData
     const [isLoading, setIsLoading] = useState(false)
-    const [franchises, setFranchises] = useState<Franchise[]>([])
+    const [franchises, setFranchises] = useState<Franchise[]>(initialFranchises || [])
+    const [units, setUnits] = useState<Unit[]>(initialUnits || [])
 
     const [formData, setFormData] = useState({
         unit_name: initialData?.unit_name || "",
@@ -32,12 +35,37 @@ export function UnitForm({ initialData, onSuccess }: UnitFormProps) {
     })
 
     useEffect(() => {
-        const fetchFranchises = async () => {
-            const data = await getFranchises()
-            setFranchises(data)
+        if (!initialFranchises || !initialUnits) {
+            const fetchData = async () => {
+                const [franchiseData, unitData] = await Promise.all([
+                    !initialFranchises ? getFranchises() : Promise.resolve(initialFranchises),
+                    !initialUnits ? getUnits() : Promise.resolve(initialUnits)
+                ])
+                if (!initialFranchises) setFranchises(franchiseData)
+                if (!initialUnits) setUnits(unitData)
+            }
+            fetchData()
         }
-        fetchFranchises()
-    }, [])
+    }, [initialFranchises, initialUnits])
+
+    const selectedFranchise = franchises.find(f => f.id === formData.franchise_id)
+    const franchiseUnits = units.filter(u => u.franchise_id === formData.franchise_id)
+    const nextNumber = isEditing ? 0 : (() => {
+        const numbers = franchiseUnits
+            .map(u => {
+                const parts = u.unit_name.split("-UNIT-")
+                return parts.length > 1 ? parseInt(parts[1]) : 0
+            })
+            .filter(n => !isNaN(n))
+        return Math.max(0, ...numbers) + 1
+    })()
+    const previewName = selectedFranchise ? `${selectedFranchise.code}-UNIT-${nextNumber}` : ""
+
+    useEffect(() => {
+        if (!isEditing && previewName) {
+            setFormData(prev => ({ ...prev, unit_name: previewName }))
+        }
+    }, [previewName, isEditing])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -71,8 +99,14 @@ export function UnitForm({ initialData, onSuccess }: UnitFormProps) {
                         value={formData.unit_name}
                         onChange={(e) => setFormData({ ...formData, unit_name: e.target.value })}
                         required
-                        className="bg-[#050505] border-[#1a1a1a] focus:border-blue-500/50"
+                        disabled
+                        className="bg-[#050505] border-[#1a1a1a] focus:border-blue-500/50 opacity-100"
                     />
+                    {!isEditing && previewName && (
+                        <p className="text-[10px] text-blue-500/80 font-medium">
+                            Preview: <span className="text-blue-400">{previewName}</span>
+                        </p>
+                    )}
                 </div>
 
                 <div className="space-y-2">
@@ -107,7 +141,7 @@ export function UnitForm({ initialData, onSuccess }: UnitFormProps) {
                     </div>
                     <Input
                         id="api_base_url"
-                        placeholder="http://192.168.1.100:8000"
+                        placeholder="https://api.example.com"
                         value={formData.api_base_url || ""}
                         onChange={(e) => setFormData({ ...formData, api_base_url: e.target.value })}
                         className="bg-[#050505] border-[#1a1a1a] focus:border-blue-500/50"

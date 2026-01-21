@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { UnitForm } from "../../form/UnitForm"
 import { Unit } from "@/types/units"
+import { Franchise } from "@/types/franchise"
 import Link from "next/link"
 
 interface UnitModalProps {
@@ -17,9 +18,11 @@ interface UnitModalProps {
     onClose: () => void
     initialData?: Unit | null
     onSuccess?: () => void
+    franchises?: Franchise[]
+    units?: Unit[]
 }
 
-export function UnitModal({ isOpen, onClose, initialData, onSuccess }: UnitModalProps) {
+export function UnitModal({ isOpen, onClose, initialData, onSuccess, franchises, units }: UnitModalProps) {
     const isEditing = !!initialData
 
     const handleSuccess = () => {
@@ -43,6 +46,8 @@ export function UnitModal({ isOpen, onClose, initialData, onSuccess }: UnitModal
                     <UnitForm
                         initialData={initialData}
                         onSuccess={handleSuccess}
+                        franchises={franchises}
+                        units={units}
                     />
                 </div>
             </DialogContent>

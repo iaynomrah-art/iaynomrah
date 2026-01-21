@@ -6,13 +6,14 @@ export async function getUnits() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("units")
-    .select("*, franchise(*)")
+    .select("*, franchise(*), funder_account(*)")
     .order("created_at", { ascending: false });
 
   if (error) {
     console.error("Error fetching units:", error);
     return [];
   }
+
   return data;
 }
 
@@ -49,7 +50,7 @@ export async function getUnitsWithCounts() {
     }
 
     return units.map(unit => {
-        const unitAccounts = accounts.filter(a => Number(a.unit_id) === Number(unit.id));
+        const unitAccounts = accounts.filter(a => a.unit_id === unit.id);
         
         // Group by funder alias
         const funderMap: Record<string, { count: number, allias_color: string, text_color: string }> = {};

@@ -8,7 +8,9 @@ import { UnitStatus } from "@/types/units";
 import { ArchiveUnitModal } from "@/components/modal/ArchieveUniit";
 import { toast } from "sonner";
 
-import { getUnitsWithCounts, updateUnitStatus, archiveUnit, checkUnitHealth } from "@/helper/units";
+import { getUnitsWithCounts, updateUnitStatus, archiveUnit, checkUnitHealth, getUnits } from "@/helper/units";
+import { getFranchises } from "@/helper/franchise";
+import { Franchise } from "@/types/franchise";
 import { UnitModal } from "../modal/Update/UnitModal";
 import { SearchBarHeader } from "../ui/search-bar-header";
 import { Unit } from "@/types/units";
@@ -20,6 +22,7 @@ interface UnitsRealtimeProps {
 
 export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: externalSearchQuery }: UnitsRealtimeProps, ref) => {
     const [units, setUnits] = useState(initialData);
+    const [franchises, setFranchises] = useState<Franchise[]>([]);
     const [searchQuery, setSearchQuery] = useState(externalSearchQuery || "");
 
     // Update internal search query if external prop changes
@@ -38,9 +41,13 @@ export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: exter
     const [unitToEdit, setUnitToEdit] = useState<Unit | null>(null);
 
     const fetchLatestData = async () => {
-        const latestData = await getUnitsWithCounts();
-        setUnits(latestData);
-        return latestData;
+        const [latestUnits, latestFranchises] = await Promise.all([
+            getUnitsWithCounts(),
+            getFranchises()
+        ]);
+        setUnits(latestUnits);
+        setFranchises(latestFranchises);
+        return latestUnits;
     }
 
     useEffect(() => {
@@ -48,7 +55,7 @@ export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: exter
             const data = await fetchLatestData();
 
             // Onload health check
-            data.forEach(async (unit) => {
+            /* data.forEach(async (unit) => {
                 if (unit.api_base_url && !unit.archived) {
                     const isHealthy = await checkUnitHealth(unit.api_base_url);
                     const newStatus: UnitStatus = isHealthy ? "enabled" : "not connected";
@@ -61,7 +68,7 @@ export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: exter
                         }
                     }
                 }
-            });
+            }); */
         };
 
         init();
@@ -179,6 +186,8 @@ export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: exter
                 onClose={() => setIsUnitModalOpen(false)}
                 initialData={unitToEdit}
                 onSuccess={fetchLatestData}
+                franchises={franchises}
+                units={units}
             />
         </div>
     );
