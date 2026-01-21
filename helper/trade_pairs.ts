@@ -3,20 +3,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function createTradePair(data: {
-    account_1_id: number;
-    account_1_purchase_type: string;
-    account_1_order_amount: number;
-    account_1_tp_ticks: number;
-    account_1_sl_ticks: number;
-    account_1_start_equity: number;
-    account_2_id: number;
-    account_2_purchase_type: string;
-    account_2_order_amount: number;
-    account_2_tp_ticks: number;
-    account_2_sl_ticks: number;
-    account_2_start_equity: number;
-}) {
+import { CreateTradePairDTO } from "@/types/paired";
+
+export async function createTradePair(data: CreateTradePairDTO) {
     const supabase = await createClient();
 
     // 1. Insert the pair session
@@ -56,22 +45,25 @@ export async function getActiveTradePairs() {
                 *,
                 funders(*),
                 package(*),
-                units(*)
+                units(*),
+                credentials(*)
             ),
             account_2:trading_accounts!trade_pairs_account_2_id_fkey(
                 *,
                 funders(*),
                 package(*),
-                units(*)
+                units(*),
+                credentials(*)
             )
         `)
-        .eq("status", "Active")
-        .order("created_at", { ascending: false });
+        .in("status", ["paired", "ongoing"])
 
     if (error) {
         console.error("Error fetching trade pairs:", error);
         return [];
     }
+
+    console.log(data)
 
     return data;
 }

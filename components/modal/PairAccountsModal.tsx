@@ -29,12 +29,13 @@ import { createTradePair } from "@/helper/trade_pairs"
 import Row from "@/components/ui/row"
 import PlayIcon from "@/components/ui/playicon"
 
+import { PairStatus, CreateTradePairDTO } from "@/types/paired"
+
 type Pair = TradingAccount & {
     trade_type: 'buy' | 'sell'
     order_amount: number
     tp_ticks: number
     sl_ticks: number
-    purchase_type: string
     starting_balance: number
     starting_equity: number
     latest_equity: number
@@ -87,11 +88,9 @@ export const PairAccountsModal = ({
             return {
                 ...account,
                 trade_type: type,
-                symbol: account.package?.instrument || "XAUUSD",
                 order_amount: orderAmount,
                 sl_ticks: slTicks,
                 tp_ticks: tpTicks,
-                purchase_type: account.challenge_type || "Standard",
                 starting_balance: account.package?.balance || 0,
                 starting_equity: currentEquity,
                 latest_equity: currentEquity,
@@ -104,7 +103,7 @@ export const PairAccountsModal = ({
                 win_price: isBuy ? basePrice + (tpTicks * multiplier) : basePrice - (tpTicks * multiplier),
                 loss_balance: currentEquity - lProfit,
                 win_balance: currentEquity + wProfit,
-            }
+            } as Pair
         })
         setPairs(initialPairs)
     }, [selectedAccounts, isOpen, basePrice])
