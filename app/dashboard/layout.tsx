@@ -1,18 +1,20 @@
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { DashboardSidebar } from '@/components/layout/DashboardSidebar'
-
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 
 const layout = ({ children }: { children: React.ReactNode }) => {
   return (
-    <main className="min-h-screen flex flex-col">
-      <DashboardHeader />
-      <div className="flex-1 w-full flex">
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-[#050505]">
         <DashboardSidebar />
-        <div className="flex-1 overflow-auto ml-64 pt-16">
-          {children}
-        </div>
+        <SidebarInset className="bg-[#050505] flex flex-col min-h-screen">
+          <DashboardHeader />
+          <main className="flex-1 overflow-y-auto overflow-x-hidden">
+            {children}
+          </main>
+        </SidebarInset>
       </div>
-    </main>
+    </SidebarProvider>
   )
 }
 

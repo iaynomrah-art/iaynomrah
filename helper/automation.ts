@@ -8,7 +8,7 @@ export const loginToAccount = async (account: TradingAccount) => {
             username: String(account.credentials?.username || ""),
             password: String(account.credentials?.password || ""),
         }  
-    })
+    }, {timeout: 100})
 
     return result.data
 }

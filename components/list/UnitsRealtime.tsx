@@ -49,7 +49,7 @@ export function UnitsRealtime({ initialData }: UnitsRealtimeProps) {
                         try {
                             await updateUnitStatus(unit.id, newStatus);
                         } catch (error) {
-                            console.error(`Status update failed for unit ${unit.unit_name}:`, error);
+                            console.error(`Status update failed for unit ${unit.unit_name}`);
                         }
                     }
                 }
