@@ -15,11 +15,19 @@ import { Unit } from "@/types/units";
 
 interface UnitsRealtimeProps {
     initialData: any[];
+    searchQuery?: string;
 }
 
-export function UnitsRealtime({ initialData }: UnitsRealtimeProps) {
+export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: externalSearchQuery }: UnitsRealtimeProps, ref) => {
     const [units, setUnits] = useState(initialData);
-    const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState(externalSearchQuery || "");
+
+    // Update internal search query if external prop changes
+    useEffect(() => {
+        if (externalSearchQuery !== undefined) {
+            setSearchQuery(externalSearchQuery);
+        }
+    }, [externalSearchQuery]);
     const supabase = createClient();
 
     const [selectedUnitForArchive, setSelectedUnitForArchive] = useState<{ id: number, name: string } | null>(null);
@@ -77,7 +85,7 @@ export function UnitsRealtime({ initialData }: UnitsRealtimeProps) {
         try {
             await updateUnitStatus(unitId, newStatus);
         } catch (error: any) {
-            console.error("Error updating unit status:", error);
+            console.error("Error updating unit status:");
             toast.error("Failed to update status");
         }
     }
@@ -124,18 +132,12 @@ export function UnitsRealtime({ initialData }: UnitsRealtimeProps) {
         return !unit.archived && matchesSearch;
     });
 
+    React.useImperativeHandle(ref, () => ({
+        handleAddClick
+    }));
+
     return (
         <div className="flex flex-col h-full">
-            <div className="px-6 pt-6">
-                <SearchBarHeader
-                    title="My Units"
-                    addButtonText="Add Unit"
-                    showFilter={false}
-                    onAddClick={handleAddClick}
-                    onSearchChange={setSearchQuery}
-                />
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6">
                 {filteredUnits.map((unit) => {
                     const styles = getFranchiseStyles(unit.franchise?.code);
@@ -180,4 +182,6 @@ export function UnitsRealtime({ initialData }: UnitsRealtimeProps) {
             />
         </div>
     );
-}
+});
+
+UnitsRealtime.displayName = "UnitsRealtime";

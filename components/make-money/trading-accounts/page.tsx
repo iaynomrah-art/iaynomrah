@@ -190,16 +190,16 @@ const TradingAccountsPage = () => {
                             {STATUSES.map((status) => (
                                 <button
                                     key={status}
-                                    onClick={() => toggleFilter(selectedStatuses, setSelectedStatuses, status)}
+                                    onClick={() => toggleFilter(selectedStatuses, setSelectedStatuses, status.toLowerCase())}
                                     className={cn(
                                         "flex items-center justify-between px-3 py-1.5 rounded-md text-xs transition-all",
-                                        selectedStatuses.includes(status)
+                                        selectedStatuses.includes(status.toLowerCase())
                                             ? "bg-[#1a1a1a] text-white"
                                             : "text-muted-foreground hover:bg-[#0d0d0d] hover:text-white"
                                     )}
                                 >
                                     <span className="capitalize">{status}</span>
-                                    {selectedStatuses.includes(status) && <Check className="h-3 w-3" />}
+                                    {selectedStatuses.includes(status.toLowerCase()) && <Check className="h-3 w-3" />}
                                 </button>
                             ))}
                         </div>
