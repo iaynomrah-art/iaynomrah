@@ -7,7 +7,7 @@ import { getFunders } from "@/helper/funders"
 import { Funder } from "@/types/funder"
 import { TradingAccount } from "@/types/trading_accounts"
 import { cn } from "@/lib/utils"
-import { Check, FilterX, CheckSquare } from "lucide-react"
+import { Check, FilterX, CheckSquare, X } from "lucide-react"
 import { PairAccountsModal } from "../../modal/PairAccountsModal"
 import { TradingAccountsPageSkeleton } from "../../skeleton/TradingAccountsSkeleton"
 
@@ -209,27 +209,7 @@ const TradingAccountsPage = () => {
 
             {/* Main Table Content */}
             <div className="flex-1 min-w-0 space-y-4">
-                {/* Bulk Actions Header */}
-                <div className={cn(
-                    "flex items-center justify-end transition-all duration-300 overflow-hidden",
-                    selectedAccounts.length > 0 ? "h-14 opacity-100 mb-2" : "h-0 opacity-0 mb-0"
-                )}>
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => setSelectedAccounts([])}
-                            className="text-muted-foreground hover:text-white text-xs transition-colors"
-                        >
-                            Deselect All
-                        </button>
-                        <button
-                            onClick={handlePairAccounts}
-                            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20"
-                        >
-                            <CheckSquare className="h-3.5 w-3.5" />
-                            Pair Selected Accounts
-                        </button>
-                    </div>
-                </div>
+
 
                 <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl overflow-hidden shadow-sm">
                     <TradingAccountsTable
@@ -246,6 +226,32 @@ const TradingAccountsPage = () => {
                 selectedAccounts={data.filter(acc => selectedAccounts.includes(acc.id))}
                 onConfirm={confirmPairing}
             />
+
+            {/* Floating Pair Button */}
+            <div className={cn(
+                "fixed bottom-8 right-8 z-50 flex items-center gap-0 bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl shadow-2xl transition-all duration-500 transform",
+                selectedAccounts.length > 0 ? "translate-y-0 opacity-100 scale-100" : "translate-y-20 opacity-0 scale-95 pointer-events-none"
+            )}>
+                <button
+                    onClick={handlePairAccounts}
+                    className="flex items-center gap-4 px-6 py-4 text-white hover:bg-blue-600/10 transition-all rounded-l-2xl group border-r border-[#1a1a1a]"
+                >
+                    <div className="bg-blue-600 group-hover:bg-blue-500 p-2.5 rounded-xl transition-all shadow-lg shadow-blue-600/20 group-hover:scale-110">
+                        <CheckSquare className="h-5 w-5" />
+                    </div>
+                    <div className="flex flex-col items-start leading-none gap-1.5">
+                        <span className="text-sm font-bold tracking-tight">Pair Selected</span>
+                        <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">{selectedAccounts.length} Selected</span>
+                    </div>
+                </button>
+                <button
+                    onClick={() => setSelectedAccounts([])}
+                    className="p-5 text-muted-foreground hover:text-white hover:bg-red-500/10 transition-all rounded-r-2xl group"
+                    title="Clear selection"
+                >
+                    <X className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
+                </button>
+            </div>
 
             <style dangerouslySetInnerHTML={{
                 __html: `

@@ -7,6 +7,7 @@ export interface Package {
   balance: number | null;
   phase: PackagePhase | null;
   instrument: string | null;
+  symbol: string | null;
   funder_id: number | null;
   funder?: Funder;
 }

@@ -9,28 +9,45 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { TradingAccount } from "@/types/trading_accounts"
-import { CheckSquare, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { loginToAccount, inputCtraderOrder } from "@/helper/automation"
+import { inputCtraderOrder } from "@/helper/automation"
+import { createTradePair } from "@/helper/trade_pairs"
+
+import Row from "@/components/ui/row"
+import PlayIcon from "@/components/ui/playicon"
 
 type Pair = TradingAccount & {
     trade_type: 'buy' | 'sell'
-    range_pips: number
-    quantity: number
-    loss_pips: number
-    loss_price: number
-    loss_balance: number
+    order_amount: number
+    tp_ticks: number
+    sl_ticks: number
+    purchase_type: string
+    starting_balance: number
+    starting_equity: number
+    latest_equity: number
+    daily_pnl: number
+    rdd: number
+
+    // Calculated fields for UI
     loss_profit: number
-    win_pips: number
-    win_price: number
-    win_balance: number
     win_profit: number
+    loss_balance: number
+    win_balance: number
+    loss_price: number
+    win_price: number
 }
 
 interface PairAccountsModalProps {
@@ -48,43 +65,49 @@ export const PairAccountsModal = ({
 }: PairAccountsModalProps) => {
     const [basePrice, setBasePrice] = React.useState<number>(2000)
     const [pairs, setPairs] = React.useState<Pair[]>([])
-    const multiplier = 0.01 // Adjust based on symbol if needed
+    const multiplier = 0.01 // Default tick multiplier
 
     // Initialize/Sync pairs when selectedAccounts changes
     React.useEffect(() => {
         if (!isOpen) return
 
         const initialPairs = selectedAccounts.map((account, index) => {
-            const equity = account.live_equity || 0
-            const lPips = 50
-            const wPips = 100
-            const range = lPips + wPips
+            const currentEquity = account.live_equity || 0
+            const slTicks = 50
+            const tpTicks = 100
+            const orderAmount = 0.1
 
-            // If exactly 2 accounts, make second one sell
             const type = (selectedAccounts.length === 2 && index === 1) ? 'sell' as const : 'buy' as const
             const isBuy = type === 'buy'
 
-            // Default risk 1%
-            const lProfit = equity * 0.01
-            const wProfit = lProfit * (wPips / lPips)
+            // Default risk 1% based on starting equity
+            const lProfit = currentEquity * 0.01
+            const wProfit = lProfit * (tpTicks / slTicks)
 
             return {
                 ...account,
                 trade_type: type,
-                range_pips: range,
-                quantity: 0.1,
-                loss_pips: lPips,
-                win_pips: wPips,
-                loss_price: isBuy ? basePrice - (lPips * multiplier) : basePrice + (lPips * multiplier),
-                win_price: isBuy ? basePrice + (wPips * multiplier) : basePrice - (wPips * multiplier),
+                symbol: account.package?.instrument || "XAUUSD",
+                order_amount: orderAmount,
+                sl_ticks: slTicks,
+                tp_ticks: tpTicks,
+                purchase_type: account.challenge_type || "Standard",
+                starting_balance: account.package?.balance || 0,
+                starting_equity: currentEquity,
+                latest_equity: currentEquity,
+                daily_pnl: account.daily_pnl || 0,
+                rdd: account.rdd || 0,
+
                 loss_profit: lProfit,
                 win_profit: wProfit,
-                loss_balance: equity - lProfit,
-                win_balance: equity + wProfit,
+                loss_price: isBuy ? basePrice - (slTicks * multiplier) : basePrice + (slTicks * multiplier),
+                win_price: isBuy ? basePrice + (tpTicks * multiplier) : basePrice - (tpTicks * multiplier),
+                loss_balance: currentEquity - lProfit,
+                win_balance: currentEquity + wProfit,
             }
         })
         setPairs(initialPairs)
-    }, [selectedAccounts, isOpen, basePrice, multiplier])
+    }, [selectedAccounts, isOpen, basePrice])
 
     const updatePair = (id: number, field: keyof Pair, value: any) => {
         setPairs(prev => {
@@ -93,7 +116,7 @@ export const PairAccountsModal = ({
 
             let updatedPairs = [...prev]
             let newPair = { ...updatedPairs[index], [field]: value }
-            const equity = newPair.live_equity || 0
+            const startEquity = newPair.starting_equity || 0
             let isBuy = newPair.trade_type === 'buy'
 
             // Inverse logic for 2 accounts when trade_type changes
@@ -101,44 +124,44 @@ export const PairAccountsModal = ({
                 const otherIndex = index === 0 ? 1 : 0
                 const otherType = value === 'buy' ? 'sell' : 'buy'
 
-                // Update the other pair's trade_type and recalculate its prices
                 updatedPairs[otherIndex] = {
                     ...updatedPairs[otherIndex],
                     trade_type: otherType,
                 }
                 const otherIsBuy = otherType === 'buy'
                 updatedPairs[otherIndex].loss_price = otherIsBuy
-                    ? basePrice - (updatedPairs[otherIndex].loss_pips * multiplier)
-                    : basePrice + (updatedPairs[otherIndex].loss_pips * multiplier)
+                    ? basePrice - (updatedPairs[otherIndex].sl_ticks * multiplier)
+                    : basePrice + (updatedPairs[otherIndex].sl_ticks * multiplier)
                 updatedPairs[otherIndex].win_price = otherIsBuy
-                    ? basePrice + (updatedPairs[otherIndex].win_pips * multiplier)
-                    : basePrice - (updatedPairs[otherIndex].win_pips * multiplier)
+                    ? basePrice + (updatedPairs[otherIndex].tp_ticks * multiplier)
+                    : basePrice - (updatedPairs[otherIndex].tp_ticks * multiplier)
             }
 
-            // Sync reciprocal fields
-            if (field === 'loss_pips') {
+            // Sync reciprocal fields and recalculate profits
+            if (field === 'sl_ticks') {
                 newPair.loss_price = isBuy ? basePrice - (value * multiplier) : basePrice + (value * multiplier)
-            } else if (field === 'loss_price') {
-                newPair.loss_pips = Math.abs((value - basePrice) / multiplier)
-            } else if (field === 'win_pips') {
+            } else if (field === 'tp_ticks') {
                 newPair.win_price = isBuy ? basePrice + (value * multiplier) : basePrice - (value * multiplier)
+            } else if (field === 'loss_price') {
+                newPair.sl_ticks = Math.abs((value - basePrice) / multiplier)
             } else if (field === 'win_price') {
-                newPair.win_pips = Math.abs((value - basePrice) / multiplier)
-            } else if (field === 'loss_profit') {
-                newPair.loss_balance = equity - value
-            } else if (field === 'loss_balance') {
-                newPair.loss_profit = equity - value
-            } else if (field === 'win_profit') {
-                newPair.win_balance = equity + value
-            } else if (field === 'win_balance') {
-                newPair.win_profit = value - equity
+                newPair.tp_ticks = Math.abs((value - basePrice) / multiplier)
+            } else if (field === 'starting_equity') {
+                newPair.loss_balance = value - newPair.loss_profit
+                newPair.win_balance = value + newPair.win_profit
             } else if (field === 'trade_type') {
-                isBuy = value === 'buy' // Update isBuy based on the new trade_type
-                newPair.loss_price = isBuy ? basePrice - (newPair.loss_pips * multiplier) : basePrice + (newPair.loss_pips * multiplier)
-                newPair.win_price = isBuy ? basePrice + (newPair.win_pips * multiplier) : basePrice - (newPair.win_pips * multiplier)
+                isBuy = value === 'buy'
+                newPair.loss_price = isBuy ? basePrice - (newPair.sl_ticks * multiplier) : basePrice + (newPair.sl_ticks * multiplier)
+                newPair.win_price = isBuy ? basePrice + (newPair.tp_ticks * multiplier) : basePrice - (newPair.tp_ticks * multiplier)
             }
 
-            newPair.range_pips = newPair.loss_pips + newPair.win_pips
+            // Recalculate estimated profits based on start equity and ticks/order amount
+            // This is a simplified formula, might need contract size adjustment based on symbol
+            newPair.loss_profit = startEquity * 0.01 // Keeping 1% risk as baseline for UI feedback
+            newPair.win_profit = newPair.loss_profit * (newPair.tp_ticks / newPair.sl_ticks)
+            newPair.loss_balance = startEquity - newPair.loss_profit
+            newPair.win_balance = startEquity + newPair.win_profit
+
             updatedPairs[index] = newPair
             return updatedPairs
         })
@@ -151,220 +174,161 @@ export const PairAccountsModal = ({
                 return
             }
 
-            // Step 2: Send order parameters for both accounts
+            // 1. Save to database
+            await createTradePair({
+                account_1_id: pairs[0].id,
+                account_1_purchase_type: pairs[0].trade_type,
+                account_1_order_amount: pairs[0].order_amount,
+                account_1_tp_ticks: pairs[0].tp_ticks,
+                account_1_sl_ticks: pairs[0].sl_ticks,
+                account_1_start_equity: pairs[0].starting_equity,
+                account_2_id: pairs[1].id,
+                account_2_purchase_type: pairs[1].trade_type,
+                account_2_order_amount: pairs[1].order_amount,
+                account_2_tp_ticks: pairs[1].tp_ticks,
+                account_2_sl_ticks: pairs[1].sl_ticks,
+                account_2_start_equity: pairs[1].starting_equity,
+            });
+
+            // 2. Trigger automation for both accounts
             await Promise.all(pairs.map(pair => {
-                // Defensive check to ensure we have the required data
-                const accountNumber = pair.account_number || "N/A"
-                const tradeType = pair.trade_type || "buy"
-                const quantity = pair.quantity || 0.1
-                const lossPips = pair.loss_pips || 0
-                const lossPrice = pair.loss_price || 0
-                const lossBalance = pair.loss_balance || 0
-                const lossProfit = pair.loss_profit || 0
-                const winPips = pair.win_pips || 0
-                const winPrice = pair.win_price || 0
-                const winBalance = pair.win_balance || 0
-                const winProfit = pair.win_profit || 0
-
                 const payload = {
-                    account_id: String(accountNumber),
-                    trade_type: String(tradeType),
-                    quantity: String(quantity),
-                    loss_pips: String(lossPips),
-                    loss_price: String(lossPrice),
-                    loss_balance: String(lossBalance),
-                    loss_profit: `-${lossProfit}`, // Loss profit is negative
-                    win_pips: String(winPips),
-                    win_price: String(winPrice),
-                    win_balance: String(winBalance),
-                    win_profit: String(winProfit)
+                    username: String(pair.credentials?.username || ""),
+                    password: String(pair.credentials?.password || ""),
+                    symbol: String(pair.package?.symbol || ""),
+                    order_amount: String(pair.order_amount),
+                    tp_ticks: String(pair.tp_ticks),
+                    sl_ticks: String(pair.sl_ticks),
+                    purchase_type: String(pair.trade_type),
+                    // Metadata/Tracking
+                    account_number: String(pair.account_number),
+                    starting_balance: String(pair.starting_balance),
+                    starting_equity: String(pair.starting_equity),
+                    latest_equity: String(pair.latest_equity),
+                    daily_pnl: String(pair.daily_pnl),
+                    rdd: String(pair.rdd)
                 }
-
-                toast.success("Accounts paired and orders configured successfully")
 
                 return inputCtraderOrder(pair.units?.api_base_url || "", payload)
             }))
 
-            toast.success("Accounts paired and orders configured successfully")
+            toast.success("Accounts paired and trading session initiated")
             onConfirm(pairs)
         } catch (error: any) {
             console.error("Pairing error:", error)
-            toast.error("Failed to pair accounts")
+            toast.error("Failed to initiate pairing")
         }
     }
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="bg-[#0a0a0a] border-[#1a1a1a] text-white max-w-[1600px] overflow-hidden flex flex-col max-h-[95vh] p-0">
-                {/* Visually hidden but accessible title for screen readers */}
+            <DialogContent className="bg-[#1e2329] border-[#2b3139] text-white max-w-[800px] overflow-hidden flex flex-col max-h-[95vh] p-0 gap-0 shadow-2xl">
                 <DialogTitle className="sr-only">Pair Configuration</DialogTitle>
                 <DialogDescription className="sr-only">Configure trade parameters for paired accounts.</DialogDescription>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    <div className="grid grid-cols-2 divide-x divide-[#1a1a1a] h-full">
+                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#0b0e11]">
+                    <div className="grid grid-cols-2 divide-x divide-[#2b3139]">
                         {pairs.map((account, index) => (
-                            <div
-                                key={account.id}
-                                className={cn(
-                                    "p-5 space-y-5 flex flex-col",
-                                    index === 0 ? "bg-[#050505]" : "bg-[#080808]"
-                                )}
-                            >
-                                {/* Account Identity */}
-                                <div className="flex items-center justify-between pb-4 border-b border-[#1a1a1a]">
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-lg font-mono font-bold text-white tracking-tighter uppercase">{account.account_number}</span>
-                                            <div
-                                                className="px-2 py-0.5 rounded text-[9px] font-bold border border-transparent"
-                                                style={{
-                                                    backgroundColor: account.funders?.allias_color ? `${account.funders.allias_color}20` : '#1a1a1a',
-                                                    color: account.funders?.text_color || '#fff',
-                                                }}
-                                            >
-                                                {account.funders?.allias}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[11px] text-blue-400 font-medium tracking-tight" suppressHydrationWarning>Equity: ${account.live_equity.toLocaleString()}</span>
+                            <div key={account.id} className="flex flex-col bg-[#161a1e]">
+                                {/* Header */}
+                                <div className={cn(
+                                    "px-4 py-2.5 flex items-center justify-between",
+                                    account.trade_type === 'buy' ? "bg-[#2ebc66]" : "bg-[#cf304a]"
+                                )}>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="bg-[#f0b90b] text-black px-1.5 py-0.5 rounded-[3px] text-[10px] font-black uppercase">UPFT</div>
+                                        <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate max-w-[70px]">
+                                            {account.package?.name?.split(' ')[0] || "UPTDay5..."}
                                         </div>
                                     </div>
-
-                                    <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-                                </div>
-
-                                {/* Inputs List - Now tightly stacked to prevent overflow */}
-                                <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
-                                    {/* Order Metric Group */}
-                                    <div className="p-3 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a] space-y-3 shadow-inner">
-                                        <div className="flex items-center justify-between gap-4">
-                                            <Label className="text-[9px] text-blue-400 uppercase font-black shrink-0 tracking-widest">Quantity</Label>
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={account.quantity}
-                                                onChange={(e) => updatePair(account.id, 'quantity', Number(e.target.value))}
-                                                className="h-8 w-24 bg-[#050505] border-[#1a1a1a] text-xs font-mono text-right focus:border-blue-500/30"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Pips Metric Group */}
-                                    <div className="p-3 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a] space-y-3 shadow-inner">
-                                        <div className="flex items-center justify-between gap-4">
-                                            <Label className="text-[9px] text-muted-foreground uppercase font-black shrink-0 tracking-widest">Loss Pips</Label>
-                                            <Input
-                                                type="number"
-                                                value={account.loss_pips}
-                                                onChange={(e) => updatePair(account.id, 'loss_pips', Number(e.target.value))}
-                                                className="h-8 w-24 bg-[#050505] border-[#1a1a1a] text-xs font-mono text-right focus:border-red-500/30"
-                                            />
-                                        </div>
-                                        <div className="flex items-center justify-between gap-4">
-                                            <Label className="text-[9px] text-muted-foreground uppercase font-black shrink-0 tracking-widest">Win Pips</Label>
-                                            <Input
-                                                type="number"
-                                                value={account.win_pips}
-                                                onChange={(e) => updatePair(account.id, 'win_pips', Number(e.target.value))}
-                                                className="h-8 w-24 bg-[#050505] border-[#1a1a1a] text-xs font-mono text-right focus:border-green-500/30"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Price Metric Group */}
-                                    <div className="p-3 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a] space-y-3 shadow-inner">
-                                        <div className="flex items-center justify-between gap-4">
-                                            <Label className="text-[9px] text-red-500/70 font-black uppercase shrink-0 tracking-widest">SL Price</Label>
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={account.loss_price.toFixed(2)}
-                                                onChange={(e) => updatePair(account.id, 'loss_price', Number(e.target.value))}
-                                                className="h-8 w-24 bg-[#050505] border-red-500/10 text-xs font-mono text-red-400 text-right"
-                                            />
-                                        </div>
-                                        <div className="flex items-center justify-between gap-4">
-                                            <Label className="text-[9px] text-green-500/70 font-black uppercase shrink-0 tracking-widest">TP Price</Label>
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={account.win_price.toFixed(2)}
-                                                onChange={(e) => updatePair(account.id, 'win_price', Number(e.target.value))}
-                                                className="h-8 w-24 bg-[#050505] border-green-500/10 text-xs font-mono text-green-400 text-right"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Profit Metric Group */}
-                                    <div className="p-3 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a] space-y-3 shadow-inner">
-                                        <div className="flex items-center justify-between gap-4">
-                                            <Label className="text-[9px] text-muted-foreground font-black uppercase shrink-0 tracking-widest">Loss Amount</Label>
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={account.loss_profit.toFixed(2)}
-                                                onChange={(e) => updatePair(account.id, 'loss_profit', Number(e.target.value))}
-                                                className="h-8 w-24 bg-[#050505] border-[#1a1a1a] text-xs font-mono text-right"
-                                            />
-                                        </div>
-                                        <div className="flex items-center justify-between gap-4">
-                                            <Label className="text-[9px] text-blue-400 font-black uppercase shrink-0 tracking-widest">Win Amount</Label>
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={account.win_profit.toFixed(2)}
-                                                onChange={(e) => updatePair(account.id, 'win_profit', Number(e.target.value))}
-                                                className="h-8 w-24 bg-[#050505] border-[#1a1a1a] text-xs font-mono text-blue-400 text-right"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Balance Metric Group */}
-                                    <div className="p-3 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a] space-y-3 shadow-inner">
-                                        <div className="flex items-center justify-between gap-4">
-                                            <Label className="text-[9px] text-muted-foreground font-black uppercase shrink-0 tracking-widest">Post-Loss Bal</Label>
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={account.loss_balance.toFixed(2)}
-                                                onChange={(e) => updatePair(account.id, 'loss_balance', Number(e.target.value))}
-                                                className="h-8 w-24 bg-[#050505] border-[#1a1a1a] text-xs font-mono opacity-80 text-right"
-                                            />
-                                        </div>
-                                        <div className="flex items-center justify-between gap-4">
-                                            <Label className="text-[9px] text-muted-foreground font-black uppercase shrink-0 tracking-widest">Post-Win Bal</Label>
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={account.win_balance.toFixed(2)}
-                                                onChange={(e) => updatePair(account.id, 'win_balance', Number(e.target.value))}
-                                                className="h-8 w-24 bg-[#050505] border-[#1a1a1a] text-xs font-mono opacity-80 text-right"
-                                            />
-                                        </div>
+                                    <div className="text-white font-black text-[12px] uppercase tracking-tighter">
+                                        {account.units?.unit_name || `UNIT ${account.id}`}
                                     </div>
                                 </div>
 
-                                <div className="mt-auto pt-4 border-t border-[#1a1a1a] space-y-4">
-                                    <div className="flex justify-between items-center bg-[#0a0a0a] p-2.5 rounded-lg border border-[#1a1a1a]">
-                                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Efficiency Range</span>
-                                        <span className="text-sm font-mono font-bold text-white">{account.range_pips} PIPS</span>
+                                {/* Table Grid */}
+                                <div className="divide-y divide-[#2b3139]">
+                                    <Row label="Starting Balance" value={`$${account.starting_balance.toLocaleString()}`} />
+
+                                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                                        <span className="text-[#848e9c] text-[13px] font-medium">Starting Equity</span>
+                                        <div className="flex justify-end">
+
+                                            <input
+                                                type="number"
+                                                value={account.starting_equity}
+                                                onChange={(e) => updatePair(account.id, 'starting_equity', Number(e.target.value))}
+                                                className="bg-transparent border-none text-white text-[13px] font-bold text-right focus:outline-none w-full"
+                                            />
+                                        </div>
                                     </div>
 
-                                    <div className="flex bg-[#0a0a0a] p-1 rounded-xl border border-[#1a1a1a] shadow-inner w-full">
-                                        <button
-                                            onClick={() => updatePair(account.id, 'trade_type', 'buy')}
-                                            className={cn(
-                                                "flex-1 py-3 rounded-lg text-xs font-bold transition-all",
-                                                account.trade_type === 'buy' ? "bg-green-500/10 text-green-400 shadow-sm border border-green-500/20" : "text-muted-foreground hover:text-white"
-                                            )}
-                                        >BUY</button>
-                                        <button
-                                            onClick={() => updatePair(account.id, 'trade_type', 'sell')}
-                                            className={cn(
-                                                "flex-1 py-3 rounded-lg text-xs font-bold transition-all",
-                                                account.trade_type === 'sell' ? "bg-red-500/10 text-red-400 shadow-sm border border-red-500/20" : "text-muted-foreground hover:text-white"
-                                            )}
-                                        >SELL</button>
+                                    <Row label="Latest Equity" value={`$${account.latest_equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                                    <Row label="Daily P&L" value={`$${account.daily_pnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={account.daily_pnl >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
+                                    <Row label="RDD" value={`$${account.rdd.toLocaleString()}`} />
+
+                                    {/* Actionable Fields */}
+                                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                                        <span className="text-[#848e9c] text-[13px] font-medium">Symbol</span>
+                                        <div className="flex justify-end px-2 py-0.5">
+                                            <span className="text-white text-[13px] font-bold text-right uppercase">
+                                                {account.package?.symbol || "XAUUSD"}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                                        <span className="text-[#4788ff] text-[13px] font-medium">Order Amount</span>
+                                        <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={account.order_amount}
+                                                onChange={(e) => updatePair(account.id, 'order_amount', Number(e.target.value))}
+                                                className="bg-transparent border-none text-white text-[13px] font-bold text-right focus:outline-none w-full"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                                        <span className="text-[#4788ff] text-[13px] font-medium">TP (Ticks)</span>
+                                        <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
+                                            <input
+                                                type="number"
+                                                value={account.tp_ticks}
+                                                onChange={(e) => updatePair(account.id, 'tp_ticks', Number(e.target.value))}
+                                                className="bg-transparent border-none text-white text-[13px] font-bold text-right focus:outline-none w-full"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                                        <span className="text-[#4788ff] text-[13px] font-medium">SL (Ticks)</span>
+                                        <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
+                                            <input
+                                                type="number"
+                                                value={account.sl_ticks}
+                                                onChange={(e) => updatePair(account.id, 'sl_ticks', Number(e.target.value))}
+                                                className="bg-transparent border-none text-white text-[13px] font-bold text-right focus:outline-none w-full"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Purchase Type Row */}
+                                    <div className="grid grid-cols-2 px-4 py-3 items-center hover:bg-[#2b3139]/30 transition-colors">
+                                        <span className="text-[#848e9c] text-[13px] font-medium">Purchase Type</span>
+                                        <Select
+                                            value={account.trade_type}
+                                            onValueChange={(value: 'buy' | 'sell') => updatePair(account.id, 'trade_type', value)}
+                                        >
+                                            <SelectTrigger className="bg-[#0b0e11] border-[#2b3139] h-8 text-[13px] font-bold focus:ring-0 focus:ring-offset-0">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-[#1e2329] border-[#2b3139] text-white">
+                                                <SelectItem value="buy">Buy</SelectItem>
+                                                <SelectItem value="sell">Sell</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
                             </div>
@@ -372,36 +336,36 @@ export const PairAccountsModal = ({
                     </div>
                 </div>
 
-                <DialogFooter className="px-8 py-6 bg-[#0a0a0a] border-t border-[#1a1a1a] gap-4 flex items-center justify-end">
+                {/* Footer */}
+                <DialogFooter className="px-5 py-4 bg-[#1e2329] border-t border-[#2b3139] flex items-center justify-between sm:justify-between w-full">
                     <Button
                         variant="ghost"
                         onClick={onClose}
-                        className="text-muted-foreground hover:text-white h-11 px-8 rounded-xl"
+                        className="bg-[#2a2e33] hover:bg-[#3a3e43] text-[#848e9c] h-[38px] px-8 rounded-[4px] font-bold text-[13px] border border-[#3a3e43]"
                     >
-                        Discard
+                        Cancel
                     </Button>
+
                     <Button
                         onClick={handleConfirm}
-                        className="bg-blue-600 hover:bg-blue-500 text-white h-11 px-12 rounded-xl shadow-xl shadow-blue-900/20 font-black tracking-wide"
+                        className="bg-[#2f66d4] hover:bg-[#3b7ef6] text-white h-[38px] px-5 rounded-[4px] font-bold text-[13px] flex items-center gap-2"
                     >
-                        CONFIRM PAIRING
+                        <PlayIcon className="w-3.5 h-3.5" />
+                        Initiate Pairing
                     </Button>
+
                 </DialogFooter>
 
-                <style dangerouslySetInnerHTML={{
-                    __html: `
-                    .custom-scrollbar::-webkit-scrollbar {
-                        width: 4px;
-                    }
-                    .custom-scrollbar::-webkit-scrollbar-track {
-                        background: transparent;
-                    }
-                    .custom-scrollbar::-webkit-scrollbar-thumb {
-                        background: #1a1a1a;
-                        border-radius: 10px;
-                    }
-                ` }} />
+                <style>{`
+                    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+                    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                    .custom-scrollbar::-webkit-scrollbar-thumb { background: #3a3e43; border-radius: 10px; }
+                `}</style>
             </DialogContent>
         </Dialog>
     )
 }
+
+
+
+
