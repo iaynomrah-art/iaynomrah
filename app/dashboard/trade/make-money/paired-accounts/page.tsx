@@ -2,9 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import { getActiveTradePairs } from '@/helper/trade_pairs'
-import { PairedTableSkeleton } from '../../skeleton/PairedTableSkeleton'
-import { ChevronDown, ChevronUp, X, ExternalLink } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { PairedTableSkeleton } from '@/components/skeleton/PairedTableSkeleton'
+import { ExternalLink } from 'lucide-react'
 import PairedAccountRow from '@/components/item/PairedAccountRow'
 
 
