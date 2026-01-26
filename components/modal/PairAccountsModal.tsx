@@ -40,8 +40,6 @@ type Pair = TradingAccount & {
     latest_equity: number
     daily_pnl: number
     rdd: number
-    username: string
-    password: string
 
     // Calculated fields for UI
     loss_profit: number
@@ -104,8 +102,6 @@ export const PairAccountsModal = ({
                 win_price: isBuy ? basePrice + (tpTicks * multiplier) : basePrice - (tpTicks * multiplier),
                 loss_balance: currentEquity - lProfit,
                 win_balance: currentEquity + wProfit,
-                username: account.credentials?.username || "",
-                password: account.credentials?.password || "",
             } as Pair
         })
         setPairs(initialPairs)
@@ -179,8 +175,8 @@ export const PairAccountsModal = ({
             // 2. Trigger automation for both accounts
             await Promise.all(pairs.map(pair => {
                 const payload = {
-                    username: String(pair.username),
-                    password: String(pair.password),
+                    username: String(pair.credentials?.username || ""),
+                    password: String(pair.credentials?.password || ""),
                     symbol: String(pair.package?.symbol || ""),
                     order_amount: String(pair.order_amount),
                     tp_ticks: String(pair.tp_ticks),
@@ -238,29 +234,7 @@ export const PairAccountsModal = ({
                                 <div className="divide-y divide-[#2b3139]">
                                     <Row label="Starting Balance" value={`$${account.starting_balance.toLocaleString()}`} />
 
-                                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
-                                        <span className="text-[#848e9c] text-[13px] font-medium">Username</span>
-                                        <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
-                                            <input
-                                                type="text"
-                                                value={account.username}
-                                                onChange={(e) => updatePair(account.id, 'username', e.target.value)}
-                                                className="bg-transparent border-none text-white text-[13px] font-bold text-right focus:outline-none w-full"
-                                            />
-                                        </div>
-                                    </div>
 
-                                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
-                                        <span className="text-[#848e9c] text-[13px] font-medium">Password</span>
-                                        <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
-                                            <input
-                                                type="password"
-                                                value={account.password}
-                                                onChange={(e) => updatePair(account.id, 'password', e.target.value)}
-                                                className="bg-transparent border-none text-white text-[13px] font-bold text-right focus:outline-none w-full"
-                                            />
-                                        </div>
-                                    </div>
 
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
                                         <span className="text-[#848e9c] text-[13px] font-medium">Starting Equity</span>
