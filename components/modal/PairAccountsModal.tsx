@@ -24,7 +24,6 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { inputCtraderOrder } from "@/helper/automation"
-import { createTradePair } from "@/helper/trade_pairs"
 
 import Row from "@/components/ui/row"
 import PlayIcon from "@/components/ui/playicon"
@@ -41,6 +40,8 @@ type Pair = TradingAccount & {
     latest_equity: number
     daily_pnl: number
     rdd: number
+    username: string
+    password: string
 
     // Calculated fields for UI
     loss_profit: number
@@ -103,6 +104,8 @@ export const PairAccountsModal = ({
                 win_price: isBuy ? basePrice + (tpTicks * multiplier) : basePrice - (tpTicks * multiplier),
                 loss_balance: currentEquity - lProfit,
                 win_balance: currentEquity + wProfit,
+                username: account.credentials?.username || "",
+                password: account.credentials?.password || "",
             } as Pair
         })
         setPairs(initialPairs)
@@ -173,27 +176,11 @@ export const PairAccountsModal = ({
                 return
             }
 
-            // 1. Save to database
-            await createTradePair({
-                account_1_id: pairs[0].id,
-                account_1_purchase_type: pairs[0].trade_type,
-                account_1_order_amount: pairs[0].order_amount,
-                account_1_tp_ticks: pairs[0].tp_ticks,
-                account_1_sl_ticks: pairs[0].sl_ticks,
-                account_1_start_equity: pairs[0].starting_equity,
-                account_2_id: pairs[1].id,
-                account_2_purchase_type: pairs[1].trade_type,
-                account_2_order_amount: pairs[1].order_amount,
-                account_2_tp_ticks: pairs[1].tp_ticks,
-                account_2_sl_ticks: pairs[1].sl_ticks,
-                account_2_start_equity: pairs[1].starting_equity,
-            });
-
             // 2. Trigger automation for both accounts
             await Promise.all(pairs.map(pair => {
                 const payload = {
-                    username: String(pair.credentials?.username || ""),
-                    password: String(pair.credentials?.password || ""),
+                    username: String(pair.username),
+                    password: String(pair.password),
                     symbol: String(pair.package?.symbol || ""),
                     order_amount: String(pair.order_amount),
                     tp_ticks: String(pair.tp_ticks),
@@ -207,6 +194,8 @@ export const PairAccountsModal = ({
                     daily_pnl: String(pair.daily_pnl),
                     rdd: String(pair.rdd)
                 }
+
+                console.log(payload)
 
                 return inputCtraderOrder(pair.units?.api_base_url || "", payload)
             }))
@@ -248,6 +237,30 @@ export const PairAccountsModal = ({
                                 {/* Table Grid */}
                                 <div className="divide-y divide-[#2b3139]">
                                     <Row label="Starting Balance" value={`$${account.starting_balance.toLocaleString()}`} />
+
+                                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                                        <span className="text-[#848e9c] text-[13px] font-medium">Username</span>
+                                        <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
+                                            <input
+                                                type="text"
+                                                value={account.username}
+                                                onChange={(e) => updatePair(account.id, 'username', e.target.value)}
+                                                className="bg-transparent border-none text-white text-[13px] font-bold text-right focus:outline-none w-full"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                                        <span className="text-[#848e9c] text-[13px] font-medium">Password</span>
+                                        <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
+                                            <input
+                                                type="password"
+                                                value={account.password}
+                                                onChange={(e) => updatePair(account.id, 'password', e.target.value)}
+                                                className="bg-transparent border-none text-white text-[13px] font-bold text-right focus:outline-none w-full"
+                                            />
+                                        </div>
+                                    </div>
 
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
                                         <span className="text-[#848e9c] text-[13px] font-medium">Starting Equity</span>

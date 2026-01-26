@@ -14,7 +14,7 @@ export const loginToAccount = async (account: TradingAccount) => {
 }
 
 export const inputCtraderOrder = async (apiBaseUrl: string, payload: any) => {
-    const result = await axios.post(`${apiBaseUrl}api/v1/runner/CtraderIInputOrder.1.0.1.nupkg`, {     
+    const result = await axios.post(`${apiBaseUrl}api/v1/runner/CtraderLogin.1.0.6.nupkg`, {     
         arguments: {
             ...payload
         }  

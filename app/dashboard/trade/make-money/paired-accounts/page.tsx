@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { getActiveTradePairs } from '@/helper/trade_pairs'
 import { PairedTableSkeleton } from '@/components/skeleton/PairedTableSkeleton'
 import { ExternalLink } from 'lucide-react'
 import PairedAccountRow from '@/components/item/PairedAccountRow'
@@ -12,17 +11,7 @@ const PairedAccountsPage = () => {
     const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
-        const fetchPairs = async () => {
-            try {
-                const data = await getActiveTradePairs()
-                setPairs(data)
-            } catch (error) {
-                console.error("Failed to fetch pairs:", error)
-            } finally {
-                setIsLoading(false)
-            }
-        }
-        fetchPairs()
+        setIsLoading(false)
     }, [])
 
     if (isLoading) {

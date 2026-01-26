@@ -10,20 +10,9 @@ import { cn } from "@/lib/utils"
 import { Check, FilterX, CheckSquare, X } from "lucide-react"
 import { PairAccountsModal } from "@/components/modal/PairAccountsModal"
 import { TradingAccountsPageSkeleton } from "@/components/skeleton/TradingAccountsSkeleton"
+import { useTradingFilter, PHASES, STATUSES } from "@/hooks/use-trading-filter"
 
-const PHASES = ['Live', 'phase 1', 'phase 2', 'phase 3']
-const STATUSES = [
-    'Idle',
-    'Trading',
-    'Paired',
-    'ABS',
-    'BRC',
-    'BRC-CHECK',
-    'WAITING',
-    'OH',
-    'KYC',
-    'FOR PAYOUT'
-]
+
 
 const TradingAccountsPage = () => {
     const [data, setData] = useState<TradingAccount[]>([])
@@ -31,12 +20,6 @@ const TradingAccountsPage = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [selectedAccounts, setSelectedAccounts] = useState<number[]>([])
     const [isModalOpen, setIsModalOpen] = React.useState(false)
-
-    // Filter states
-    const [selectedFunders, setSelectedFunders] = useState<string[]>([])
-    const [selectedPhases, setSelectedPhases] = useState<string[]>([])
-    const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
-    const [pairableOnly, setPairableOnly] = useState(false)
 
     useEffect(() => {
         const fetchData = async () => {
@@ -56,28 +39,19 @@ const TradingAccountsPage = () => {
         fetchData()
     }, [])
 
-    const filteredData = useMemo(() => {
-        return data.filter(item => {
-            const matchesFunder = selectedFunders.length === 0 || selectedFunders.includes(item.funders?.name || '')
-            const matchesPhase = selectedPhases.length === 0 || selectedPhases.some(phase => item.package?.phase?.toLowerCase().includes(phase))
-            const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(item.account_status)
-
-            const matchesPairable = !pairableOnly || (item.account_status !== 'paired' && ['idle', 'trading'].includes(item.account_status))
-
-            return matchesFunder && matchesPhase && matchesStatus && matchesPairable
-        })
-    }, [data, selectedFunders, selectedPhases, selectedStatuses, pairableOnly])
-
-    const toggleFilter = (list: string[], setList: Dispatch<SetStateAction<string[]>>, value: string) => {
-        setList(prev => prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value])
-    }
-
-    const resetFilters = () => {
-        setSelectedFunders([])
-        setSelectedPhases([])
-        setSelectedStatuses([])
-        setPairableOnly(false)
-    }
+    const {
+        selectedFunders,
+        setSelectedFunders,
+        selectedPhases,
+        setSelectedPhases,
+        selectedStatuses,
+        setSelectedStatuses,
+        pairableOnly,
+        setPairableOnly,
+        filteredData,
+        toggleFilter,
+        resetFilters
+    } = useTradingFilter(data)
 
     const handlePairAccounts = () => {
         setIsModalOpen(true)
