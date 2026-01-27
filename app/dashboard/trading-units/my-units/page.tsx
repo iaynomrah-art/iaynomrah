@@ -17,7 +17,6 @@ const UnitsList = () => {
             const data = await getUnitsWithCounts();
             setUnits(data);
 
-            console.log(data)
         } catch (error) {
             console.error("Failed to fetch units:", error);
         } finally {

@@ -16,7 +16,6 @@ const PairedAccountsPage = () => {
             try {
                 setIsLoading(true)
                 const data = await realTimeGetPairedAccounts()
-                console.log("Fetched Paired Accounts:", data)
                 setPairs(data)
             } catch (error) {
                 console.error("Failed to fetch pairs:", error)
