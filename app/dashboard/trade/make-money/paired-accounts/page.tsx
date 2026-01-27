@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { PairedTableSkeleton } from '@/components/skeleton/PairedTableSkeleton'
 import { ExternalLink } from 'lucide-react'
 import PairedAccountRow from '@/components/item/PairedAccountRow'
+import { realTimeGetPairedAccounts } from '@/helper/paired_accounts'
 
 
 const PairedAccountsPage = () => {
@@ -11,27 +12,32 @@ const PairedAccountsPage = () => {
     const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
-        setIsLoading(false)
+        const fetchPairs = async () => {
+            try {
+                setIsLoading(true)
+                const data = await realTimeGetPairedAccounts()
+                console.log("Fetched Paired Accounts:", data)
+                setPairs(data)
+            } catch (error) {
+                console.error("Failed to fetch pairs:", error)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+        fetchPairs()
     }, [])
 
     if (isLoading) {
         return (
             <div className="space-y-8">
-                <div className="flex flex-col gap-1">
-                    <h2 className="text-xl font-semibold text-white">Paired Accounts</h2>
-                    <p className="text-sm text-muted-foreground">Manage relationships between your parent and child accounts.</p>
-                </div>
                 <PairedTableSkeleton />
             </div>
         )
     }
 
     return (
-        <div className="animate-in fade-in duration-500 max-w-[1200px]">
-            <div className="flex flex-col gap-1 mb-8">
-                <h2 className="text-xl font-semibold text-white">Paired Accounts</h2>
-                <p className="text-sm text-muted-foreground">Monitor and manage your active trading pairs across units.</p>
-            </div>
+        <div className="animate-in fade-in duration-500 w-full">
+
 
             {pairs.length === 0 ? (
                 <div className="mt-12 flex flex-col items-center justify-center p-12 border border-dashed border-[#1a1a1a] rounded-xl bg-[#0a0a0a]/50">
@@ -44,7 +50,7 @@ const PairedAccountsPage = () => {
                     </p>
                 </div>
             ) : (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-6 items-start w-full">
                     {pairs.map((pair) => (
                         <PairedAccountRow key={pair.id} pair={pair} />
                     ))}

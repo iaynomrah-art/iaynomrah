@@ -28,7 +28,8 @@ import { inputCtraderOrder } from "@/helper/automation"
 import Row from "@/components/ui/row"
 import PlayIcon from "@/components/ui/playicon"
 
-import { PairStatus, CreateTradePairDTO } from "@/types/paired"
+import { PairStatus, CreateTradePairDTO, CreatePairedAccountDTO } from "@/types/paired"
+import { createPairedAccount } from "@/helper/paired_accounts"
 
 type Pair = TradingAccount & {
     trade_type: 'buy' | 'sell'
@@ -65,6 +66,7 @@ export const PairAccountsModal = ({
 }: PairAccountsModalProps) => {
     const [basePrice, setBasePrice] = React.useState<number>(2000)
     const [pairs, setPairs] = React.useState<Pair[]>([])
+    const [isLoading, setIsLoading] = React.useState(false)
     const multiplier = 0.01 // Default tick multiplier
 
     // Initialize/Sync pairs when selectedAccounts changes
@@ -167,6 +169,7 @@ export const PairAccountsModal = ({
 
     const handleConfirm = async () => {
         try {
+            setIsLoading(true)
             if (!pairs[0]?.units?.api_base_url || !pairs[1]?.units?.api_base_url) {
                 toast.error("Units are not configured with API URL")
                 return
@@ -196,11 +199,43 @@ export const PairAccountsModal = ({
                 return inputCtraderOrder(pair.units?.api_base_url || "", payload)
             }))
 
-            toast.success("Accounts paired and trading session initiated")
+            // 3. Create database record for the pair
+            const primary = pairs[0]
+            const secondary = pairs[1]
+
+            const pairData: CreatePairedAccountDTO = {
+                primary_account_id: String(primary.id),
+                secondary_account_id: String(secondary.id),
+                symbol: String(primary.package?.symbol || "XAUUSD"),
+
+                primary_order_amount: primary.order_amount,
+                primary_stop_loss: primary.sl_ticks,
+                primary_take_profit: primary.tp_ticks,
+                primary_order_type: primary.trade_type,
+                primary_automation_status: "initiated",
+                primary_unit_id: primary.units?.unit_id || null,
+
+                secondary_order_amount: secondary.order_amount,
+                secondary_stop_loss: secondary.sl_ticks,
+                secondary_take_profit: secondary.tp_ticks,
+                secondary_order_type: secondary.trade_type,
+                secondary_automation_status: "initiated",
+                secondary_unit_id: secondary.units?.unit_id || null,
+
+                pair_status: "paired",
+                is_active: true,
+                notes: `Paired session starting at ${new Date().toISOString()}`
+            }
+
+            await createPairedAccount(pairData)
+
+            toast.success("Accounts paired and record created")
             onConfirm(pairs)
         } catch (error: any) {
             console.error("Pairing error:", error)
-            toast.error("Failed to initiate pairing")
+            toast.error(error.message || "Failed to initiate pairing")
+        } finally {
+            setIsLoading(false)
         }
     }
 
@@ -334,10 +369,20 @@ export const PairAccountsModal = ({
 
                     <Button
                         onClick={handleConfirm}
-                        className="bg-[#2f66d4] hover:bg-[#3b7ef6] text-white h-[38px] px-5 rounded-[4px] font-bold text-[13px] flex items-center gap-2"
+                        disabled={isLoading}
+                        className="bg-[#2f66d4] hover:bg-[#3b7ef6] text-white h-[38px] px-5 rounded-[4px] font-bold text-[13px] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px]"
                     >
-                        <PlayIcon className="w-3.5 h-3.5" />
-                        Initiate Pairing
+                        {isLoading ? (
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                <span>Initiating...</span>
+                            </div>
+                        ) : (
+                            <>
+                                <PlayIcon className="w-3.5 h-3.5" />
+                                <span>Initiate Pairing</span>
+                            </>
+                        )}
                     </Button>
 
                 </DialogFooter>
