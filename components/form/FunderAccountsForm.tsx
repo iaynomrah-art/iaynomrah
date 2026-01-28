@@ -77,12 +77,23 @@ export const FunderAccountsForm = ({
     const onSubmit = async (data: FunderAccountFormValues) => {
         setIsPending(true)
         try {
+            // Find labels for the text-based columns
+            const selectedPackage = packages.find(p => p.id.toString() === data.package_id)
+            const selectedAccount = accounts.find(a => a.id.toString() === data.acount_id)
+            const selectedUnit = units.find(u => u.id.toString() === data.unit_id)
+            const selectedFunder = funders.find(f => f.id.toString() === data.funder_id)
+
             // Prepare payload with correct types and keys
             const payload = {
                 package_id: parseInt(data.package_id),
-                acount_id: parseInt(data.acount_id), // Use the 'acount_id' from type file
+                acount_id: parseInt(data.acount_id),
                 unit_id: parseInt(data.unit_id),
-                status: initialData?.status ?? true, // Maintain status if updating
+                status: initialData?.status ?? true,
+                // Denormalized text columns for easy display
+                user: selectedAccount ? `${selectedAccount.first_name} ${selectedAccount.last_name}`.trim() : null,
+                package: selectedPackage?.name || null,
+                unit: selectedUnit?.unit_name || null,
+                funder: selectedFunder?.name || null
             }
 
             if (isUpdate) {

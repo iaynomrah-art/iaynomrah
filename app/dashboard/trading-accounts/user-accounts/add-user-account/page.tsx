@@ -4,11 +4,12 @@ import { UserAccountsForm } from '@/components/form/UserAccountsForm'
 import { getAccountById } from '@/helper/accounts'
 
 interface PageProps {
-    searchParams: { [key: string]: string | string[] | undefined }
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 const AddUserAccountPage = async ({ searchParams }: PageProps) => {
-    const id = searchParams?.id ? parseInt(searchParams.id as string) : null
+    const resolvedSearchParams = await searchParams
+    const id = resolvedSearchParams?.id ? parseInt(resolvedSearchParams.id as string) : null
     const initialData = id ? await getAccountById(id) : null
 
     return (

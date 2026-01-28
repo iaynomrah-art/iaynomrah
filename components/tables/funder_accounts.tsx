@@ -19,9 +19,10 @@ import { toast } from "sonner"
 import Link from "next/link"
 
 interface FunderAccount {
-    id: number
-    status: boolean
-    created_at: string,
+    unit_name?: string | null
+    user?: string | null
+    package_name?: string | null
+    funder?: string | null
     units?: {
         unit_name: string
         [key: string]: any
@@ -75,13 +76,14 @@ export const FunderAccountsTable = ({ data }: FunderAccountsTableProps) => {
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">UNIT</TableHead>
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">NAME</TableHead>
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">ACCOUNT ID</TableHead>
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">PACKAGE</TableHead>
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">STATUS</TableHead>
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">DATE</TableHead>
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">UNIT</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">USER</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">ACCOUNT ID</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">PACKAGE</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">FUNDER</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">STATUS</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">DATE</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -95,16 +97,19 @@ export const FunderAccountsTable = ({ data }: FunderAccountsTableProps) => {
                         data.map((item) => (
                             <TableRow key={item.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
                                 <TableCell className="text-white py-4 text-sm font-medium">
-                                    {item.units?.unit_name || "-"}
+                                    {item.unit_name || item.units?.unit_name || "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
-                                    {item.accounts ? `${item.accounts.first_name} ${item.accounts.last_name}`.trim() : "-"}
+                                    {item.user || (item.accounts ? `${item.accounts.first_name} ${item.accounts.last_name}`.trim() : "-")}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
                                     {item.accounts?.id || "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
-                                    {item.package?.name || "-"}
+                                    {item.package_name || item.package?.name || "-"}
+                                </TableCell>
+                                <TableCell className="text-white py-4 text-sm">
+                                    {item.funder || item.package?.funders?.name || "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm capitalize w-fit">
                                     <Badge
@@ -115,7 +120,7 @@ export const FunderAccountsTable = ({ data }: FunderAccountsTableProps) => {
 
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
-                                    {new Date(item.created_at).toLocaleDateString()}
+                                    {item.created_at ? new Date(item.created_at).toLocaleDateString() : "-"}
                                 </TableCell>
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
@@ -158,13 +163,14 @@ export const FunderAccountsTableSkeleton = () => {
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">UNIT</TableHead>
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">NAME</TableHead>
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">ACCOUNT ID</TableHead>
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">PACKAGE</TableHead>
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">STATUS</TableHead>
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">DATE</TableHead>
-                        <TableHead className="w-1/7 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">UNIT</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">USER</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">ACCOUNT ID</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">PACKAGE</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">FUNDER</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">STATUS</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">DATE</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>

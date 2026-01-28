@@ -19,12 +19,13 @@ const page = () => {
         <div suppressHydrationWarning className="p-6 bg-[#050505] h-full">
             <div className="flex flex-col rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-2xl overflow-hidden">
                 {/* Header Section */}
-                <Link href="/dashboard/trading-accounts/funder-accounts/add-funder-account" className="px-6 pt-6 pb-10">
+                <div className="px-6 pt-6 pb-10">
                     <SearchBarHeader
                         title="Funder Accounts"
                         addButtonText="Add Funder Account"
+                        addHref="/dashboard/trading-accounts/funder-accounts/add-funder-account"
                     />
-                </Link>
+                </div>
 
                 {/* Content Section */}
                 <Suspense fallback={

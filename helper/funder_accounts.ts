@@ -9,6 +9,10 @@ export async function getFunderAccounts() {
     .from("funder_account")
     .select(`
       *,
+      user,
+      package_name:package,
+      unit_name:unit,
+      funder,
       package(*, funders(*)),
       accounts(*),
       credentials(*),
@@ -29,6 +33,10 @@ export async function getFunderAccountById(id: number) {
     .from("funder_account")
     .select(`
       *,
+      user,
+      package_name:package,
+      unit_name:unit,
+      funder,
       package(*, funders(*)),
       accounts(*),
       credentials(*),
@@ -89,15 +97,19 @@ export async function deleteFunderAccount(id: number) {
 
 export async function funderAccountsTable() {
   const supabase = await createClient();
-   const { data, error } = await supabase
+  const { data, error } = await supabase
     .from("funder_account")
     .select(`
       id,
       status,
       created_at,
-      unit:units(unit_name),
-      account:accounts(id, first_name, last_name, email),
-      package:package(name)
+      user,
+      package_name:package,
+      unit_name:unit,
+      funder,
+      unit_rel:units(unit_name),
+      account_rel:accounts(id, first_name, last_name, email),
+      package_rel:package(name)
     `)
     .order("created_at", { ascending: false });
 

@@ -7,19 +7,20 @@ import { getFunders } from '@/helper/funders'
 import { getFunderAccountById } from '@/helper/funder_accounts'
 
 interface PageProps {
-    searchParams: { [key: string]: string | string[] | undefined }
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 const AddFunderAccountPage = async ({ searchParams }: PageProps) => {
     // Parallel data fetching for efficiency
-    const [packages, accounts, units, funders] = await Promise.all([
+    const [packages, accounts, units, funders, resolvedSearchParams] = await Promise.all([
         getPackages(),
         getAccounts(),
         getUnits(),
-        getFunders()
+        getFunders(),
+        searchParams
     ])
 
-    const id = searchParams?.id ? parseInt(searchParams.id as string) : null
+    const id = resolvedSearchParams?.id ? parseInt(resolvedSearchParams.id as string) : null
     const initialData = id ? await getFunderAccountById(id) : null
 
     return (

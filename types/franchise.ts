@@ -3,6 +3,7 @@ export interface Franchise {
   created_at: string;
   name: string | null;
   code: string | null;
+  investor_name: string | null;
   description: string | null;
 }
 

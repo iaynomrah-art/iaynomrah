@@ -4,16 +4,17 @@ import { getFunders } from '@/helper/funders'
 import { getCredentialById } from '@/helper/credentials'
 
 interface PageProps {
-    searchParams: { [key: string]: string | string[] | undefined }
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 const AddCredentialsPage = async ({ searchParams }: PageProps) => {
     // Parallel fetching for performance
-    const [funders] = await Promise.all([
-        getFunders()
+    const [funders, resolvedSearchParams] = await Promise.all([
+        getFunders(),
+        searchParams
     ])
 
-    const id = searchParams?.id ? parseInt(searchParams.id as string) : null
+    const id = resolvedSearchParams?.id ? parseInt(resolvedSearchParams.id as string) : null
     const initialData = id ? await getCredentialById(id) : null
 
     return (

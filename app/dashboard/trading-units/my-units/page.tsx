@@ -5,6 +5,9 @@ import { getUnitsWithCounts } from '@/helper/units'
 import { SearchBarHeader } from '@/components/ui/search-bar-header'
 import { UnitsRealtime } from '@/components/list/UnitsRealtime'
 import { UnitSkeleton } from '@/components/skeleton/UnitSkeleton'
+import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react'
+import Link from 'next/link'
 
 const UnitsList = () => {
     const [units, setUnits] = useState<any[]>([]);
@@ -43,6 +46,17 @@ const UnitsList = () => {
                     showFilter={false}
                     onAddClick={handleAddClick}
                     onSearchChange={setSearchQuery}
+                    extraAction={
+                        <Link href="/dashboard/trading-units/franchise/add">
+                            <Button
+                                className="h-10 bg-[#16a34a] hover:bg-[#15803d] text-white font-medium px-4 gap-2 shadow-lg shadow-green-900/10 transition-all active:scale-95"
+                            >
+                                <Plus className="h-4 w-4" />
+                                <span className="hidden sm:inline">Franchise</span>
+                                <span className="sm:hidden">Franchise</span>
+                            </Button>
+                        </Link>
+                    }
                 />
             </div>
 
