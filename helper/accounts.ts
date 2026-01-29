@@ -11,7 +11,6 @@ export async function getAccounts() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching accounts:", error);
     return [];
   }
 
@@ -27,7 +26,6 @@ export async function getAccountById(id: number) {
     .single();
 
   if (error) {
-    console.error("Error fetching account:", error);
     return null;
   }
   return data;
