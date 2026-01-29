@@ -27,9 +27,11 @@ type PackageFormValues = z.infer<typeof packageSchema>
 interface PackageFormProps {
     initialData?: any | null
     funders: Funder[]
+    onSuccess?: () => void
+    onCancel?: () => void
 }
 
-export const PackageForm = ({ initialData, funders }: PackageFormProps) => {
+export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: PackageFormProps) => {
     const router = useRouter()
     const [isPending, setIsPending] = React.useState(false)
 
@@ -69,7 +71,11 @@ export const PackageForm = ({ initialData, funders }: PackageFormProps) => {
                 toast.success("Package created successfully")
             }
 
-            router.push("/dashboard/funders/packages")
+            if (onSuccess) {
+                onSuccess()
+            } else {
+                router.push("/dashboard/funders/packages")
+            }
             router.refresh()
         } catch (error: any) {
             console.error("Operation failed:", error)
@@ -182,7 +188,7 @@ export const PackageForm = ({ initialData, funders }: PackageFormProps) => {
                 <Button
                     type="button"
                     variant="ghost"
-                    onClick={() => router.back()}
+                    onClick={() => onCancel ? onCancel() : router.back()}
                     className="text-white hover:bg-gray-800 px-6"
                 >
                     Cancel

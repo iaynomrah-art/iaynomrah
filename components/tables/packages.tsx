@@ -31,9 +31,10 @@ interface Package {
 
 interface PackagesTableProps {
     data: Package[]
+    onEdit: (pkg: Package) => void
 }
 
-export const PackagesTable = ({ data }: PackagesTableProps) => {
+export const PackagesTable = ({ data, onEdit }: PackagesTableProps) => {
     const [selectedPackage, setSelectedPackage] = useState<{ id: number, name: string } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -91,12 +92,14 @@ export const PackagesTable = ({ data }: PackagesTableProps) => {
                                 <TableCell className="text-white py-4 text-sm">{item.instrument || "-"}</TableCell>
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
-                                        <Link
-                                            href={`/dashboard/funders/add-package?id=${item.id}`}
-                                            className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors"
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => onEdit(item)}
+                                            className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors"
                                         >
                                             <Pencil className="h-4 w-4" />
-                                        </Link>
+                                        </Button>
                                         <Button
                                             variant="ghost"
                                             size="icon"

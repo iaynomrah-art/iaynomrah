@@ -28,9 +28,11 @@ type FunderFormValues = z.infer<typeof funderSchema>
 
 interface FunderFormProps {
     initialData?: Funder | null
+    onSuccess?: () => void
+    onCancel?: () => void
 }
 
-export const FunderForm = ({ initialData }: FunderFormProps) => {
+export const FunderForm = ({ initialData, onSuccess, onCancel }: FunderFormProps) => {
     const router = useRouter()
     const [isPending, setIsPending] = React.useState(false)
 
@@ -103,7 +105,11 @@ export const FunderForm = ({ initialData }: FunderFormProps) => {
                 toast.success("Funder created successfully")
             }
 
-            router.push("/dashboard/funders")
+            if (onSuccess) {
+                onSuccess()
+            } else {
+                router.push("/dashboard/funders")
+            }
             router.refresh()
         } catch (error: any) {
             console.error("Operation failed:", error)
@@ -261,7 +267,7 @@ export const FunderForm = ({ initialData }: FunderFormProps) => {
                 <Button
                     type="button"
                     variant="ghost"
-                    onClick={() => router.back()}
+                    onClick={() => onCancel ? onCancel() : router.back()}
                     className="text-white hover:bg-gray-800 px-6"
                 >
                     Cancel

@@ -49,9 +49,10 @@ const formatResetTime = (time?: string | null) => {
 
 interface FundersTableProps {
     data: Funder[]
+    onEdit: (funder: Funder) => void
 }
 
-export const FundersTable = ({ data }: FundersTableProps) => {
+export const FundersTable = ({ data, onEdit }: FundersTableProps) => {
     const [selectedFunder, setSelectedFunder] = useState<{ id: number, name: string | null } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -103,12 +104,14 @@ export const FundersTable = ({ data }: FundersTableProps) => {
                                 <TableCell className="text-white py-4 text-sm">{formatResetTime(funder.reset_time)}</TableCell>
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
-                                        <Link
-                                            href={`/dashboard/funders/add-funder?id=${funder.id}`}
-                                            className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors"
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => onEdit(funder)}
+                                            className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors"
                                         >
                                             <Pencil className="h-4 w-4" />
-                                        </Link>
+                                        </Button>
                                         <Button
                                             variant="ghost"
                                             size="icon"
