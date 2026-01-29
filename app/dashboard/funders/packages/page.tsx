@@ -15,8 +15,8 @@ const PackagesPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedPackage, setSelectedPackage] = useState<any | null>(null)
 
-    const fetchData = async () => {
-        setIsLoading(true)
+    const fetchData = async (silent = false) => {
+        if (!silent) setIsLoading(true)
         try {
             const [packagesData, fundersData] = await Promise.all([
                 getPackages(),
@@ -27,7 +27,7 @@ const PackagesPage = () => {
         } catch (error) {
             console.error("Failed to fetch data:", error)
         } finally {
-            setIsLoading(false)
+            if (!silent) setIsLoading(false)
         }
     }
 
@@ -48,7 +48,12 @@ const PackagesPage = () => {
     const handleModalClose = () => {
         setIsModalOpen(false)
         setSelectedPackage(null)
-        fetchData()
+    }
+
+    const handleModalSuccess = () => {
+        setIsModalOpen(false)
+        setSelectedPackage(null)
+        fetchData(true) // Refresh silently
     }
 
     const filteredPackages = packages.filter(pkg => {
@@ -93,6 +98,7 @@ const PackagesPage = () => {
             <PackageModal
                 isOpen={isModalOpen}
                 onClose={handleModalClose}
+                onSuccess={handleModalSuccess}
                 initialData={selectedPackage}
                 funders={funders}
             />

@@ -7,10 +7,11 @@ import { Funder } from "@/types/funder"
 interface FunderModalProps {
     isOpen: boolean
     onClose: () => void
+    onSuccess: () => void
     initialData?: Funder | null
 }
 
-export function FunderModal({ isOpen, onClose, initialData }: FunderModalProps) {
+export function FunderModal({ isOpen, onClose, onSuccess, initialData }: FunderModalProps) {
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="bg-[#0a0a0a] border-[#1a1a1a] text-white max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -21,7 +22,7 @@ export function FunderModal({ isOpen, onClose, initialData }: FunderModalProps) 
                     <FunderForm
                         key={initialData?.id || 'new'}
                         initialData={initialData}
-                        onSuccess={onClose}
+                        onSuccess={onSuccess}
                         onCancel={onClose}
                     />
                 </div>

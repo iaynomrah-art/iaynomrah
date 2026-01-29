@@ -7,11 +7,12 @@ import { Funder } from "@/types/funder" // Assuming Funder type is here
 interface PackageModalProps {
     isOpen: boolean
     onClose: () => void
+    onSuccess: () => void
     initialData?: any | null
     funders: Funder[]
 }
 
-export function PackageModal({ isOpen, onClose, initialData, funders }: PackageModalProps) {
+export function PackageModal({ isOpen, onClose, onSuccess, initialData, funders }: PackageModalProps) {
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="bg-[#0a0a0a] border-[#1a1a1a] text-white max-w-md max-h-[90vh] overflow-y-auto">
@@ -23,7 +24,7 @@ export function PackageModal({ isOpen, onClose, initialData, funders }: PackageM
                         key={initialData?.id || 'new'}
                         initialData={initialData}
                         funders={funders}
-                        onSuccess={onClose}
+                        onSuccess={onSuccess}
                         onCancel={onClose}
                     />
                 </div>

@@ -14,15 +14,15 @@ const FundersPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedFunder, setSelectedFunder] = useState<any | null>(null)
 
-    const fetchFunders = async () => {
-        setIsLoading(true)
+    const fetchFunders = async (silent = false) => {
+        if (!silent) setIsLoading(true)
         try {
             const data = await getFunders()
             setFunders(data)
         } catch (error) {
             console.error("Failed to fetch funders:", error)
         } finally {
-            setIsLoading(false)
+            if (!silent) setIsLoading(false)
         }
     }
 
@@ -43,7 +43,12 @@ const FundersPage = () => {
     const handleModalClose = () => {
         setIsModalOpen(false)
         setSelectedFunder(null)
-        fetchFunders() // Refetch data to update list
+    }
+
+    const handleModalSuccess = () => {
+        setIsModalOpen(false)
+        setSelectedFunder(null)
+        fetchFunders(true) // Refresh silently
     }
 
     const filteredFunders = funders.filter(funder => {
@@ -85,6 +90,7 @@ const FundersPage = () => {
             <FunderModal
                 isOpen={isModalOpen}
                 onClose={handleModalClose}
+                onSuccess={handleModalSuccess}
                 initialData={selectedFunder}
             />
         </div>
