@@ -85,11 +85,12 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
 
     const filteredUnits = units.filter((unit: any) => {
         const query = searchQuery.toLowerCase();
-        return (
+        const matchesSearch = (
             unit.unit_name?.toLowerCase().includes(query) ||
             unit.franchise?.name?.toLowerCase().includes(query) ||
             unit.franchise?.code?.toLowerCase().includes(query)
         );
+        return !unit.archived && matchesSearch;
     });
 
     return (

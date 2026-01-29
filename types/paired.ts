@@ -1,4 +1,4 @@
-export type PairStatus = 'paired' | 'ongoing' | 'done';
+export type TradeStatus = 'paired' | 'ongoing' | 'done' | 'initializing';
 
 export type PairedTradingAccount = {
   id: string;
@@ -33,14 +33,14 @@ export type PairedTradingAccount = {
   secondary_unit_id: string | null;
   
   // Status
-  pair_status: PairStatus;
+  trade_status: TradeStatus;
   is_active: boolean;
   notes: string | null;
 };
 
 // Aliases for compatibility if needed
 export type TradePair = PairedTradingAccount;
-export type CreateTradePairDTO = Omit<PairedTradingAccount, 'id' | 'created_at' | 'updated_at' | 'pair_status' | 'is_active'>;
+export type CreateTradePairDTO = Omit<PairedTradingAccount, 'id' | 'created_at' | 'updated_at' | 'trade_status' | 'is_active'>;
 
 export type CreatePairedAccountDTO = Omit<PairedTradingAccount, 'id' | 'created_at' | 'updated_at'>;
 export type UpdatePairedAccountDTO = Partial<CreatePairedAccountDTO>;

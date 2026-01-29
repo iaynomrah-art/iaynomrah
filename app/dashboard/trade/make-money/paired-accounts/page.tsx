@@ -5,25 +5,47 @@ import { PairedTableSkeleton } from '@/components/skeleton/PairedTableSkeleton'
 import { ExternalLink } from 'lucide-react'
 import PairedAccountRow from '@/components/item/PairedAccountRow'
 import { realTimeGetPairedAccounts } from '@/helper/paired_accounts'
+import { createClient } from '@/lib/supabase/client'
 
 
 const PairedAccountsPage = () => {
     const [pairs, setPairs] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
-    useEffect(() => {
-        const fetchPairs = async () => {
-            try {
-                setIsLoading(true)
-                const data = await realTimeGetPairedAccounts()
-                setPairs(data)
-            } catch (error) {
-                console.error("Failed to fetch pairs:", error)
-            } finally {
-                setIsLoading(false)
-            }
+    const fetchPairs = async () => {
+        try {
+            const data = await realTimeGetPairedAccounts()
+            setPairs(data)
+        } catch (error) {
+            console.error("Failed to fetch pairs:", error)
+        } finally {
+            setIsLoading(false)
         }
+    }
+
+    useEffect(() => {
         fetchPairs()
+
+        // Realtime subscription
+        const supabase = createClient()
+        const channel = supabase
+            .channel('paired_accounts_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'paired_trading_accounts'
+                },
+                () => {
+                    fetchPairs()
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
     }, [])
 
     if (isLoading) {

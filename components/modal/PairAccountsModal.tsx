@@ -28,7 +28,7 @@ import { inputCtraderOrder } from "@/helper/automation"
 import Row from "@/components/ui/row"
 import PlayIcon from "@/components/ui/playicon"
 
-import { PairStatus, CreateTradePairDTO, CreatePairedAccountDTO } from "@/types/paired"
+import { TradeStatus, CreateTradePairDTO, CreatePairedAccountDTO } from "@/types/paired"
 import { createPairedAccount } from "@/helper/paired_accounts"
 
 type Pair = TradingAccount & {
@@ -222,7 +222,7 @@ export const PairAccountsModal = ({
                 secondary_automation_status: "initiated",
                 secondary_unit_id: secondary.units?.unit_id || null,
 
-                pair_status: "paired",
+                trade_status: "initializing",
                 is_active: true,
                 notes: `Paired session starting at ${new Date().toISOString()}`
             }
