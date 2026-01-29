@@ -189,23 +189,38 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                         />
                     </div>
 
-                    <div className="p-4 bg-[#161a1e] border-t border-[#2b3139] flex justify-center">
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleStartTrading();
-                            }}
-                            disabled={isStarting}
-                            className="bg-[#2ebc66] hover:bg-[#34d399] disabled:bg-[#2ebc66]/50 text-white font-bold py-3 px-12 rounded-lg flex items-center gap-2 transition-all shadow-lg active:scale-95 min-w-[200px] justify-center"
-                        >
-                            {isStarting ? (
-                                <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                            ) : (
-                                <PlayCircle className="h-5 w-5" />
-                            )}
-                            Start Trading
-                        </button>
-                    </div>
+                    {pair.trade_status === 'initializing' && (
+                        <div className="p-4 bg-[#161a1e] border-t border-[#2b3139] flex justify-center items-center">
+                            <div className="flex items-center gap-3 text-blue-500 font-bold uppercase tracking-[0.2em] text-sm animate-pulse">
+                                <div className="flex gap-1">
+                                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></span>
+                                </div>
+                                Initializing
+                            </div>
+                        </div>
+                    )}
+
+                    {pair.trade_status === 'paired' && (
+                        <div className="p-4 bg-[#161a1e] border-t border-[#2b3139] flex justify-center">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleStartTrading();
+                                }}
+                                disabled={isStarting}
+                                className="bg-[#2ebc66] hover:bg-[#34d399] disabled:bg-[#2ebc66]/50 text-white font-bold py-3 px-12 rounded-lg flex items-center gap-2 transition-all shadow-lg active:scale-95 min-w-[200px] justify-center"
+                            >
+                                {isStarting ? (
+                                    <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <PlayCircle className="h-5 w-5" />
+                                )}
+                                Start Trading
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
