@@ -2,42 +2,75 @@ import React, { Suspense } from 'react'
 import { getFunderAccounts } from '@/helper/funder_accounts'
 import { SearchBarHeader } from '@/components/ui/search-bar-header'
 import { FunderAccountsTable, FunderAccountsTableSkeleton } from '@/components/tables/funder_accounts'
-import Link from 'next/link'
+import { getPackages } from '@/helper/package'
+import { getAccounts } from '@/helper/accounts'
+import { getUnits } from '@/helper/units'
+import { getFunders } from '@/helper/funders'
+import { CreateFunderAccountDialog } from '@/components/modal/Create/AddFunderAccount'
 
-const FunderAccountsList = async () => {
+interface FunderAccountsListProps {
+    packages: any[]
+    accounts: any[]
+    units: any[]
+    funders: any[]
+}
+
+const FunderAccountsList = async ({ packages, accounts, units, funders }: FunderAccountsListProps) => {
     const data = await getFunderAccounts();
 
     return (
         <div className="px-6 pb-6">
-            <FunderAccountsTable data={data} />
+            <FunderAccountsTable
+                data={data}
+                packages={packages}
+                accounts={accounts}
+                units={units}
+                funders={funders}
+            />
         </div>
     );
 };
 
-const page = () => {
+const Page = async () => {
+    const [packages, accounts, units, funders] = await Promise.all([
+        getPackages(),
+        getAccounts(),
+        getUnits(),
+        getFunders(),
+    ])
+
     return (
         <div suppressHydrationWarning className="p-6 bg-[#050505] h-full">
             <div className="flex flex-col rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-2xl overflow-hidden">
-                {/* Header Section */}
                 <div className="px-6 pt-6 pb-10">
                     <SearchBarHeader
                         title="Funder Accounts"
-                        addButtonText="Add Funder Account"
-                        addHref="/dashboard/trading-accounts/funder-accounts/add-funder-account"
+                        actionComponent={
+                            <CreateFunderAccountDialog
+                                packages={packages}
+                                accounts={accounts}
+                                units={units}
+                                funders={funders}
+                            />
+                        }
                     />
                 </div>
 
-                {/* Content Section */}
                 <Suspense fallback={
                     <div className="px-6 pb-6">
                         <FunderAccountsTableSkeleton />
                     </div>
                 }>
-                    <FunderAccountsList />
+                    <FunderAccountsList
+                        packages={packages}
+                        accounts={accounts}
+                        units={units}
+                        funders={funders}
+                    />
                 </Suspense>
             </div>
         </div>
     )
 }
 
-export default page
+export default Page

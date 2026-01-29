@@ -34,9 +34,11 @@ type UserAccountFormValues = z.infer<typeof userAccountSchema>
 
 interface UserAccountsFormProps {
     initialData?: any | null
+    onSuccess?: () => void
+    onCancel?: () => void
 }
 
-export const UserAccountsForm = ({ initialData }: UserAccountsFormProps) => {
+export const UserAccountsForm = ({ initialData, onSuccess, onCancel }: UserAccountsFormProps) => {
     const router = useRouter()
     const [isPending, setIsPending] = React.useState(false)
     const isUpdate = !!initialData
@@ -76,8 +78,13 @@ export const UserAccountsForm = ({ initialData }: UserAccountsFormProps) => {
                 await createAccount(data)
                 toast.success("User account created successfully")
             }
-            router.push("/dashboard/trading-accounts/user-accounts")
-            router.refresh()
+
+            if (onSuccess) {
+                onSuccess()
+            } else {
+                router.push("/dashboard/trading-accounts/user-accounts")
+                router.refresh()
+            }
         } catch (error: any) {
             toast.error(error.message || "Failed to save user account")
         } finally {
@@ -85,11 +92,21 @@ export const UserAccountsForm = ({ initialData }: UserAccountsFormProps) => {
         }
     }
 
+    const handleCancel = () => {
+        if (onCancel) {
+            onCancel()
+        } else {
+            router.back()
+        }
+    }
+
     return (
         <div className="space-y-6">
-            <h1 className="text-xl font-semibold text-white tracking-tight">
-                {isUpdate ? "Update User Account" : "Add User Account"}
-            </h1>
+            {!onSuccess && (
+                <h1 className="text-xl font-semibold text-white tracking-tight">
+                    {isUpdate ? "Update User Account" : "Add User Account"}
+                </h1>
+            )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -277,7 +294,7 @@ export const UserAccountsForm = ({ initialData }: UserAccountsFormProps) => {
                     <Button
                         type="button"
                         variant="ghost"
-                        onClick={() => router.back()}
+                        onClick={handleCancel}
                         className="text-white hover:bg-gray-800 px-6"
                     >
                         Cancel

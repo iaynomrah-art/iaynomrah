@@ -5,6 +5,8 @@ import { getAccounts } from '@/helper/accounts'
 import { SearchBarHeader } from '@/components/ui/search-bar-header'
 import { AccountsTable, AccountsTableSkeleton } from '@/components/tables/accounts'
 
+import { CreateUserAccountDialog } from '@/components/modal/Create/CreateUserAccountDialog'
+
 const UserAccountsPage = () => {
     const [accounts, setAccounts] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -41,8 +43,7 @@ const UserAccountsPage = () => {
                 <div className="px-6 pt-6 pb-10">
                     <SearchBarHeader
                         title="User Accounts"
-                        addButtonText="Add User Account"
-                        addHref="/dashboard/trading-accounts/user-accounts/add-user-account"
+                        actionComponent={<CreateUserAccountDialog />}
                         showSearch={true}
                         onSearchChange={setSearchQuery}
                     />

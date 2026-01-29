@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { DeleteCredentialModal } from "@/components/modal/Delete/DeleteCredential"
 import { deleteCredential } from "@/helper/credentials"
 import Link from "next/link"
+import { EditCredentialDialog } from "@/components/modal/Edit/EditCredentialDialog"
 
 interface Credential {
     id: number
@@ -42,9 +43,10 @@ interface Credential {
 
 interface CredentialsTableProps {
     data: Credential[]
+    funders?: any[]
 }
 
-export const CredentialsTable = ({ data }: CredentialsTableProps) => {
+export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) => {
     const [copiedId, setCopiedId] = useState<number | null>(null)
     const [selectedCredential, setSelectedCredential] = useState<{ id: number, name: string } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -142,12 +144,10 @@ export const CredentialsTable = ({ data }: CredentialsTableProps) => {
                                 </TableCell>
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
-                                        <Link
-                                            href={`/dashboard/trading-accounts/credentials/add-credentials?id=${credential.id}`}
-                                            className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors"
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </Link>
+                                        <EditCredentialDialog
+                                            credential={credential}
+                                            funders={funders}
+                                        />
                                         <Button
                                             variant="ghost"
                                             size="icon"

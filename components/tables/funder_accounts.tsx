@@ -17,6 +17,7 @@ import { DeleteFunderAccountModal } from "@/components/modal/Delete/DeleteFunder
 import { deleteFunderAccount } from "@/helper/funder_accounts"
 import { toast } from "sonner"
 import Link from "next/link"
+import { EditFunderAccountDialog } from "@/components/modal/Edit/EditFunderAccountDialog"
 
 interface FunderAccount {
     unit_name?: string | null
@@ -42,9 +43,19 @@ interface FunderAccount {
 
 interface FunderAccountsTableProps {
     data: FunderAccount[]
+    packages?: any[]
+    accounts?: any[]
+    units?: any[]
+    funders?: any[]
 }
 
-export const FunderAccountsTable = ({ data }: FunderAccountsTableProps) => {
+export const FunderAccountsTable = ({
+    data,
+    packages = [],
+    accounts = [],
+    units = [],
+    funders = []
+}: FunderAccountsTableProps) => {
     const [selectedFunderAccount, setSelectedFunderAccount] = useState<{ id: number, name: string } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -124,12 +135,14 @@ export const FunderAccountsTable = ({ data }: FunderAccountsTableProps) => {
                                 </TableCell>
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
-                                        <Link
-                                            href={`/dashboard/trading-accounts/funder-accounts/add-funder-account?id=${item.id}`}
-                                            className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors"
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </Link>
+                                        <EditFunderAccountDialog
+                                            funderAccount={item}
+                                            packages={packages}
+                                            accounts={accounts}
+                                            units={units}
+                                            funders={funders}
+                                        />
+
                                         <Button
                                             variant="ghost"
                                             size="icon"
