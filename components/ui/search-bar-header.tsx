@@ -21,6 +21,8 @@ interface SearchBarHeaderProps {
     extraAction?: React.ReactNode
     className?: string
     searchAtEnd?: boolean
+    // 1. ADD THIS PROP HERE
+    actionComponent?: React.ReactNode
 }
 
 export function SearchBarHeader({
@@ -36,7 +38,9 @@ export function SearchBarHeader({
     onFilterClick,
     extraAction,
     className,
-    searchAtEnd = false
+    searchAtEnd = false,
+    // 2. DESTRUCTURE IT HERE
+    actionComponent
 }: SearchBarHeaderProps) {
     return (
         <div className={cn("flex flex-wrap items-center justify-between w-full py-2 gap-4", className)}>
@@ -78,10 +82,26 @@ export function SearchBarHeader({
                 {/* Extra Action (e.g. Phases) */}
                 {extraAction}
 
-                {/* Action Button */}
-                {addButtonText && (
-                    addHref ? (
-                        <Link href={addHref}>
+                {/* 3. UPDATED LOGIC HERE: 
+                    If actionComponent is passed (Modal), render that.
+                    Otherwise, fall back to the standard Link or Button logic.
+                */}
+                {actionComponent ? (
+                    actionComponent
+                ) : (
+                    addButtonText && (
+                        addHref ? (
+                            <Link href={addHref}>
+                                <Button
+                                    onClick={onAddClick}
+                                    className="h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 gap-2 shadow-lg shadow-blue-900/10 transition-all active:scale-95"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    <span className="hidden sm:inline">{addButtonText}</span>
+                                    <span className="sm:hidden">Add</span>
+                                </Button>
+                            </Link>
+                        ) : (
                             <Button
                                 onClick={onAddClick}
                                 className="h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 gap-2 shadow-lg shadow-blue-900/10 transition-all active:scale-95"
@@ -90,16 +110,7 @@ export function SearchBarHeader({
                                 <span className="hidden sm:inline">{addButtonText}</span>
                                 <span className="sm:hidden">Add</span>
                             </Button>
-                        </Link>
-                    ) : (
-                        <Button
-                            onClick={onAddClick}
-                            className="h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 gap-2 shadow-lg shadow-blue-900/10 transition-all active:scale-95"
-                        >
-                            <Plus className="h-4 w-4" />
-                            <span className="hidden sm:inline">{addButtonText}</span>
-                            <span className="sm:hidden">Add</span>
-                        </Button>
+                        )
                     )
                 )}
             </div>

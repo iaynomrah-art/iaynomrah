@@ -16,6 +16,7 @@ import { DeleteAccountModal } from "@/components/modal/Delete/DeleteAccount"
 import { deleteAccount } from "@/helper/accounts"
 import { toast } from "sonner"
 import Link from "next/link"
+import { EditUserAccountDialog } from "@/components/modal/Edit/EditUserAccountDialog"
 
 interface Account {
     id: number
@@ -92,12 +93,7 @@ export const AccountsTable = ({ data }: AccountsTableProps) => {
                             <TableRow key={account.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
-                                        <Link
-                                            href={`/dashboard/trading-accounts/user-accounts/add-user-account?id=${account.id}`}
-                                            className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors"
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </Link>
+                                        <EditUserAccountDialog account={account} />
                                         <Button
                                             variant="ghost"
                                             size="icon"

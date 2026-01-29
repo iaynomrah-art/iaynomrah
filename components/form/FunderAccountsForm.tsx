@@ -26,6 +26,9 @@ interface FunderAccountsFormProps {
     accounts?: any[]
     units?: any[]
     funders?: any[]
+    // Added these two props to handle Modal logic
+    onSuccess?: () => void;
+    onCancel?: () => void;
 }
 
 export const FunderAccountsForm = ({
@@ -33,7 +36,9 @@ export const FunderAccountsForm = ({
     packages = [],
     accounts = [],
     units = [],
-    funders = []
+    funders = [],
+    onSuccess, // Destructure here
+    onCancel   // Destructure here
 }: FunderAccountsFormProps) => {
     const router = useRouter()
     const [isPending, setIsPending] = React.useState(false)
@@ -103,8 +108,17 @@ export const FunderAccountsForm = ({
                 await createFunderAccount(payload)
                 toast.success("Funder account created successfully")
             }
-            router.push("/dashboard/trading-accounts/funder-accounts")
-            router.refresh()
+
+            // --- CHANGED LOGIC HERE ---
+            if (onSuccess) {
+                // If in Modal: Call parent handler to Close Modal + Refresh Data
+                onSuccess();
+            } else {
+                // If on Standalone Page: Navigate back
+                router.push("/dashboard/trading-accounts/funder-accounts")
+                router.refresh()
+            }
+
         } catch (error: any) {
             toast.error(error.message || "Failed to save funder account")
         } finally {
@@ -112,9 +126,21 @@ export const FunderAccountsForm = ({
         }
     }
 
+    // Helper for Cancel button
+    const handleCancel = () => {
+        if (onCancel) {
+            onCancel() // Close modal
+        } else {
+            router.back() // Go back in history
+        }
+    }
+
     return (
         <div className="space-y-6">
-            <h1 className="text-xl font-semibold text-white tracking-tight">Add Funder Account</h1>
+            {/* Only show Title if NOT in a modal (usually modals have their own headers) */}
+            {!onSuccess && (
+                <h1 className="text-xl font-semibold text-white tracking-tight">Add Funder Account</h1>
+            )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 {/* USER */}
@@ -208,7 +234,7 @@ export const FunderAccountsForm = ({
                     <Button
                         type="button"
                         variant="ghost"
-                        onClick={() => router.back()}
+                        onClick={handleCancel}
                         className="text-gray-400 hover:bg-[#1a1a1a] hover:text-white px-6 transition-all"
                     >
                         Cancel

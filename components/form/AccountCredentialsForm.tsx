@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -24,11 +24,16 @@ type CredentialFormValues = z.infer<typeof credentialSchema>
 interface AccountCredentialsFormProps {
     initialData?: any | null
     funders?: any[]
+    // 1. Add Modal Logic Props
+    onSuccess?: () => void;
+    onCancel?: () => void;
 }
 
 export const AccountCredentialsForm = ({
     initialData,
-    funders = []
+    funders = [],
+    onSuccess, // Destructure
+    onCancel   // Destructure
 }: AccountCredentialsFormProps) => {
     const router = useRouter()
     const [isPending, setIsPending] = React.useState(false)
@@ -63,8 +68,17 @@ export const AccountCredentialsForm = ({
                 await createCredential(payload)
                 toast.success("Credential created successfully")
             }
-            router.push("/dashboard/trading-accounts/credentials")
-            router.refresh()
+
+            // 2. Updated Navigation Logic
+            if (onSuccess) {
+                // If in Modal: Close and Refresh Parent
+                onSuccess()
+            } else {
+                // If on Page: Navigate away
+                router.push("/dashboard/trading-accounts/credentials")
+                router.refresh()
+            }
+
         } catch (error: any) {
             toast.error(error.message || "Failed to save credentials")
         } finally {
@@ -72,11 +86,23 @@ export const AccountCredentialsForm = ({
         }
     }
 
+    // 3. Helper for Cancel Button
+    const handleCancel = () => {
+        if (onCancel) {
+            onCancel() // Close modal
+        } else {
+            router.back() // Go back in history
+        }
+    }
+
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <h1 className="text-xl font-semibold text-white tracking-tight">
-                {isUpdate ? "Update Credential" : "Add Account Credentials"}
-            </h1>
+            {/* Only show title if NOT in a modal */}
+            {!onSuccess && (
+                <h1 className="text-xl font-semibold text-white tracking-tight">
+                    {isUpdate ? "Update Credential" : "Add Account Credentials"}
+                </h1>
+            )}
 
             {/* ACCOUNT NAME */}
             <div className="space-y-2">
@@ -140,7 +166,7 @@ export const AccountCredentialsForm = ({
                 <Button
                     type="button"
                     variant="ghost"
-                    onClick={() => router.back()}
+                    onClick={handleCancel}
                     className="text-gray-400 hover:bg-[#1a1a1a] hover:text-white px-6 transition-all"
                 >
                     Cancel

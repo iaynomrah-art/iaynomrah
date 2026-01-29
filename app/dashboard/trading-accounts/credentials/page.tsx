@@ -1,20 +1,25 @@
 import React, { Suspense } from 'react'
 import { getCredentials } from '@/helper/credentials'
+import { getFunders } from '@/helper/funders' // Import this
 import { SearchBarHeader } from '@/components/ui/search-bar-header'
 import { CredentialsTable, CredentialsTableSkeleton } from '@/components/tables/credentials'
-import Link from 'next/link'
+import { CreateCredentialDialog } from '@/components/modal/Create/CreateCredentials'
 
-const CredentialsList = async () => {
+
+const CredentialsList = async ({ funders }: { funders: any[] }) => {
     const credentials = await getCredentials();
-    // Transform data if necessary or pass directly if types match
     return (
         <div className="px-6 pb-6">
-            <CredentialsTable data={credentials} />
+            <CredentialsTable data={credentials} funders={funders} />
         </div>
     );
 };
 
-const page = () => {
+// Make the page async to fetch funders
+const Page = async () => {
+    // Fetch funders for the modal
+    const funders = await getFunders()
+
     return (
         <div suppressHydrationWarning className="p-6 bg-[#050505] h-full">
             <div className="flex flex-col rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-2xl overflow-hidden">
@@ -22,8 +27,10 @@ const page = () => {
                 <div className="px-6 pt-6 pb-10">
                     <SearchBarHeader
                         title="Credentials"
-                        addButtonText="Add Credential"
-                        addHref="/dashboard/trading-accounts/credentials/add-credentials"
+                        // Instead of addHref, we use actionComponent
+                        actionComponent={
+                            <CreateCredentialDialog funders={funders} />
+                        }
                     />
                 </div>
 
@@ -33,11 +40,11 @@ const page = () => {
                         <CredentialsTableSkeleton />
                     </div>
                 }>
-                    <CredentialsList />
+                    <CredentialsList funders={funders} />
                 </Suspense>
             </div>
         </div>
     )
 }
 
-export default page
+export default Page
