@@ -6,12 +6,16 @@ import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { FunderAccountsForm } from '@/components/form/FunderAccountsForm'
 import { useRouter } from 'next/navigation'
+import { Package } from '@/types/package'
+import { Account } from '@/types/accounts'
+import { Unit } from '@/types/units'
+import { Funder } from '@/types/funder'
 
 interface CreateFunderAccountDialogProps {
-    packages: any[]
-    accounts: any[]
-    units: any[]
-    funders: any[]
+    packages: Package[]
+    accounts: Account[]
+    units: Unit[]
+    funders: Funder[]
 }
 
 export const CreateFunderAccountDialog = ({

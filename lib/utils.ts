@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-
+import { AccountStatus } from "@/types/funder_accounts";
 
 
 
@@ -48,3 +48,16 @@ export const hasEnvVars =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 
+// Assign colors for each status
+export const AccountStatusColors: Record<AccountStatus, string> = {
+  idle: "#9CA3AF",        // gray
+  trading: "#10B981",     // green
+  paired: "#3B82F6",      // blue
+  abs: "#F59E0B",         // amber
+  brc: "#8B5CF6",         // purple
+  "brc-check": "#6366F1", // indigo
+  waiting: "#F87171",     // red
+  oh: "#EC4899",          // pink
+  kyc: "#2563EB",         // deep blue
+  "for payout": "#22D3EE" // cyan
+};

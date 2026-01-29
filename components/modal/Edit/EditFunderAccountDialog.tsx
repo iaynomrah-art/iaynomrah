@@ -6,13 +6,18 @@ import { Button } from '@/components/ui/button'
 import { Pencil } from 'lucide-react'
 import { FunderAccountsForm } from '@/components/form/FunderAccountsForm'
 import { useRouter } from 'next/navigation'
+import { FunderAccount } from '@/types/funder_accounts'
+import { Package } from '@/types/package'
+import { Account } from '@/types/accounts'
+import { Unit } from '@/types/units'
+import { Funder } from '@/types/funder'
 
 interface EditFunderAccountDialogProps {
-    funderAccount: any
-    packages: any[]
-    accounts: any[]
-    units: any[]
-    funders: any[]
+    funderAccount: FunderAccount
+    packages: Package[]
+    accounts: Account[]
+    units: Unit[]
+    funders: Funder[]
 }
 
 export const EditFunderAccountDialog = ({

@@ -10,6 +10,11 @@ import { Save, Loader2, ChevronDown } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { createFunderAccount, updateFunderAccount } from "@/helper/funder_accounts"
+import { FunderAccount } from "@/types/funder_accounts"
+import { Package } from "@/types/package"
+import { Account } from "@/types/accounts"
+import { Unit } from "@/types/units"
+import { Funder } from "@/types/funder"
 
 const funderAccountSchema = z.object({
     funder_id: z.string().min(1, "Funder is required"),
@@ -21,11 +26,11 @@ const funderAccountSchema = z.object({
 type FunderAccountFormValues = z.infer<typeof funderAccountSchema>
 
 interface FunderAccountsFormProps {
-    initialData?: any | null
-    packages?: any[]
-    accounts?: any[]
-    units?: any[]
-    funders?: any[]
+    initialData?: FunderAccount | null
+    packages?: Package[]
+    accounts?: Account[]
+    units?: Unit[]
+    funders?: Funder[]
     // Added these two props to handle Modal logic
     onSuccess?: () => void;
     onCancel?: () => void;
@@ -66,7 +71,7 @@ export const FunderAccountsForm = ({
     // Filter packages when funder changes
     useEffect(() => {
         if (selectedFunderId) {
-            const filtered = packages.filter(pkg => pkg.funder_id?.toString() === selectedFunderId)
+            const filtered = (packages || []).filter(pkg => pkg.funder_id?.toString() === selectedFunderId)
             setFilteredPackages(filtered)
 
             // Reset package if it's not in the filtered list (unless it's the initial load)

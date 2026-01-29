@@ -18,35 +18,19 @@ import { deleteFunderAccount } from "@/helper/funder_accounts"
 import { toast } from "sonner"
 import Link from "next/link"
 import { EditFunderAccountDialog } from "@/components/modal/Edit/EditFunderAccountDialog"
-
-interface FunderAccount {
-    unit_name?: string | null
-    user?: string | null
-    package_name?: string | null
-    funder?: string | null
-    units?: {
-        unit_name: string
-        [key: string]: any
-    } | null
-    accounts?: {
-        id: number
-        first_name: string
-        last_name: string
-        [key: string]: any
-    } | null
-    package?: {
-        name: string
-        [key: string]: any
-    } | null
-    [key: string]: any
-}
+import { AccountStatusColors } from "@/lib/utils"
+import { AccountStatus, FunderAccount } from "@/types/funder_accounts"
+import { Package } from "@/types/package"
+import { Account } from "@/types/accounts"
+import { Unit } from "@/types/units"
+import { Funder } from "@/types/funder"
 
 interface FunderAccountsTableProps {
     data: FunderAccount[]
-    packages?: any[]
-    accounts?: any[]
-    units?: any[]
-    funders?: any[]
+    packages?: Package[]
+    accounts?: Account[]
+    units?: Unit[]
+    funders?: Funder[]
 }
 
 export const FunderAccountsTable = ({
@@ -60,7 +44,7 @@ export const FunderAccountsTable = ({
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const handleDeleteClick = (id: number, firstName?: string, lastName?: string) => {
+    const handleDeleteClick = (id: number, firstName?: string | null, lastName?: string | null) => {
         const name = firstName && lastName ? `${firstName} ${lastName}` : "this funder account";
         setSelectedFunderAccount({ id, name });
         setIsDeleteModalOpen(true);
@@ -124,11 +108,16 @@ export const FunderAccountsTable = ({
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm capitalize w-fit">
                                     <Badge
-                                        className={item.status ? "bg-green-500 text-white" : "bg-red-500 text-white"}
+                                        variant="outline"
+                                        style={{
+                                            backgroundColor: `${AccountStatusColors[item.status]}15`,
+                                            color: AccountStatusColors[item.status],
+                                            borderColor: `${AccountStatusColors[item.status]}30`,
+                                        }}
+                                        className="font-bold px-3 py-1 text-[10px] uppercase tracking-wider"
                                     >
-                                        {item.status ? "Active" : "Inactive"}
+                                        {item.status}
                                     </Badge>
-
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
                                     {item.created_at ? new Date(item.created_at).toLocaleDateString() : "-"}
@@ -170,53 +159,4 @@ export const FunderAccountsTable = ({
     )
 }
 
-export const FunderAccountsTableSkeleton = () => {
-    return (
-        <div className="w-full">
-            <Table>
-                <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
-                    <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">UNIT</TableHead>
-                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">USER</TableHead>
-                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">ACCOUNT ID</TableHead>
-                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">PACKAGE</TableHead>
-                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">FUNDER</TableHead>
-                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">STATUS</TableHead>
-                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">DATE</TableHead>
-                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {[1, 2, 3, 4, 5].map((i) => (
-                        <TableRow key={i} className="border-[#1a1a1a] hover:bg-transparent">
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[150px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[60px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[100px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[100px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <div className="flex items-center gap-2">
-                                    <Skeleton className="h-8 w-8 rounded-md bg-[#1a1a1a]" />
-                                    <Skeleton className="h-8 w-8 rounded-md bg-[#1a1a1a]" />
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
-    )
-}
+

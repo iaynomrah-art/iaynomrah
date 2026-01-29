@@ -1,5 +1,6 @@
 export interface Account {  
-  
+  id: number;
+  created_at: string;
   first_name: string | null;
   last_name: string | null;
   middle_name: string | null;
