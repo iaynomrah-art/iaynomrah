@@ -4,25 +4,52 @@ import React, { Suspense, useState, useEffect } from 'react'
 import { getPackages } from '@/helper/package'
 import { SearchBarHeader } from '@/components/ui/search-bar-header'
 import { PackagesTable, PackagesTableSkeleton } from '@/components/tables/packages'
+import { PackageModal } from '@/components/modal/PackageModal'
+import { getFunders } from '@/helper/funders'
 
 const PackagesPage = () => {
     const [packages, setPackages] = useState<any[]>([])
+    const [funders, setFunders] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [selectedPackage, setSelectedPackage] = useState<any | null>(null)
+
+    const fetchData = async () => {
+        setIsLoading(true)
+        try {
+            const [packagesData, fundersData] = await Promise.all([
+                getPackages(),
+                getFunders()
+            ])
+            setPackages(packagesData)
+            setFunders(fundersData)
+        } catch (error) {
+            console.error("Failed to fetch data:", error)
+        } finally {
+            setIsLoading(false)
+        }
+    }
 
     useEffect(() => {
-        const fetchPackages = async () => {
-            try {
-                const data = await getPackages()
-                setPackages(data)
-            } catch (error) {
-                console.error("Failed to fetch packages:", error)
-            } finally {
-                setIsLoading(false)
-            }
-        }
-        fetchPackages()
+        fetchData()
     }, [])
+
+    const handleAddClick = () => {
+        setSelectedPackage(null)
+        setIsModalOpen(true)
+    }
+
+    const handleEditClick = (pkg: any) => {
+        setSelectedPackage(pkg)
+        setIsModalOpen(true)
+    }
+
+    const handleModalClose = () => {
+        setIsModalOpen(false)
+        setSelectedPackage(null)
+        fetchData()
+    }
 
     const filteredPackages = packages.filter(pkg => {
         const query = searchQuery.toLowerCase()
@@ -43,7 +70,8 @@ const PackagesPage = () => {
                     <SearchBarHeader
                         title="Packages"
                         addButtonText="Add Package"
-                        addHref="/dashboard/funders/add-package"
+                        // addHref="/dashboard/funders/add-package" // Removed
+                        onAddClick={handleAddClick}
                         showSearch={true}
                         onSearchChange={setSearchQuery}
                     />
@@ -54,10 +82,20 @@ const PackagesPage = () => {
                     {isLoading ? (
                         <PackagesTableSkeleton />
                     ) : (
-                        <PackagesTable data={filteredPackages} />
+                        <PackagesTable
+                            data={filteredPackages}
+                            onEdit={handleEditClick}
+                        />
                     )}
                 </div>
             </div>
+
+            <PackageModal
+                isOpen={isModalOpen}
+                onClose={handleModalClose}
+                initialData={selectedPackage}
+                funders={funders}
+            />
         </div>
     )
 }
