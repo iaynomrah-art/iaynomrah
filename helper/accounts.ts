@@ -7,13 +7,14 @@ export async function getAccounts() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("accounts")
-    .select("*")
+    .select("*, units(unit_name)")
     .order("created_at", { ascending: false });
 
   if (error) {
     console.error("Error fetching accounts:", error);
     return [];
   }
+
   return data;
 }
 

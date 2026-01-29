@@ -28,7 +28,7 @@ interface Account {
     contact_number_2: string
     id_type: string
     billing: string
-    server_unit?: string
+    units?: { unit_name: string } | null
     [key: string]: any
 }
 
@@ -108,7 +108,7 @@ export const AccountsTable = ({ data }: AccountsTableProps) => {
                                         </Button>
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-white py-4">{account.server_unit || "-"}</TableCell>
+                                <TableCell className="text-white py-4">{account.units?.unit_name || "-"}</TableCell>
                                 <TableCell className="text-white py-4">{account.first_name}</TableCell>
                                 <TableCell className="text-white py-4">{account.middle_name || "-"}</TableCell>
                                 <TableCell className="text-white py-4">{account.last_name}</TableCell>
