@@ -14,8 +14,8 @@ import { Funder } from '@/types/funder'
 
 import { getPackages } from '@/helper/package'
 import { getAccounts } from '@/helper/accounts'
-import { getUnits } from '@/helper/units'
 import { getFunders } from '@/helper/funders'
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface EditFunderAccountDialogProps {
     funderAccount: FunderAccount
@@ -27,7 +27,6 @@ export const EditFunderAccountDialog = ({
     const [open, setOpen] = useState(false)
     const [packages, setPackages] = useState<Package[]>([])
     const [accounts, setAccounts] = useState<Account[]>([])
-    const [units, setUnits] = useState<Unit[]>([])
     const [funders, setFunders] = useState<Funder[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
@@ -37,15 +36,13 @@ export const EditFunderAccountDialog = ({
             if (open) {
                 setIsLoading(true)
                 try {
-                    const [pkgs, accs, us, fnds] = await Promise.all([
+                    const [pkgs, accs, fnds] = await Promise.all([
                         getPackages(),
                         getAccounts(),
-                        getUnits(),
                         getFunders()
                     ])
                     setPackages(pkgs)
                     setAccounts(accs)
-                    setUnits(us)
                     setFunders(fnds)
                 } catch (error) {
                     console.error("Failed to fetch options", error)
@@ -55,7 +52,6 @@ export const EditFunderAccountDialog = ({
             } else {
                 setPackages([])
                 setAccounts([])
-                setUnits([])
                 setFunders([])
             }
         }
@@ -84,13 +80,30 @@ export const EditFunderAccountDialog = ({
 
                 <div className="mt-4">
                     {isLoading ? (
-                        <div className="flex justify-center p-8 text-muted-foreground">Loading options...</div>
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-20 bg-[#1a1a1a]" />
+                                <Skeleton className="h-11 w-full bg-[#1a1a1a]" />
+                            </div>
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-20 bg-[#1a1a1a]" />
+                                <Skeleton className="h-11 w-full bg-[#1a1a1a]" />
+                            </div>
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-20 bg-[#1a1a1a]" />
+                                <Skeleton className="h-11 w-full bg-[#1a1a1a]" />
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-6 border-t border-[#1a1a1a]">
+                                <Skeleton className="h-10 w-24 bg-[#1a1a1a]" />
+                                <Skeleton className="h-10 w-32 bg-[#1a1a1a]" />
+                            </div>
+                        </div>
                     ) : (
                         <FunderAccountsForm
                             initialData={funderAccount}
                             packages={packages}
                             accounts={accounts}
-                            units={units}
                             funders={funders}
                             onSuccess={handleSuccess}
                             onCancel={() => setOpen(false)}

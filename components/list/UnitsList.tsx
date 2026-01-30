@@ -14,8 +14,8 @@ interface UnitWithCounts extends Unit {
 interface UnitsListProps {
     units: UnitWithCounts[];
     onEdit?: (unit: Unit) => void;
-    onArchive?: (id: number, name: string) => void;
-    onStatusChange?: (id: number, status: any) => void;
+    onArchive?: (id: string, name: string) => void;
+    onStatusChange?: (id: string, status: any) => void;
 }
 
 const UnitsList = ({ units, onEdit, onArchive, onStatusChange }: UnitsListProps) => {

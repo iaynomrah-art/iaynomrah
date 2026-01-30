@@ -30,7 +30,7 @@ export interface UnitTag {
 
 
 export interface UnitCardProps {
-    id: number;
+    id: string;
     code: string;           // MJ-9
     shortName: string;      // MJ
     company?: string;       // View Plus
@@ -41,9 +41,9 @@ export interface UnitCardProps {
     badgeBg: string;        // purple-600
     badgeText: string;      // purple-100
     tags?: UnitTag[];
-    onStatusChange?: (id: number, status: UnitStatus) => void;
-    onArchive?: (id: number, name: string) => void;
-    onEdit?: (id: number) => void;
+    onStatusChange?: (id: string, status: UnitStatus) => void;
+    onArchive?: (id: string, name: string) => void;
+    onEdit?: (id: string) => void;
 }
 
 export function UnitCard({

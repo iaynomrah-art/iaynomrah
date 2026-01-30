@@ -33,7 +33,7 @@ export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: exter
     }, [externalSearchQuery]);
     const supabase = createClient();
 
-    const [selectedUnitForArchive, setSelectedUnitForArchive] = useState<{ id: number, name: string } | null>(null);
+    const [selectedUnitForArchive, setSelectedUnitForArchive] = useState<{ id: string, name: string } | null>(null);
     const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
 
@@ -88,7 +88,7 @@ export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: exter
         };
     }, []);
 
-    const handleStatusChange = async (unitId: number, newStatus: UnitStatus) => {
+    const handleStatusChange = async (unitId: string, newStatus: UnitStatus) => {
         try {
             await updateUnitStatus(unitId, newStatus);
         } catch (error: any) {
@@ -97,7 +97,7 @@ export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: exter
         }
     }
 
-    const handleArchiveClick = (id: number, name: string) => {
+    const handleArchiveClick = (id: string, name: string) => {
         setSelectedUnitForArchive({ id, name });
         setIsArchiveModalOpen(true);
     }
@@ -119,7 +119,7 @@ export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: exter
         }
     }
 
-    const handleEditClick = (id: number) => {
+    const handleEditClick = (id: string) => {
         const unit = units.find(u => u.id === id);
         if (unit) {
             setUnitToEdit(unit);

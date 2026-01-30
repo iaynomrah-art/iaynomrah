@@ -169,11 +169,14 @@ export const FunderAccountsForm = ({
                             className="flex h-11 w-full rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] text-white px-4 py-2 text-sm appearance-none focus:border-blue-500 transition-all outline-none ring-0 shadow-inner"
                         >
                             <option value="">-- Select Package --</option>
-                            {packages.map((pkg) => (
-                                <option key={pkg.id} value={pkg.id} disabled={pkg.is_used}>
-                                    {getPackageDisplayName(pkg)} {pkg.is_used ? "(Already Used)" : ""}
-                                </option>
-                            ))}
+                            {packages.map((pkg) => {
+                                const isUsed = pkg.is_used && pkg.id !== initialData?.package_id
+                                return (
+                                    <option key={pkg.id} value={pkg.id} disabled={isUsed}>
+                                        {getPackageDisplayName(pkg)} {isUsed ? "(Already Used)" : ""}
+                                    </option>
+                                )
+                            })}
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                     </div>

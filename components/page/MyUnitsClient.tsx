@@ -23,7 +23,7 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
     const [unitToEdit, setUnitToEdit] = useState<Unit | null>(null);
-    const [selectedUnitForArchive, setSelectedUnitForArchive] = useState<{ id: number, name: string } | null>(null);
+    const [selectedUnitForArchive, setSelectedUnitForArchive] = useState<{ id: string, name: string } | null>(null);
     const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
     const [isFranchiseModalOpen, setIsFranchiseModalOpen] = useState(false);
@@ -46,7 +46,7 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
         setIsUnitModalOpen(true);
     };
 
-    const handleArchive = (id: number, name: string) => {
+    const handleArchive = (id: string, name: string) => {
         setSelectedUnitForArchive({ id, name });
         setIsArchiveModalOpen(true);
     };
@@ -69,7 +69,7 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
         }
     };
 
-    const handleStatusChange = async (unitId: number, newStatus: any) => {
+    const handleStatusChange = async (unitId: string, newStatus: any) => {
         try {
             setUnits((prev: any) => prev.map((u: any) =>
                 u.id === unitId ? { ...u, status: newStatus } : u

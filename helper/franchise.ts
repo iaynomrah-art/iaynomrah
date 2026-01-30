@@ -1,4 +1,4 @@
-"use server"
+"use server";
 
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,7 +16,7 @@ export async function getFranchises() {
   return data;
 }
 
-export async function getFranchiseById(id: number) {
+export async function getFranchiseById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("franchise")
@@ -44,7 +44,7 @@ export async function createFranchise(formData: any) {
   return data;
 }
 
-export async function updateFranchise(id: number, formData: any) {
+export async function updateFranchise(id: string, formData: any) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("franchise")
@@ -58,12 +58,9 @@ export async function updateFranchise(id: number, formData: any) {
   return data;
 }
 
-export async function deleteFranchise(id: number) {
+export async function deleteFranchise(id: string) {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("franchise")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("franchise").delete().eq("id", id);
 
   if (error) {
     throw new Error(error.message);
