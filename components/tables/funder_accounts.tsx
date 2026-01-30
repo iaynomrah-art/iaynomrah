@@ -27,24 +27,16 @@ import { Funder } from "@/types/funder"
 
 interface FunderAccountsTableProps {
     data: FunderAccount[]
-    packages?: Package[]
-    accounts?: Account[]
-    units?: Unit[]
-    funders?: Funder[]
 }
 
 export const FunderAccountsTable = ({
-    data,
-    packages = [],
-    accounts = [],
-    units = [],
-    funders = []
+    data
 }: FunderAccountsTableProps) => {
-    const [selectedFunderAccount, setSelectedFunderAccount] = useState<{ id: number, name: string } | null>(null);
+    const [selectedFunderAccount, setSelectedFunderAccount] = useState<{ id: string, name: string } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const handleDeleteClick = (id: number, firstName?: string | null, lastName?: string | null) => {
+    const handleDeleteClick = (id: string, firstName?: string | null, lastName?: string | null) => {
         const name = firstName && lastName ? `${firstName} ${lastName}` : "this funder account";
         setSelectedFunderAccount({ id, name });
         setIsDeleteModalOpen(true);
@@ -95,16 +87,28 @@ export const FunderAccountsTable = ({
                                     {item.accounts?.units?.unit_name || "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
-                                    {item.user || (item.accounts ? `${item.accounts.first_name} ${item.accounts.last_name}`.trim() : "-")}
+                                    {item.accounts ? `${item.accounts.first_name} ${item.accounts.last_name}`.trim() : "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
                                     {item.accounts?.id || "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
-                                    {item.package_name || item.package?.name || "-"}
+                                    {item.package?.name || "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
-                                    {item.funder || item.package?.funders?.name || "-"}
+                                    {item.package?.funders ? (
+                                        <span
+                                            className="px-2 py-1 rounded text-xs font-bold"
+                                            style={{
+                                                backgroundColor: item.package.funders.allias_color || "#1c64f2",
+                                                color: item.package.funders.text_color || "white"
+                                            }}
+                                        >
+                                            {item.package.funders.allias || item.package.funders.name}
+                                        </span>
+                                    ) : (
+                                        "-"
+                                    )}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm capitalize w-fit">
                                     <Badge
@@ -126,10 +130,6 @@ export const FunderAccountsTable = ({
                                     <div className="flex items-center gap-2">
                                         <EditFunderAccountDialog
                                             funderAccount={item}
-                                            packages={packages}
-                                            accounts={accounts}
-                                            units={units}
-                                            funders={funders}
                                         />
 
                                         <Button

@@ -7,11 +7,9 @@ import { Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { AccountCredentialsForm } from '@/components/form/AccountCredentialsForm'
 
-interface CreateCredentialDialogProps {
-    funders: any[]
-}
+interface CreateCredentialDialogProps { }
 
-export const CreateCredentialDialog = ({ funders }: CreateCredentialDialogProps) => {
+export const CreateCredentialDialog = () => {
     const [open, setOpen] = useState(false)
     const router = useRouter()
 
@@ -37,7 +35,6 @@ export const CreateCredentialDialog = ({ funders }: CreateCredentialDialogProps)
 
                 <div className="mt-4">
                     <AccountCredentialsForm
-                        funders={funders}
                         onSuccess={handleSuccess}
                         onCancel={() => setOpen(false)}
                     />

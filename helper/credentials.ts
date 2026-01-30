@@ -1,4 +1,4 @@
-"use server"
+"use server";
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -7,7 +7,7 @@ export async function getCredentials() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("credentials")
-    .select("*, funders(*)")
+    .select("*, funder_account!funder_account_credential_id_fkey(*)")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -17,11 +17,11 @@ export async function getCredentials() {
   return data;
 }
 
-export async function getCredentialById(id: number) {
+export async function getCredentialById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("credentials")
-    .select("*, funders(*)")
+    .select("*")
     .eq("id", id)
     .single();
 
@@ -46,7 +46,7 @@ export async function createCredential(formData: any) {
   return data;
 }
 
-export async function updateCredential(id: number, formData: any) {
+export async function updateCredential(id: string, formData: any) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("credentials")
@@ -61,12 +61,9 @@ export async function updateCredential(id: number, formData: any) {
   return data;
 }
 
-export async function deleteCredential(id: number) {
+export async function deleteCredential(id: string) {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("credentials")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("credentials").delete().eq("id", id);
 
   if (error) {
     throw new Error(error.message);
@@ -75,17 +72,24 @@ export async function deleteCredential(id: number) {
   return true;
 }
 
-
 export async function credentialsTable() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("credentials")
-    .select(`
+    .select(
+      `
       id,
+      name,
+      username,
       password,
-      account:accounts!user_id(first_name, last_name, email),
-      funder:funders(name, allias, allias_color, text_color)
-    `)
+      funder_account!funder_account_credential_id_fkey(
+        id,
+        package(
+          funders(name, allias, allias_color, text_color)
+        )
+      )
+    `,
+    )
     .order("created_at", { ascending: false });
 
   if (error) {

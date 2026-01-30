@@ -1,4 +1,4 @@
-"use server"
+"use server";
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -14,8 +14,6 @@ export async function getPackages() {
     console.error("Error fetching packages:", error);
     return [];
   }
-
-  console.log(data)
 
   return data;
 }
@@ -66,10 +64,7 @@ export async function updatePackage(id: string, formData: any) {
 
 export async function deletePackage(id: string) {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("package")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("package").delete().eq("id", id);
 
   if (error) {
     throw new Error(error.message);
@@ -80,16 +75,14 @@ export async function deletePackage(id: string) {
 
 export async function packageTable() {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("package")
-    .select(`
+  const { data, error } = await supabase.from("package").select(`
       id,
       name,
       balance,
       phase,
       instrument,
       funder:funders(name)
-    `)
+    `);
 
   if (error) {
     console.error("Error fetching package table data:", error);

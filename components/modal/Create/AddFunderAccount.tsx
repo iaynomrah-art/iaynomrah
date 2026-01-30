@@ -11,21 +11,50 @@ import { Account } from '@/types/accounts'
 import { Unit } from '@/types/units'
 import { Funder } from '@/types/funder'
 
-interface CreateFunderAccountDialogProps {
-    packages: Package[]
-    accounts: Account[]
-    units: Unit[]
-    funders: Funder[]
-}
+import { getPackages } from '@/helper/package'
+import { getAccounts } from '@/helper/accounts'
+import { getUnits } from '@/helper/units'
+import { getFunders } from '@/helper/funders'
 
-export const CreateFunderAccountDialog = ({
-    packages,
-    accounts,
-    units,
-    funders
-}: CreateFunderAccountDialogProps) => {
+export const CreateFunderAccountDialog = () => {
     const [open, setOpen] = useState(false)
+    const [packages, setPackages] = useState<Package[]>([])
+    const [accounts, setAccounts] = useState<Account[]>([])
+    const [units, setUnits] = useState<Unit[]>([])
+    const [funders, setFunders] = useState<Funder[]>([])
+    const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
+
+    React.useEffect(() => {
+        const fetchOptions = async () => {
+            if (open) {
+                setIsLoading(true)
+                try {
+                    const [pkgs, accs, us, fnds] = await Promise.all([
+                        getPackages(),
+                        getAccounts(),
+                        getUnits(),
+                        getFunders()
+                    ])
+                    setPackages(pkgs)
+                    setAccounts(accs)
+                    setUnits(us)
+                    setFunders(fnds)
+                } catch (error) {
+                    console.error("Failed to fetch options", error)
+                } finally {
+                    setIsLoading(false)
+                }
+            } else {
+                // Clear data when dialog closes
+                setPackages([])
+                setAccounts([])
+                setUnits([])
+                setFunders([])
+            }
+        }
+        fetchOptions()
+    }, [open])
 
     const handleSuccess = () => {
         setOpen(false)
@@ -48,14 +77,18 @@ export const CreateFunderAccountDialog = ({
                 </DialogHeader>
 
                 <div className="mt-4">
-                    <FunderAccountsForm
-                        packages={packages}
-                        accounts={accounts}
-                        units={units}
-                        funders={funders}
-                        onSuccess={handleSuccess}
-                        onCancel={() => setOpen(false)}
-                    />
+                    {isLoading ? (
+                        <div className="flex justify-center p-8 text-muted-foreground">Loading options...</div>
+                    ) : (
+                        <FunderAccountsForm
+                            packages={packages}
+                            accounts={accounts}
+                            units={units}
+                            funders={funders}
+                            onSuccess={handleSuccess}
+                            onCancel={() => setOpen(false)}
+                        />
+                    )}
                 </div>
             </DialogContent>
         </Dialog>

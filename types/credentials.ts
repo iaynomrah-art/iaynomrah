@@ -1,16 +1,10 @@
-import { Account } from "./accounts";
-import { Funder } from "./funder";
-
 export interface Credential {
-  id: number;
+  id: string;
   created_at: string;
-  user_id: number | null;
-  funder_id: number | null;
   password: string | null;
   username: string | null;
-  account?: Account;
-  funder?: Funder;
+  name: string | null;
 }
 
-export type CreateCredential = Omit<Credential, "id" | "created_at" | "account" | "funder">;
+export type CreateCredential = Omit<Credential, "id" | "created_at">;
 export type UpdateCredential = Partial<CreateCredential>;

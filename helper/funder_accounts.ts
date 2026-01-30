@@ -1,4 +1,4 @@
-"use server"
+"use server";
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -7,7 +7,9 @@ export async function getFunderAccounts() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("funder_account")
-    .select("*, user, package_name:package, funder, package(*, funders(*)), accounts(*, units(*)), credentials(*)")
+    .select(
+      "*, package(*, funders(*)), accounts(*, units(*)), credentials!funder_account_credential_id_fkey(*)",
+    )
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -17,11 +19,13 @@ export async function getFunderAccounts() {
   return data;
 }
 
-export async function getFunderAccountById(id: number) {
+export async function getFunderAccountById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("funder_account")
-    .select("*, user, package_name:package, funder, package(*, funders(*)), accounts(*, units(*)), credentials(*)")
+    .select(
+      "*, package(*, funders(*)), accounts(*, units(*)), credentials!funder_account_credential_id_fkey(*)",
+    )
     .eq("id", id)
     .single();
 
@@ -46,7 +50,7 @@ export async function createFunderAccount(formData: any) {
   return data;
 }
 
-export async function updateFunderAccount(id: number, formData: any) {
+export async function updateFunderAccount(id: string, formData: any) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("funder_account")
@@ -61,12 +65,9 @@ export async function updateFunderAccount(id: number, formData: any) {
   return data;
 }
 
-export async function deleteFunderAccount(id: number) {
+export async function deleteFunderAccount(id: string) {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("funder_account")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("funder_account").delete().eq("id", id);
 
   if (error) {
     throw new Error(error.message);
@@ -79,16 +80,15 @@ export async function funderAccountsTable() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("funder_account")
-    .select(`
+    .select(
+      `
       id,
       status,
       created_at,
-      user,
-      package_name:package,
-      funder,
       account_rel:accounts(id, first_name, last_name, email, units(unit_name)),
-      package_rel:package(name)
-    `)
+      package_rel:package(name, funders(name))
+    `,
+    )
     .order("created_at", { ascending: false });
 
   if (error) {

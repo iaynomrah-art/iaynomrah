@@ -16,22 +16,21 @@ export type AccountStatus =
   | "kyc"
   | "for payout";
 export interface FunderAccount {
-  id: number;
+  id: string;
   created_at: string;
-  package_id: number | null;
+  package_id: string | null;
   status: AccountStatus;
-  acount_id: number | null;
-  credential_id: number | null;
-  
-  // Denormalized/Alias fields from database or helper
-  user?: string | null;
-  funder?: string | null;
-  package_name?: string | null;
+  acount_id: string | null;
+  credential_id: string | null;
+
   // Joined fields
   package?: Package & { funders?: Funder };
   accounts?: (Account & { units?: Unit | null }) | null;
   credentials?: Credential | null;
 }
 
-export type CreateFunderAccount = Omit<FunderAccount, "id" | "created_at" | "package" | "account" | "credential" | "unit">;
+export type CreateFunderAccount = Omit<
+  FunderAccount,
+  "id" | "created_at" | "package" | "account" | "credential" | "unit"
+>;
 export type UpdateFunderAccount = Partial<CreateFunderAccount>;

@@ -14,7 +14,6 @@ import { createCredential, updateCredential } from "@/helper/credentials"
 
 const credentialSchema = z.object({
     name: z.string().min(1, "Account Name is required"),
-    funder_id: z.string().min(1, "Funder is required"),
     username: z.string().min(1, "Username is required"),
     password: z.string().min(1, "Password is required"),
 })
@@ -23,17 +22,15 @@ type CredentialFormValues = z.infer<typeof credentialSchema>
 
 interface AccountCredentialsFormProps {
     initialData?: any | null
-    funders?: any[]
-    // 1. Add Modal Logic Props
+    // Add Modal Logic Props
     onSuccess?: () => void;
     onCancel?: () => void;
 }
 
 export const AccountCredentialsForm = ({
     initialData,
-    funders = [],
-    onSuccess, // Destructure
-    onCancel   // Destructure
+    onSuccess,
+    onCancel
 }: AccountCredentialsFormProps) => {
     const router = useRouter()
     const [isPending, setIsPending] = React.useState(false)
@@ -47,7 +44,6 @@ export const AccountCredentialsForm = ({
         resolver: zodResolver(credentialSchema),
         defaultValues: {
             name: initialData?.name || "",
-            funder_id: initialData?.funder_id?.toString() || "",
             username: initialData?.username || "",
             password: initialData?.password || "",
         },
@@ -58,7 +54,6 @@ export const AccountCredentialsForm = ({
         try {
             const payload = {
                 ...data,
-                funder_id: parseInt(data.funder_id),
             }
 
             if (isUpdate) {
@@ -114,28 +109,6 @@ export const AccountCredentialsForm = ({
                     placeholder="Enter account profile name"
                 />
                 {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
-            </div>
-
-
-            {/* FUNDER */}
-            <div className="space-y-2">
-                <Label htmlFor="funder_id" className="text-white text-sm font-medium">FUNDER</Label>
-                <div className="relative">
-                    <select
-                        id="funder_id"
-                        {...register("funder_id")}
-                        className="flex h-11 w-full rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] text-white px-4 py-2 text-sm appearance-none focus:border-blue-500 transition-all outline-none ring-0 shadow-inner"
-                    >
-                        <option value="">-- Select Funder --</option>
-                        {funders.map((funder) => (
-                            <option key={funder.id} value={funder.id}>
-                                {funder.name}
-                            </option>
-                        ))}
-                    </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                </div>
-                {errors.funder_id && <p className="text-xs text-red-500 mt-1">{errors.funder_id.message}</p>}
             </div>
 
             {/* USERNAME */}

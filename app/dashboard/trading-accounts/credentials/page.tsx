@@ -1,25 +1,21 @@
 import React, { Suspense } from 'react'
 import { getCredentials } from '@/helper/credentials'
-import { getFunders } from '@/helper/funders' // Import this
 import { SearchBarHeader } from '@/components/ui/search-bar-header'
 import { CredentialsTable, CredentialsTableSkeleton } from '@/components/tables/credentials'
 import { CreateCredentialDialog } from '@/components/modal/Create/CreateCredentials'
 
 
-const CredentialsList = async ({ funders }: { funders: any[] }) => {
+const CredentialsList = async () => {
     const credentials = await getCredentials();
     return (
         <div className="px-6 pb-6">
-            <CredentialsTable data={credentials} funders={funders} />
+            <CredentialsTable data={credentials} />
         </div>
     );
 };
 
 // Make the page async to fetch funders
 const Page = async () => {
-    // Fetch funders for the modal
-    const funders = await getFunders()
-
     return (
         <div suppressHydrationWarning className="p-6 bg-[#050505] h-full">
             <div className="flex flex-col rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-2xl overflow-hidden">
@@ -29,7 +25,7 @@ const Page = async () => {
                         title="Credentials"
                         // Instead of addHref, we use actionComponent
                         actionComponent={
-                            <CreateCredentialDialog funders={funders} />
+                            <CreateCredentialDialog />
                         }
                     />
                 </div>
@@ -40,7 +36,7 @@ const Page = async () => {
                         <CredentialsTableSkeleton />
                     </div>
                 }>
-                    <CredentialsList funders={funders} />
+                    <CredentialsList />
                 </Suspense>
             </div>
         </div>

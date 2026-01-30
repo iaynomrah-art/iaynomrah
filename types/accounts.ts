@@ -1,5 +1,5 @@
-export interface Account {  
-  id: number;
+export interface Account {
+  id: string;
   created_at: string;
   first_name: string | null;
   last_name: string | null;
@@ -7,10 +7,6 @@ export interface Account {
   email: string;
   address: string;
   city: string;
-  
-
-
-
 
   zip_code: number;
   contact_number: number;

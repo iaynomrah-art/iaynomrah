@@ -19,40 +19,37 @@ import Link from "next/link"
 import { EditCredentialDialog } from "@/components/modal/Edit/EditCredentialDialog"
 
 interface Credential {
-    id: number
+    id: string
     created_at: string
-    user_id: number
-    funder_id: number | null
     password?: string
     username?: string
     name?: string
-    funders?: {
-        name: string
-        allias: string
-        allias_color: string
-        text_color: string
-        [key: string]: any
-    } | null
-    accounts?: {
-        first_name: string
-        last_name: string
-        [key: string]: any
-    } | null
+    funder_account?: Array<{
+        id: string
+        package?: {
+            funders?: {
+                name: string
+                allias: string
+                allias_color: string
+                text_color: string
+            } | null
+        } | null
+    }> | null
     [key: string]: any
 }
 
 interface CredentialsTableProps {
     data: Credential[]
-    funders?: any[]
+    funders?: any[] // Keep for now if needed by other components, though unused here
 }
 
 export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) => {
-    const [copiedId, setCopiedId] = useState<number | null>(null)
-    const [selectedCredential, setSelectedCredential] = useState<{ id: number, name: string } | null>(null);
+    const [copiedId, setCopiedId] = useState<string | null>(null)
+    const [selectedCredential, setSelectedCredential] = useState<{ id: string, name: string } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const handleCopy = async (password: string, id: number) => {
+    const handleCopy = async (password: string, id: string) => {
         try {
             await navigator.clipboard.writeText(password)
             setCopiedId(id)
@@ -63,7 +60,7 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
         }
     }
 
-    const handleDeleteClick = (id: number, name: string) => {
+    const handleDeleteClick = (id: string, name: string) => {
         setSelectedCredential({ id, name });
         setIsDeleteModalOpen(true);
     };
@@ -90,7 +87,7 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
                         <TableHead className="w-1/5 text-muted-foreground font-medium text-sm pb-4">ACCOUNT NAME</TableHead>
-                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">FUNDER</TableHead>
+                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">FUNDER ACCOUNT ID</TableHead>
                         <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
                         <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
                         <TableHead className="w-1/5 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
@@ -110,19 +107,7 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
                                     {credential.name || "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm whitespace-nowrap">
-                                    {credential.funders ? (
-                                        <span
-                                            className="px-2 py-1 rounded text-xs font-bold"
-                                            style={{
-                                                backgroundColor: credential.funders.allias_color || "#1c64f2",
-                                                color: credential.funders.text_color || "white"
-                                            }}
-                                        >
-                                            {credential.funders.allias || credential.funders.name}
-                                        </span>
-                                    ) : (
-                                        "-"
-                                    )}
+                                    {credential.funder_account?.[0]?.id || "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">{credential.username || "-"}</TableCell>
                                 <TableCell className="text-white py-4 font-mono text-sm">
@@ -182,7 +167,7 @@ export const CredentialsTableSkeleton = () => {
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
                         <TableHead className="w-1/5 text-muted-foreground font-medium text-sm pb-4">ACCOUNT NAME</TableHead>
-                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">FUNDER</TableHead>
+                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">FUNDER ACCOUNT ID</TableHead>
                         <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
                         <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
                         <TableHead className="w-1/5 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>

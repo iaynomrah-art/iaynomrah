@@ -58,9 +58,9 @@ export const FunderAccountsForm = ({
     } = useForm<FunderAccountFormValues>({
         resolver: zodResolver(funderAccountSchema),
         defaultValues: {
-            funder_id: initialData?.package?.funder_id?.toString() || "",
-            package_id: initialData?.package_id?.toString() || "",
-            acount_id: initialData?.acount_id?.toString() || "",
+            funder_id: initialData?.package?.funder_id || "",
+            package_id: initialData?.package_id || "",
+            acount_id: initialData?.acount_id || "",
         },
     })
 
@@ -69,18 +69,20 @@ export const FunderAccountsForm = ({
     // Filter packages when funder changes
     useEffect(() => {
         if (selectedFunderId) {
-            const filtered = (packages || []).filter(pkg => pkg.funder_id?.toString() === selectedFunderId)
+            const filtered = (packages || []).filter(pkg => pkg.funder_id === selectedFunderId)
             setFilteredPackages(filtered)
 
-            // Reset package if it's not in the filtered list (unless it's the initial load)
+            // Only reset package if it's not in the filtered list AND we're not on initial load
             const currentPackageId = watch("package_id")
-            if (currentPackageId && !filtered.find(pkg => pkg.id.toString() === currentPackageId)) {
+            const isInitialLoad = initialData && currentPackageId === initialData.package_id
+
+            if (currentPackageId && !isInitialLoad && !filtered.find(pkg => pkg.id === currentPackageId)) {
                 setValue("package_id", "")
             }
         } else {
             setFilteredPackages([])
         }
-    }, [selectedFunderId, packages, setValue, watch])
+    }, [selectedFunderId, packages, setValue, watch, initialData])
 
     const onSubmit = async (data: FunderAccountFormValues) => {
         setIsPending(true)
@@ -92,13 +94,9 @@ export const FunderAccountsForm = ({
 
             // Prepare payload with correct types and keys
             const payload = {
-                package_id: parseInt(data.package_id),
-                acount_id: parseInt(data.acount_id),
-                status: initialData?.status ?? true,
-                // Denormalized text columns for easy display
-                user: selectedAccount ? `${selectedAccount.first_name} ${selectedAccount.last_name}`.trim() : null,
-                package: selectedPackage?.name || null,
-                funder: selectedFunder?.name || null
+                package_id: data.package_id,
+                acount_id: data.acount_id,
+                status: initialData?.status ?? "idle",
             }
 
             if (isUpdate) {

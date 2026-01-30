@@ -41,7 +41,6 @@ export const EditCredentialDialog = ({
                 <div className="mt-4">
                     <AccountCredentialsForm
                         initialData={credential}
-                        funders={funders}
                         onSuccess={handleSuccess}
                         onCancel={() => setOpen(false)}
                     />
