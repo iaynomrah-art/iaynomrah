@@ -5,13 +5,17 @@ import { revalidatePath } from "next/cache";
 
 export async function getTradingAccounts(type?: string) {
   const supabase = await createClient();
-  let query = supabase.from("trading_accounts").select("*, funders(*), units(*), package(*), credentials(*)");
   
-  if (type) {
-    // Check if type matches phase or challenge_type
-    query = query.or(`phase.ilike.%${type}%,challenge_type.ilike.%${type}%`);
-  }
-  
+  let query = supabase.from("trading_accounts").select(`
+    *,
+    funder_account:funder_account_id(
+      *,
+      package_ref:package!funder_account_package_id_fkey(*, funders(*)),
+      accounts:accounts!funder_account_acount_id_fkey(*, units(*)),
+      credentials(*)
+    )
+  `);
+
   const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
@@ -19,15 +23,31 @@ export async function getTradingAccounts(type?: string) {
     return [];
   }
 
-
-  return data;
+  // Flatten the data to maintain compatibility with existing components
+  return data.map((item: any) => ({
+    ...(item.funder_account || {}),
+    ...item,
+    status: item.account_status || (item.funder_account?.status || 'idle'),
+    id: item.id,
+    package_ref: item.funder_account?.package_ref,
+    accounts: item.funder_account?.accounts,
+    credentials: item.funder_account?.credentials
+  }));
 }
 
-export async function getTradingAccountById(id: number) {
+export async function getTradingAccountById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("trading_accounts")
-    .select("*, funders(*), units(*), package(*)")
+    .select(`
+      *,
+      funder_account:funder_account_id(
+        *,
+        package_ref:package!funder_account_package_id_fkey(*, funders(*)),
+        accounts:accounts!funder_account_acount_id_fkey(*, units(*)),
+        credentials(*)
+      )
+    `)
     .eq("id", id)
     .single();
 
@@ -35,27 +55,38 @@ export async function getTradingAccountById(id: number) {
     console.error("Error fetching trading account:", error);
     return null;
   }
-  return data;
+
+  // Flatten the data
+  const item = data as any;
+  return {
+    ...(item.funder_account || {}),
+    ...item,
+    status: item.account_status || (item.funder_account?.status || 'idle'),
+    id: item.id,
+    package_ref: item.funder_account?.package_ref,
+    accounts: item.funder_account?.accounts,
+    credentials: item.funder_account?.credentials
+  };
 }
 
 export async function createTradingAccount(formData: any) {
   const supabase = await createClient();
   
-  // If package_id is provided, fetch the phase from the package
-  if (formData.package_id) {
+  // If package_id is provided, fetch the package name/details if needed to populate the 'package' text column
+  if (formData.package_id && !formData.package) {
     const { data: packageData } = await supabase
       .from("package")
-      .select("phase")
+      .select("name")
       .eq("id", formData.package_id)
       .single();
     
     if (packageData) {
-      formData.phase = packageData.phase;
+      formData.package = packageData.name;
     }
   }
   
   const { data, error } = await supabase
-    .from("trading_accounts")
+    .from("funder_account")
     .insert([formData])
     .select();
 
@@ -67,24 +98,24 @@ export async function createTradingAccount(formData: any) {
   return data;
 }
 
-export async function updateTradingAccount(id: number, formData: any) {
+export async function updateTradingAccount(id: string, formData: any) {
   const supabase = await createClient();
   
-  // If package_id is being updated, fetch the new package's phase
-  if (formData.package_id !== undefined) {
+  // If package_id is being updated, fetch the new package's name
+  if (formData.package_id !== undefined && !formData.package) {
     const { data: packageData } = await supabase
       .from("package")
-      .select("phase")
+      .select("name")
       .eq("id", formData.package_id)
       .single();
     
     if (packageData) {
-      formData.phase = packageData.phase;
+      formData.package = packageData.name;
     }
   }
   
   const { data, error } = await supabase
-    .from("trading_accounts")
+    .from("funder_account")
     .update(formData)
     .eq("id", id)
     .select();
@@ -97,10 +128,10 @@ export async function updateTradingAccount(id: number, formData: any) {
   return data;
 }
 
-export async function deleteTradingAccount(id: number) {
+export async function deleteTradingAccount(id: string) {
   const supabase = await createClient();
   const { error } = await supabase
-    .from("trading_accounts")
+    .from("funder_account")
     .delete()
     .eq("id", id);
 
@@ -113,29 +144,28 @@ export async function deleteTradingAccount(id: number) {
 }
 
 /**
- * Sync all trading accounts' phases with their associated packages
- * Useful for manual synchronization if needed
+ * Sync all funder accounts' packages with their associated packages
  */
 export async function syncAllTradingAccountPhases() {
   const supabase = await createClient();
   
-  // Get all trading accounts with package_id
+  // Get all accounts with package_id
   const { data: tradingAccounts, error: fetchError } = await supabase
-    .from("trading_accounts")
-    .select("id, package_id, phase, package(phase)")
+    .from("funder_account")
+    .select("id, package_id, package, package_ref:package!funder_account_package_id_fkey(name)")
     .not("package_id", "is", null);
 
   if (fetchError) {
     throw new Error(fetchError.message);
   }
 
-  // Update each trading account where phase doesn't match
+  // Update each account where package name doesn't match
   const updates = tradingAccounts
-    ?.filter((ta: any) => ta.package?.phase && ta.phase !== ta.package.phase)
+    ?.filter((ta: any) => ta.package_ref?.name && ta.package !== ta.package_ref.name)
     .map((ta: any) => 
       supabase
-        .from("trading_accounts")
-        .update({ phase: ta.package.phase })
+        .from("funder_account")
+        .update({ package: ta.package_ref.name })
         .eq("id", ta.id)
     ) || [];
 

@@ -56,10 +56,10 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
             )}>
                 <div className="flex items-center gap-1.5">
                     <div className="bg-[#f0b90b] text-black px-1.5 py-0.5 rounded-[3px] text-[10px] font-black uppercase">
-                        {account.funders?.allias || "UPFT"}
+                        {account.package_ref?.funders?.allias || account.funder || "UPFT"}
                     </div>
                     <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate ">
-                        {account.package?.phase || account.package?.name || "Standard Phase"}
+                        {account.package_ref?.phase || account.package || "Standard Phase"}
                     </div>
                 </div>
                 <div className="text-white font-black text-[12px] uppercase tracking-tighter flex items-center gap-2">
@@ -69,13 +69,13 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
 
             {/* Account Details */}
             <div className="divide-y divide-[#2b3139]">
-                <Row label="Phase" value={account.package?.phase || "N/A"} color="text-[#f0b90b]" />
-                <Row label="Starting Balance" value={`$${(account.package?.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                <Row label="Phase" value={account.package_ref?.phase || "N/A"} color="text-[#f0b90b]" />
+                <Row label="Starting Balance" value={`$${(account.package_ref?.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
                 <Row label="Starting Daily Equity" value={`$${(tradeParams.start_equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
                 <Row label="Latest Equity" value={`$${(account.live_equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
                 <Row label="Daily P&L" value={`$${(account.daily_pnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={(account.daily_pnl || 0) >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
                 <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
-                <Row label="Symbol" value={account.package?.symbol || "N/A"} />
+                <Row label="Symbol" value={account.package_ref?.symbol || "N/A"} />
                 <Row label="Order Amount" value={String(tradeParams.order_amount)} />
                 <Row label="Take Profit (Ticks)" value={String(tradeParams.tp_ticks)} />
                 <Row label="Stop Loss (Ticks)" value={String(tradeParams.sl_ticks)} />
@@ -108,13 +108,13 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                     <div className="flex items-center justify-between gap-4 w-full">
                         <div className="flex items-center gap-2">
                             <div className="bg-[#f0b90b] text-black px-1.5 py-0.5 rounded-[3px] text-[10px] font-black uppercase">
-                                {pair.primary_account?.funders?.allias || "UPFT"}
+                                {pair.primary_account?.package_ref?.funders?.allias || pair.primary_account?.funder || "UPFT"}
                             </div>
                             <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate max-w-[80px]">
-                                {pair.primary_account?.package?.phase || "PHASE 1"}
+                                {pair.primary_account?.package_ref?.phase || pair.primary_account?.package || "PHASE 1"}
                             </div>
                             <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
-                                {pair.primary_unit?.unit_name || pair.primary_account?.units?.unit_name}
+                                {pair.primary_account?.accounts?.units?.unit_name}
                             </span>
                             <a
                                 href="https://remotedesktop.google.com/access"
@@ -132,13 +132,13 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
 
                         <div className="flex items-center gap-2">
                             <div className="bg-[#f0b90b] text-black px-1.5 py-0.5 rounded-[3px] text-[10px] font-black uppercase">
-                                {pair.secondary_account?.funders?.allias || "UPFT"}
+                                {pair.secondary_account?.package_ref?.funders?.allias || pair.secondary_account?.funder || "UPFT"}
                             </div>
                             <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate max-w-[80px]">
-                                {pair.secondary_account?.package?.phase || "PHASE 1"}
+                                {pair.secondary_account?.package_ref?.phase || pair.secondary_account?.package || "PHASE 1"}
                             </div>
                             <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
-                                {pair.secondary_unit?.unit_name || pair.secondary_account?.units?.unit_name}
+                                {pair.secondary_account?.accounts?.units?.unit_name}
                             </span>
                             <a
                                 href="https://remotedesktop.google.com/access"
@@ -168,7 +168,7 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                         <AccountColumn
                             account={pair.primary_account}
                             tradeParams={{
-                                unit_name: pair.primary_unit?.unit_name,
+                                unit_name: pair.primary_account?.accounts?.units?.unit_name,
                                 purchase_type: pair.primary_order_type,
                                 order_amount: pair.primary_order_amount,
                                 tp_ticks: pair.primary_take_profit,
@@ -179,7 +179,7 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                         <AccountColumn
                             account={pair.secondary_account}
                             tradeParams={{
-                                unit_name: pair.secondary_unit?.unit_name,
+                                unit_name: pair.secondary_account?.accounts?.units?.unit_name,
                                 purchase_type: pair.secondary_order_type,
                                 order_amount: pair.secondary_order_amount,
                                 tp_ticks: pair.secondary_take_profit,

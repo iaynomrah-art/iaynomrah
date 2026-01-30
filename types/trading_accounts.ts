@@ -15,26 +15,27 @@ export type TradeStatus =
   | "kyc"
   | "for payout";
 export interface TradingAccount {
-  id: number;
+  id: string; // Changed from number to string (generate_hex_id)
   created_at: string;
-  updated_at: string;
-  account_number: string;
-  funder_account_id: number;
-  package_id: number | null;
-  challenge_type: string | null;
-  account_status: TradeStatus;
-  live_equity: number;
-  daily_pnl: number;
-  rdd: number;
-  highest_profit: number;
-  consistency: number | null;
-  remaining_target_days: number | null;
-  remaining_target_profit: number | null;
-  is_connected: boolean;
-  last_seen_at: string;
-  package?: Package | null;
+  package_id: string | null;
+  acount_id: string | null; // Note: user specified "acount_id" with one 'c'
+  credential_id: string | null;
+  user: string | null;
+  funder: string | null; // This is the text column
+  package: string | null; // This is the text column name in SQL
+  status: TradeStatus; // Matches trading_account_status
+  live_equity?: number;
+  daily_pnl?: number;
+  rdd?: number;
+  highest_profit?: number;
+  consistency?: number | null;
+  remaining_target_days?: number | null;
+  remaining_target_profit?: number | null;
+  challenge_type?: string | null;
+  
   // Joined fields
-  funders?: Funder | null;
-  units?: Unit | null;
-  credentials: Credential | null
+  package_ref?: Package | null;
+  accounts?: (any & { units?: Unit | null }) | null; // Joined accounts
+  credentials?: Credential | null
 }
+

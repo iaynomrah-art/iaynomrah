@@ -20,6 +20,7 @@ export interface Account {
   birth_day: number;
   id_type: string;
   billing: string | null;
+  unit_id: string | null;
 }
 
 export type CreateAccount = Omit<Account, "id" | "created_at">;

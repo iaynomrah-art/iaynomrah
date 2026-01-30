@@ -1,15 +1,16 @@
 import { Funder } from "./funder";
 
 export interface Package {
-  id: number;
+  id: string; // Changed from number to string
   created_at: string;
   name: string | null;
   balance: number | null;
   phase: PackagePhase | null;
   instrument: string | null;
   symbol: string | null;
-  funder_id: number | null;
+  funder_id: string | null; // Changed from number to string
   funder?: Funder;
+  funders?: Funder; // Added for plural join result
 }
 
 export type CreatePackage = Omit<Package, "id" | "created_at" | "funder">;

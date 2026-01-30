@@ -28,17 +28,19 @@ const userAccountSchema = z.object({
     zip_code: z.string().optional(),
     id_type: z.string().min(1, "ID type is required"),
     billing: z.string().min(1, "Billing is required"),
+    unit_id: z.string().min(1, "Unit is required"),
 })
 
 type UserAccountFormValues = z.infer<typeof userAccountSchema>
 
 interface UserAccountsFormProps {
     initialData?: any | null
+    units?: any[]
     onSuccess?: () => void
     onCancel?: () => void
 }
 
-export const UserAccountsForm = ({ initialData, onSuccess, onCancel }: UserAccountsFormProps) => {
+export const UserAccountsForm = ({ initialData, units = [], onSuccess, onCancel }: UserAccountsFormProps) => {
     const router = useRouter()
     const [isPending, setIsPending] = React.useState(false)
     const isUpdate = !!initialData
@@ -65,6 +67,7 @@ export const UserAccountsForm = ({ initialData, onSuccess, onCancel }: UserAccou
             zip_code: initialData?.zip_code || "",
             id_type: initialData?.id_type || "",
             billing: initialData?.billing || "",
+            unit_id: initialData?.unit_id || "",
         },
     })
 
@@ -288,6 +291,27 @@ export const UserAccountsForm = ({ initialData, onSuccess, onCancel }: UserAccou
                         placeholder="Enter billing address/info"
                     />
                     {errors.billing && <p className="text-xs text-red-500">{errors.billing.message}</p>}
+                </div>
+
+                {/* UNIT */}
+                <div className="space-y-2">
+                    <Label htmlFor="unit_id" className="text-white">UNIT</Label>
+                    <div className="relative">
+                        <select
+                            id="unit_id"
+                            {...register("unit_id")}
+                            className="flex h-10 w-full rounded-md border border-gray-700 bg-gray-800 text-white px-3 py-1 text-sm appearance-none focus:border-blue-500 transition-colors shadow-inner"
+                        >
+                            <option value="">-- Select Unit --</option>
+                            {units.map((unit) => (
+                                <option key={unit.id} value={unit.id}>
+                                    {unit.unit_name}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
+                    {errors.unit_id && <p className="text-xs text-red-500">{errors.unit_id.message}</p>}
                 </div>
 
                 <div className="flex justify-end gap-3 pt-6 border-t border-gray-800">

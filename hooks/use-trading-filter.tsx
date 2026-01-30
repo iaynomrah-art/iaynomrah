@@ -59,11 +59,18 @@ export const useTradingFilter = (data: TradingAccount[]) => {
 
     const filteredData = useMemo(() => {
         return data.filter(item => {
-            const matchesFunder = selectedFunders.length === 0 || selectedFunders.includes(item.funders?.name || '')
-            const matchesPhase = selectedPhases.length === 0 || selectedPhases.some(phase => item.package?.phase?.toLowerCase().includes(phase))
-            const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(item.account_status)
+            const funderName = item.funder || item.package_ref?.funders?.name || ''
+            const matchesFunder = selectedFunders.length === 0 || selectedFunders.includes(funderName)
 
-            const matchesPairable = !pairableOnly || (item.account_status !== 'paired' && ['idle', 'trading'].includes(item.account_status))
+            const itemPhase = (item.package_ref?.phase || item.package || '').toLowerCase()
+            const matchesPhase = selectedPhases.length === 0 || selectedPhases.some(phase =>
+                itemPhase.includes(phase.toLowerCase())
+            )
+
+            const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(item.status?.toLowerCase())
+
+            const currentStatus = item.status?.toLowerCase() || 'idle'
+            const matchesPairable = !pairableOnly || (currentStatus !== 'paired' && ['idle', 'trading'].includes(currentStatus))
 
             return matchesFunder && matchesPhase && matchesStatus && matchesPairable
         })

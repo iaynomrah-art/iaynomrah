@@ -92,7 +92,7 @@ export const PairAccountsModal = ({
                 order_amount: orderAmount,
                 sl_ticks: slTicks,
                 tp_ticks: tpTicks,
-                starting_balance: account.package?.balance || 0,
+                starting_balance: account.package_ref?.balance || 0,
                 starting_equity: currentEquity,
                 latest_equity: currentEquity,
                 daily_pnl: account.daily_pnl || 0,
@@ -109,7 +109,7 @@ export const PairAccountsModal = ({
         setPairs(initialPairs)
     }, [selectedAccounts, isOpen, basePrice])
 
-    const updatePair = (id: number, field: keyof Pair, value: any) => {
+    const updatePair = (id: string, field: keyof Pair, value: any) => {
         setPairs(prev => {
             const index = prev.findIndex(p => p.id === id)
             if (index === -1) return prev
@@ -170,7 +170,7 @@ export const PairAccountsModal = ({
     const handleConfirm = async () => {
         try {
             setIsLoading(true)
-            if (!pairs[0]?.units?.api_base_url || !pairs[1]?.units?.api_base_url) {
+            if (!pairs[0]?.accounts?.units?.api_base_url || !pairs[1]?.accounts?.units?.api_base_url) {
                 toast.error("Units are not configured with API URL")
                 return
             }
@@ -180,13 +180,13 @@ export const PairAccountsModal = ({
                 const payload = {
                     username: String(pair.credentials?.username || ""),
                     password: String(pair.credentials?.password || ""),
-                    symbol: String(pair.package?.symbol || ""),
+                    symbol: String(pair.package_ref?.symbol || pair.package || ""),
                     order_amount: String(pair.order_amount),
                     tp_ticks: String(pair.tp_ticks),
                     sl_ticks: String(pair.sl_ticks),
                     purchase_type: String(pair.trade_type),
                     // Metadata/Tracking
-                    account_number: String(pair.account_number),
+                    account_number: String(pair.credential_id || pair.id),
                     starting_balance: String(pair.starting_balance),
                     starting_equity: String(pair.starting_equity),
                     latest_equity: String(pair.latest_equity),
@@ -196,7 +196,7 @@ export const PairAccountsModal = ({
 
                 console.log(payload)
 
-                return inputCtraderOrder(pair.units?.api_base_url || "", payload)
+                return inputCtraderOrder(pair.accounts?.units?.api_base_url || "", payload)
             }))
 
             // 3. Create database record for the pair
@@ -206,21 +206,18 @@ export const PairAccountsModal = ({
             const pairData: CreatePairedAccountDTO = {
                 primary_account_id: String(primary.id),
                 secondary_account_id: String(secondary.id),
-                symbol: String(primary.package?.symbol || "XAUUSD"),
+                symbol: String(primary.package_ref?.symbol || primary.package || "XAUUSD"),
 
                 primary_order_amount: primary.order_amount,
                 primary_stop_loss: primary.sl_ticks,
                 primary_take_profit: primary.tp_ticks,
                 primary_order_type: primary.trade_type,
                 primary_automation_status: "initiated",
-                primary_unit_id: primary.units?.unit_id || null,
-
                 secondary_order_amount: secondary.order_amount,
                 secondary_stop_loss: secondary.sl_ticks,
                 secondary_take_profit: secondary.tp_ticks,
                 secondary_order_type: secondary.trade_type,
                 secondary_automation_status: "initiated",
-                secondary_unit_id: secondary.units?.unit_id || null,
 
                 trade_status: "initializing",
                 is_active: true,
@@ -257,11 +254,11 @@ export const PairAccountsModal = ({
                                     <div className="flex items-center gap-1.5">
                                         <div className="bg-[#f0b90b] text-black px-1.5 py-0.5 rounded-[3px] text-[10px] font-black uppercase">UPFT</div>
                                         <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate max-w-[70px]">
-                                            {account.package?.name?.split(' ')[0] || "UPTDay5..."}
+                                            {account.package_ref?.name?.split(' ')[0] || account.package?.split(' ')[0] || "UPTDay5..."}
                                         </div>
                                     </div>
                                     <div className="text-white font-black text-[12px] uppercase tracking-tighter">
-                                        {account.units?.unit_name || `UNIT ${account.id}`}
+                                        {account.accounts?.units?.unit_name || `UNIT ${account.id}`}
                                     </div>
                                 </div>
 
@@ -293,7 +290,7 @@ export const PairAccountsModal = ({
                                         <span className="text-[#848e9c] text-[13px] font-medium">Symbol</span>
                                         <div className="flex justify-end px-2 py-0.5">
                                             <span className="text-white text-[13px] font-bold text-right uppercase">
-                                                {account.package?.symbol || "XAUUSD"}
+                                                {account.package_ref?.symbol || account.package || "XAUUSD"}
                                             </span>
                                         </div>
                                     </div>

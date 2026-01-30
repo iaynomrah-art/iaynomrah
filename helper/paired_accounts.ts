@@ -10,10 +10,24 @@ export async function getPairedAccounts() {
     .from("paired_trading_accounts")
     .select(`
       *,
-      primary_account:trading_accounts!paired_trading_accounts_primary_account_fkey(*, funders(*), units(*), package(*), credentials(*)),
-      secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(*, funders(*), units(*), package(*), credentials(*)),
-      primary_unit:units!paired_trading_accounts_primary_unit_id_fkey(*),
-      secondary_unit:units!paired_trading_accounts_secondary_unit_id_fkey(*)
+      primary_account:trading_accounts!paired_trading_accounts_primary_account_fkey(
+        *, 
+        funder_account:funder_account_id(
+            *, 
+            package_ref:package!funder_account_package_id_fkey(*, funders(*)), 
+            accounts:accounts!funder_account_acount_id_fkey(*, units(*)), 
+            credentials(*)
+        )
+      ),
+      secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(
+        *, 
+        funder_account:funder_account_id(
+            *, 
+            package_ref:package!funder_account_package_id_fkey(*, funders(*)), 
+            accounts:accounts!funder_account_acount_id_fkey(*, units(*)), 
+            credentials(*)
+        )
+      )
     `)
     .order("created_at", { ascending: false });
 
@@ -22,8 +36,25 @@ export async function getPairedAccounts() {
     return [];
   }
 
-
-  return data;
+  return data.map((pair: any) => ({
+    ...pair,
+    primary_account: pair.primary_account ? {
+        ...(pair.primary_account.funder_account || {}),
+        ...pair.primary_account,
+        status: pair.primary_account.account_status,
+        package_ref: pair.primary_account.funder_account?.package_ref,
+        accounts: pair.primary_account.funder_account?.accounts,
+        credentials: pair.primary_account.funder_account?.credentials
+    } : null,
+    secondary_account: pair.secondary_account ? {
+        ...(pair.secondary_account.funder_account || {}),
+        ...pair.secondary_account,
+        status: pair.secondary_account.account_status,
+        package_ref: pair.secondary_account.funder_account?.package_ref,
+        accounts: pair.secondary_account.funder_account?.accounts,
+        credentials: pair.secondary_account.funder_account?.credentials
+    } : null
+  }));
 }
 
 export async function getPairedAccountById(id: string) {
@@ -32,7 +63,7 @@ export async function getPairedAccountById(id: string) {
     .from("paired_trading_accounts")
     .select(`
       *,
-      primary_account:trading_accounts!paired_trading_accounts_primary_account_fkey(*),
+      primary_account:trading_accounts!paired_trading_accounts_primary_account_fkey(*, funder_account:funder_account_id(*)),
       secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(*)
     `)
     .eq("id", id)
@@ -42,7 +73,13 @@ export async function getPairedAccountById(id: string) {
     console.error("Error fetching paired account:", error);
     return null;
   }
-  return data;
+
+  const pair = data as any;
+  return {
+    ...pair,
+    primary_account: pair.primary_account ? { ...(pair.primary_account.funder_account || {}), ...pair.primary_account } : null,
+    secondary_account: pair.secondary_account ? { ...(pair.secondary_account.funder_account || {}), ...pair.secondary_account } : null
+  };
 }
 
 export async function createPairedAccount(formData: CreatePairedAccountDTO) {
@@ -100,10 +137,24 @@ export async function realTimeGetPairedAccounts() {
         .from("paired_trading_accounts")
         .select(`
           *,
-          primary_account:trading_accounts!paired_trading_accounts_primary_account_fkey(*, funders(*), units(*), package(*), credentials(*)),
-          secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(*, funders(*), units(*), package(*), credentials(*)),
-          primary_unit:units!paired_trading_accounts_primary_unit_id_fkey(*),
-          secondary_unit:units!paired_trading_accounts_secondary_unit_id_fkey(*)
+          primary_account:trading_accounts!paired_trading_accounts_primary_account_fkey(
+            *, 
+            funder_account:funder_account_id(
+                *, 
+                package_ref:package!funder_account_package_id_fkey(*, funders(*)), 
+                accounts:accounts!funder_account_acount_id_fkey(*, units(*)), 
+                credentials(*)
+            )
+          ),
+          secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(
+            *, 
+            funder_account:funder_account_id(
+                *, 
+                package_ref:package!funder_account_package_id_fkey(*, funders(*)), 
+                accounts:accounts!funder_account_acount_id_fkey(*, units(*)), 
+                credentials(*)
+            )
+          )
         `)
         .order("created_at", { ascending: false });
 
@@ -113,5 +164,23 @@ export async function realTimeGetPairedAccounts() {
     }
 
 
-    return data;
+    return data.map((pair: any) => ({
+      ...pair,
+      primary_account: pair.primary_account ? {
+          ...(pair.primary_account.funder_account || {}),
+          ...pair.primary_account,
+          status: pair.primary_account.account_status,
+          package_ref: pair.primary_account.funder_account?.package_ref,
+          accounts: pair.primary_account.funder_account?.accounts,
+          credentials: pair.primary_account.funder_account?.credentials
+      } : null,
+      secondary_account: pair.secondary_account ? {
+          ...(pair.secondary_account.funder_account || {}),
+          ...pair.secondary_account,
+          status: pair.secondary_account.account_status,
+          package_ref: pair.secondary_account.funder_account?.package_ref,
+          accounts: pair.secondary_account.funder_account?.accounts,
+          credentials: pair.secondary_account.funder_account?.credentials
+      } : null
+    }));
 }

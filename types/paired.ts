@@ -28,10 +28,6 @@ export type PairedTradingAccount = {
   secondary_take_profit: number | null;
   secondary_order_type: string;
   
-  // New unit columns
-  primary_unit_id: string | null;
-  secondary_unit_id: string | null;
-  
   // Status
   trade_status: TradeStatus;
   is_active: boolean;

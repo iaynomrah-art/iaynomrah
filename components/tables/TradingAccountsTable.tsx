@@ -18,8 +18,8 @@ import { cn } from "@/lib/utils"
 interface TradingAccountsTableProps {
     data: TradingAccount[]
     type?: string
-    selectedIds?: number[]
-    onSelectionChange?: (ids: number[]) => void
+    selectedIds?: string[] // Changed to string[]
+    onSelectionChange?: (ids: string[]) => void // Changed to string[]
 }
 
 type SortConfig = {
@@ -30,11 +30,13 @@ type SortConfig = {
 export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelectionChange }: TradingAccountsTableProps) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: null })
 
-    // Filter data by type if provided (matching phase or challenge_type)
+    // Filter data by type if provided (matching package name or funder)
     const filteredData = useMemo(() => {
         if (!type || type === "All") return data
         return data.filter(item =>
-            item.package?.phase?.toLowerCase().includes(type.toLowerCase()) ||
+            item.package?.toLowerCase().includes(type.toLowerCase()) ||
+            item.package_ref?.name?.toLowerCase().includes(type.toLowerCase()) ||
+            item.funder?.toLowerCase().includes(type.toLowerCase()) ||
             item.challenge_type?.toLowerCase().includes(type.toLowerCase())
         )
     }, [data, type])
@@ -79,7 +81,7 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
         setSortConfig({ key, direction })
     }
 
-    const toggleSelection = (id: number) => {
+    const toggleSelection = (id: string) => {
         if (!onSelectionChange) return
         const isSelected = selectedIds.includes(id)
 
@@ -138,8 +140,8 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                         <TableHead className="w-[60px] py-5 px-6">
                             {/* Select All removed - Pairing limited to 2 */}
                         </TableHead>
-                        <SortableHeader label="ACCOUNT" sortKey="account_number" />
-                        <SortableHeader label="STATUS" sortKey="account_status" />
+                        <SortableHeader label="ACCOUNT" sortKey="id" />
+                        <SortableHeader label="STATUS" sortKey="status" />
                         <SortableHeader label="L-EQUITY" sortKey="live_equity" className="text-right" />
                         <SortableHeader label="DAILY P&L" sortKey="daily_pnl" className="text-right" />
                         <SortableHeader label="RDD" sortKey="rdd" className="text-right" />
@@ -184,69 +186,69 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                                             <div
                                                 className="px-2 py-0.5 rounded text-[10px] font-bold w-fit border border-transparent shadow-sm"
                                                 style={{
-                                                    backgroundColor: account.funders?.allias_color ? `${account.funders.allias_color}20` : '#1a1a1a',
-                                                    color: account.funders?.text_color || '#fff',
-                                                    borderColor: account.funders?.allias_color ? `${account.funders.allias_color}40` : '#333'
+                                                    backgroundColor: account.package_ref?.funders?.allias_color ? `${account.package_ref.funders.allias_color}20` : '#1a1a1a',
+                                                    color: account.package_ref?.funders?.text_color || '#fff',
+                                                    borderColor: account.package_ref?.funders?.allias_color ? `${account.package_ref.funders.allias_color}40` : '#333'
                                                 }}
                                             >
-                                                {account.funders?.allias}
+                                                {account.funder || account.package_ref?.funders?.allias}
                                             </div>
                                             <div
                                                 className={cn(
                                                     "px-2 py-0.5 rounded text-[10px] font-bold w-fit border shadow-sm uppercase",
                                                     {
-                                                        'bg-blue-500/10 text-blue-400 border-blue-500/30': account.package?.phase?.toLowerCase().includes('phase 1'),
-                                                        'bg-purple-500/10 text-purple-400 border-purple-500/30': account.package?.phase?.toLowerCase().includes('phase 2'),
-                                                        'bg-emerald-500/10 text-emerald-400 border-emerald-500/30': account.package?.phase?.toLowerCase() === 'live',
-                                                        'bg-gray-500/10 text-gray-400 border-gray-500/30': !account.package?.phase
+                                                        'bg-blue-500/10 text-blue-400 border-blue-500/30': account.package_ref?.phase?.toLowerCase().includes('phase 1'),
+                                                        'bg-purple-500/10 text-purple-400 border-purple-500/30': account.package_ref?.phase?.toLowerCase().includes('phase 2'),
+                                                        'bg-emerald-500/10 text-emerald-400 border-emerald-500/30': account.package_ref?.phase?.toLowerCase() === 'live',
+                                                        'bg-gray-500/10 text-gray-400 border-gray-500/30': !account.package_ref?.phase
                                                     }
                                                 )}
                                             >
-                                                {account.package?.phase || 'N/A'}
+                                                {account.package_ref?.phase || 'N/A'}
                                             </div>
                                         </div>
-                                        <span className="text-[11px] tracking-wider text-white/90">{account.credentials?.id}</span>
-                                        <span className="text-[11px] tracking-wider text-white/90">{account.package?.name}</span>
-                                        <span className="text-[11px] tracking-wider text-white/90">{account.units?.unit_name}</span>
+                                        <span className="text-[11px] tracking-wider text-white/90">{account.credential_id}</span>
+                                        <span className="text-[11px] tracking-wider text-white/90">{account.package || account.package_ref?.name}</span>
+                                        <span className="text-[11px] tracking-wider text-white/90">{account.accounts?.units?.unit_name}</span>
                                     </div>
                                 </TableCell>
                                 <TableCell className="py-6">
                                     <div className={cn(
                                         "px-2 py-0.5 rounded-full text-[10px] font-bold w-fit border whitespace-nowrap",
                                         {
-                                            'bg-green-500/10 text-green-500 border-green-500/20': ['Active', 'Trading', 'Paired'].includes(account.account_status),
-                                            'bg-yellow-500/10 text-yellow-500 border-yellow-500/20': ['Idle', 'WAITING', 'KYC'].includes(account.account_status),
-                                            'bg-blue-500/10 text-blue-500 border-blue-500/20': ['BRC', 'BRC-CHECK'].includes(account.account_status),
-                                            'bg-orange-500/10 text-orange-500 border-orange-500/20': ['FOR PAYOUT', 'OH'].includes(account.account_status),
-                                            'bg-red-500/10 text-red-500 border-red-500/20': ['ABS'].includes(account.account_status),
+                                            'bg-green-500/10 text-green-500 border-green-500/20': ['Active', 'Trading', 'Paired'].includes(account.status),
+                                            'bg-yellow-500/10 text-yellow-500 border-yellow-500/20': ['Idle', 'WAITING', 'KYC', 'idle'].includes(account.status),
+                                            'bg-blue-500/10 text-blue-500 border-blue-500/20': ['BRC', 'BRC-CHECK'].includes(account.status),
+                                            'bg-orange-500/10 text-orange-500 border-orange-500/20': ['FOR PAYOUT', 'OH'].includes(account.status),
+                                            'bg-red-500/10 text-red-500 border-red-500/20': ['ABS'].includes(account.status),
                                         }
                                     )}>
-                                        {account.account_status.toUpperCase()}
+                                        {(account.status || 'idle').toUpperCase()}
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-white py-6 text-right text-xs font-medium" suppressHydrationWarning>
-                                    {formatCurrency(account.live_equity)}
+                                    {formatCurrency(account.live_equity ?? null)}
                                 </TableCell>
                                 <TableCell className={cn(
                                     "py-6 text-right text-xs font-bold",
-                                    account.daily_pnl > 0 ? 'text-green-500' : account.daily_pnl < 0 ? 'text-red-500' : 'text-white'
+                                    (account.daily_pnl ?? 0) > 0 ? 'text-green-500' : (account.daily_pnl ?? 0) < 0 ? 'text-red-500' : 'text-white'
                                 )} suppressHydrationWarning>
-                                    {account.daily_pnl !== 0 ? (account.daily_pnl > 0 ? "+" : "") + formatCurrency(account.daily_pnl) : "$0.00"}
+                                    {(account.daily_pnl ?? 0) !== 0 ? ((account.daily_pnl ?? 0) > 0 ? "+" : "") + formatCurrency(account.daily_pnl ?? null) : "$0.00"}
                                 </TableCell>
                                 <TableCell className="text-white py-6 text-right text-xs" suppressHydrationWarning>
-                                    {formatCurrency(account.rdd)}
+                                    {formatCurrency(account.rdd ?? null)}
                                 </TableCell>
                                 <TableCell className="text-white py-6 text-right text-xs text-blue-400" suppressHydrationWarning>
-                                    {formatCurrency(account.highest_profit)}
+                                    {formatCurrency(account.highest_profit ?? null)}
                                 </TableCell>
                                 <TableCell className="text-white py-6 text-right text-xs" suppressHydrationWarning>
-                                    {formatPercent(account.consistency)}
+                                    {formatPercent(account.consistency ?? null)}
                                 </TableCell>
                                 <TableCell className="text-white py-6 text-right text-xs font-mono">
                                     {account.remaining_target_days ?? "--"}
                                 </TableCell>
                                 <TableCell className="text-white py-6 text-right text-xs font-medium text-orange-400" suppressHydrationWarning>
-                                    {formatCurrency(account.remaining_target_profit)}
+                                    {formatCurrency(account.remaining_target_profit ?? null)}
                                 </TableCell>
                             </TableRow>
                         ))

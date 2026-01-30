@@ -7,17 +7,7 @@ export async function getFunderAccounts() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("funder_account")
-    .select(`
-      *,
-      user,
-      package_name:package,
-      unit_name:unit,
-      funder,
-      package(*, funders(*)),
-      accounts(*),
-      credentials(*),
-      units(*)
-    `)
+    .select("*, user, package_name:package, funder, package(*, funders(*)), accounts(*, units(*)), credentials(*)")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -31,17 +21,7 @@ export async function getFunderAccountById(id: number) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("funder_account")
-    .select(`
-      *,
-      user,
-      package_name:package,
-      unit_name:unit,
-      funder,
-      package(*, funders(*)),
-      accounts(*),
-      credentials(*),
-      units(*)
-    `)
+    .select("*, user, package_name:package, funder, package(*, funders(*)), accounts(*, units(*)), credentials(*)")
     .eq("id", id)
     .single();
 
@@ -105,10 +85,8 @@ export async function funderAccountsTable() {
       created_at,
       user,
       package_name:package,
-      unit_name:unit,
       funder,
-      unit_rel:units(unit_name),
-      account_rel:accounts(id, first_name, last_name, email),
+      account_rel:accounts(id, first_name, last_name, email, units(unit_name)),
       package_rel:package(name)
     `)
     .order("created_at", { ascending: false });

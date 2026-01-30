@@ -9,7 +9,7 @@ export async function getUnits() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("units")
-    .select("*, franchise(*), funder_account(*)")
+    .select("*, franchise(*), accounts(*)")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -32,20 +32,22 @@ export async function getUnitsWithCounts() {
         return [];
     }
 
-    const { data: accounts, error: accountsError } = await supabase
-        .from("funder_account")
+    const { data: accountsWithFunders, error: accountsError } = await supabase
+        .from("accounts")
         .select(`
             unit_id, 
-            status,
-            package:package_id (
-                funders:funder_id (
-                    allias,
-                    allias_color,
-                    text_color
+            funder_accounts:funder_account(
+                status,
+                package:package_id (
+                    funders:funder_id (
+                        allias,
+                        allias_color,
+                        text_color
+                    )
                 )
             )
         `)
-        .eq('status', true); // Only active accounts
+        .not("unit_id", "is", null);
 
     if (accountsError) {
         console.error("Error fetching accounts for counts:", accountsError);
@@ -53,23 +55,29 @@ export async function getUnitsWithCounts() {
     }
 
     return units.map(unit => {
-        const unitAccounts = accounts.filter(a => a.unit_id === unit.id);
+        const relatedAccounts = accountsWithFunders.filter(acc => acc.unit_id === unit.id);
         
-        // Group by funder alias
+        // Group by funder alias from all linked funder accounts
         const funderMap: Record<string, { count: number, allias_color: string, text_color: string }> = {};
         
-        unitAccounts.forEach(acc => {
-            const funder = (acc.package as any)?.funders;
-            if (funder && funder.allias) {
-                if (!funderMap[funder.allias]) {
-                    funderMap[funder.allias] = { 
-                        count: 0, 
-                        allias_color: funder.allias_color || "#1c64f2", 
-                        text_color: funder.text_color || "white" 
-                    };
+        relatedAccounts.forEach(acc => {
+            (acc.funder_accounts || []).forEach((fa: any) => {
+                // Only count "active" status funder accounts if desired, 
+                // but usually the count is for total accounts assigned to this unit
+                if (fa.status === 'idle' || fa.status === 'trading' || fa.status === 'paired') {
+                    const funder = fa.package?.funders;
+                    if (funder && funder.allias) {
+                        if (!funderMap[funder.allias]) {
+                            funderMap[funder.allias] = { 
+                                count: 0, 
+                                allias_color: funder.allias_color || "#1c64f2", 
+                                text_color: funder.text_color || "white" 
+                            };
+                        }
+                        funderMap[funder.allias].count++;
+                    }
                 }
-                funderMap[funder.allias].count++;
-            }
+            });
         });
 
         const funder_counts = Object.entries(funderMap).map(([allias, data]) => ({

@@ -20,7 +20,6 @@ const funderAccountSchema = z.object({
     funder_id: z.string().min(1, "Funder is required"),
     package_id: z.string().min(1, "Package is required"),
     acount_id: z.string().min(1, "User is required"),
-    unit_id: z.string().min(1, "Server Unit is required"),
 })
 
 type FunderAccountFormValues = z.infer<typeof funderAccountSchema>
@@ -62,7 +61,6 @@ export const FunderAccountsForm = ({
             funder_id: initialData?.package?.funder_id?.toString() || "",
             package_id: initialData?.package_id?.toString() || "",
             acount_id: initialData?.acount_id?.toString() || "",
-            unit_id: initialData?.unit_id?.toString() || "",
         },
     })
 
@@ -90,19 +88,16 @@ export const FunderAccountsForm = ({
             // Find labels for the text-based columns
             const selectedPackage = packages.find(p => p.id.toString() === data.package_id)
             const selectedAccount = accounts.find(a => a.id.toString() === data.acount_id)
-            const selectedUnit = units.find(u => u.id.toString() === data.unit_id)
             const selectedFunder = funders.find(f => f.id.toString() === data.funder_id)
 
             // Prepare payload with correct types and keys
             const payload = {
                 package_id: parseInt(data.package_id),
                 acount_id: parseInt(data.acount_id),
-                unit_id: parseInt(data.unit_id),
                 status: initialData?.status ?? true,
                 // Denormalized text columns for easy display
                 user: selectedAccount ? `${selectedAccount.first_name} ${selectedAccount.last_name}`.trim() : null,
                 package: selectedPackage?.name || null,
-                unit: selectedUnit?.unit_name || null,
                 funder: selectedFunder?.name || null
             }
 
@@ -214,26 +209,6 @@ export const FunderAccountsForm = ({
                     {errors.package_id && <p className="text-xs text-red-500 mt-1">{errors.package_id.message}</p>}
                 </div>
 
-                {/* SERVER UNIT */}
-                <div className="space-y-2">
-                    <Label htmlFor="unit_id" className="text-white text-sm font-medium">SERVER UNIT</Label>
-                    <div className="relative">
-                        <select
-                            id="unit_id"
-                            {...register("unit_id")}
-                            className="flex h-11 w-full rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] text-white px-4 py-2 text-sm appearance-none focus:border-blue-500 transition-all outline-none ring-0 shadow-inner"
-                        >
-                            <option value="">-- Select Server Unit --</option>
-                            {units.map((unit) => (
-                                <option key={unit.id} value={unit.id}>
-                                    {unit.unit_name}
-                                </option>
-                            ))}
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                    </div>
-                    {errors.unit_id && <p className="text-xs text-red-500 mt-1">{errors.unit_id.message}</p>}
-                </div>
 
                 <div className="flex justify-end gap-3 pt-6 border-t border-[#1a1a1a]">
                     <Button

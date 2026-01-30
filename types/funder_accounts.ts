@@ -22,19 +22,14 @@ export interface FunderAccount {
   status: AccountStatus;
   acount_id: number | null;
   credential_id: number | null;
-  unit_id: number | null;
   
   // Denormalized/Alias fields from database or helper
   user?: string | null;
   funder?: string | null;
-  unit?: string | null;
-  units?: Unit | null;
-  unit_name?: string | null;
   package_name?: string | null;
-
   // Joined fields
   package?: Package & { funders?: Funder };
-  accounts?: Account & { id: number } | null;
+  accounts?: (Account & { units?: Unit | null }) | null;
   credentials?: Credential | null;
 }
 

@@ -3,7 +3,7 @@ import { TradingAccount } from "../types/trading_accounts"
 import axios from "axios"
 
 export const loginToAccount = async (account: TradingAccount) => {
-    const result = await axios.post(`${account.units?.api_base_url}api/v1/runner/CtraderLogin.1.0.4.nupkg`, {     
+    const result = await axios.post(`${account.accounts?.units?.api_base_url}api/v1/runner/CtraderLogin.1.0.4.nupkg`, {     
         arguments: {
             username: String(account.credentials?.username || ""),
             password: String(account.credentials?.password || ""),

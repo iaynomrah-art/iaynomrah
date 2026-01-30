@@ -18,7 +18,7 @@ const TradingAccountsPage = () => {
     const [data, setData] = useState<TradingAccount[]>([])
     const [funders, setFunders] = useState<Funder[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const [selectedAccounts, setSelectedAccounts] = useState<number[]>([])
+    const [selectedAccounts, setSelectedAccounts] = useState<string[]>([])
     const [isModalOpen, setIsModalOpen] = React.useState(false)
 
     useEffect(() => {

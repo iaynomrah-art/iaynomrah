@@ -92,7 +92,7 @@ export const FunderAccountsTable = ({
                         data.map((item) => (
                             <TableRow key={item.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
                                 <TableCell className="text-white py-4 text-sm font-medium">
-                                    {item.unit_name || item.units?.unit_name || "-"}
+                                    {item.accounts?.units?.unit_name || "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
                                     {item.user || (item.accounts ? `${item.accounts.first_name} ${item.accounts.last_name}`.trim() : "-")}
