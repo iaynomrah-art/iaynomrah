@@ -11,6 +11,7 @@ export interface Package {
   funder_id: string | null; // Changed from number to string
   funder?: Funder;
   funders?: Funder; // Added for plural join result
+  is_used?: boolean;
 }
 
 export type CreatePackage = Omit<Package, "id" | "created_at" | "funder">;

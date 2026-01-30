@@ -170,8 +170,8 @@ export const FunderAccountsForm = ({
                         >
                             <option value="">-- Select Package --</option>
                             {packages.map((pkg) => (
-                                <option key={pkg.id} value={pkg.id}>
-                                    {getPackageDisplayName(pkg)}
+                                <option key={pkg.id} value={pkg.id} disabled={pkg.is_used}>
+                                    {getPackageDisplayName(pkg)} {pkg.is_used ? "(Already Used)" : ""}
                                 </option>
                             ))}
                         </select>

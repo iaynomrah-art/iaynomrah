@@ -38,16 +38,52 @@ export async function getFunderAccountById(id: string) {
 
 export async function createFunderAccount(formData: any) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: funderAccountData, error: funderAccountError } = await supabase
     .from("funder_account")
     .insert([formData])
-    .select();
+    .select()
+    .single();
 
-  if (error) {
-    throw new Error(error.message);
+  if (funderAccountError) {
+    throw new Error(funderAccountError.message);
   }
+
+  // Fetch package details to populate trading account
+  if (formData.package_id) {
+    const { data: packageData, error: packageError } = await supabase
+      .from("package")
+      .select("*, funders(*)")
+      .eq("id", formData.package_id)
+      .single();
+
+    if (!packageError && packageData) {
+      // Create associated trading account
+      const { error: tradingAccountError } = await supabase
+        .from("trading_accounts")
+        .insert([
+          {
+            funder_account_id: funderAccountData.id,
+            package: packageData.name, // Derived from package
+            funder: packageData.funders?.name || packageData.funders?.allias, // Derived from funder
+            account_status: "idle",
+            live_equity: packageData.balance || 0,
+            challenge_type: packageData.phase,
+            // Add other default values as needed
+          },
+        ]);
+
+      if (tradingAccountError) {
+        console.error(
+          "Error creating associated trading account:",
+          tradingAccountError,
+        );
+        // Note: we might want to delete the funder account if this fails, or just log it
+      }
+    }
+  }
+
   revalidatePath("/dashboard/trading-accounts/funder-accounts");
-  return data;
+  return funderAccountData;
 }
 
 export async function updateFunderAccount(id: string, formData: any) {
