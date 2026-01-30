@@ -2,6 +2,7 @@
 
 import React, { Suspense, useState, useEffect } from 'react'
 import { getAccounts } from '@/helper/accounts'
+import { getUnits } from '@/helper/units'
 import { SearchBarHeader } from '@/components/ui/search-bar-header'
 import { AccountsTable, AccountsTableSkeleton } from '@/components/tables/accounts'
 
@@ -9,21 +10,26 @@ import { CreateUserAccountDialog } from '@/components/modal/Create/CreateUserAcc
 
 const UserAccountsPage = () => {
     const [accounts, setAccounts] = useState<any[]>([])
+    const [units, setUnits] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
 
     useEffect(() => {
-        const fetchAccounts = async () => {
+        const fetchData = async () => {
             try {
-                const data = await getAccounts()
-                setAccounts(data)
+                const [accountsData, unitsData] = await Promise.all([
+                    getAccounts(),
+                    getUnits()
+                ])
+                setAccounts(accountsData)
+                setUnits(unitsData)
             } catch (error) {
-                console.error("Failed to fetch accounts:", error)
+                console.error("Failed to fetch data:", error)
             } finally {
                 setIsLoading(false)
             }
         }
-        fetchAccounts()
+        fetchData()
     }, [])
 
     const filteredAccounts = accounts.filter(account => {
@@ -43,7 +49,7 @@ const UserAccountsPage = () => {
                 <div className="px-6 pt-6 pb-10">
                     <SearchBarHeader
                         title="User Accounts"
-                        actionComponent={<CreateUserAccountDialog />}
+                        actionComponent={<CreateUserAccountDialog units={units} setAccounts={setAccounts} />}
                         showSearch={true}
                         onSearchChange={setSearchQuery}
                     />
@@ -54,7 +60,7 @@ const UserAccountsPage = () => {
                     {isLoading ? (
                         <AccountsTableSkeleton />
                     ) : (
-                        <AccountsTable data={filteredAccounts} />
+                        <AccountsTable data={filteredAccounts} units={units} setAccounts={setAccounts} />
                     )}
                 </div>
             </div>

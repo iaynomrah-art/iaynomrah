@@ -53,11 +53,11 @@ interface FundersTableProps {
 }
 
 export const FundersTable = ({ data, onEdit }: FundersTableProps) => {
-    const [selectedFunder, setSelectedFunder] = useState<{ id: number, name: string | null } | null>(null);
+    const [selectedFunder, setSelectedFunder] = useState<{ id: string, name: string | null } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const handleDeleteClick = (id: number, name: string | null) => {
+    const handleDeleteClick = (id: string, name: string | null) => {
         setSelectedFunder({ id, name });
         setIsDeleteModalOpen(true);
     };

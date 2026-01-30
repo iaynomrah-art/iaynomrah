@@ -10,6 +10,7 @@ export interface Unit {
   status: UnitStatus | null; // USER-DEFINED
   franchise_id: number | null;
   franchise?: Franchise;
+  is_occupied: boolean;
 }
 
 export type CreateUnit = Omit<Unit, "id" | "created_at" | "unit_id" | "franchise">;

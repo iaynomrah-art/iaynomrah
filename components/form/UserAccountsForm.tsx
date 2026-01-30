@@ -36,11 +36,12 @@ type UserAccountFormValues = z.infer<typeof userAccountSchema>
 interface UserAccountsFormProps {
     initialData?: any | null
     units?: any[]
+    setAccounts: React.Dispatch<React.SetStateAction<any[]>>
     onSuccess?: () => void
     onCancel?: () => void
 }
 
-export const UserAccountsForm = ({ initialData, units = [], onSuccess, onCancel }: UserAccountsFormProps) => {
+export const UserAccountsForm = ({ initialData, units = [], setAccounts, onSuccess, onCancel }: UserAccountsFormProps) => {
     const router = useRouter()
     const [isPending, setIsPending] = React.useState(false)
     const isUpdate = !!initialData
@@ -48,6 +49,7 @@ export const UserAccountsForm = ({ initialData, units = [], onSuccess, onCancel 
     const {
         register,
         handleSubmit,
+        setValue,
         formState: { errors },
     } = useForm<UserAccountFormValues>({
         resolver: zodResolver(userAccountSchema),
@@ -73,12 +75,38 @@ export const UserAccountsForm = ({ initialData, units = [], onSuccess, onCancel 
 
     const onSubmit = async (data: UserAccountFormValues) => {
         setIsPending(true)
+        const previousAccounts = await new Promise<any[]>(resolve => setAccounts(prev => { resolve(prev); return prev; }));
+
         try {
+            // Convert empty strings to null for numeric fields to avoid Postgres errors
+            const numericFields = ["birth_year", "birth_month", "birth_day", "contact_number", "contact_number_2", "zip_code"] as const;
+            const sanitizedData = { ...data } as any;
+
+            numericFields.forEach(field => {
+                if (sanitizedData[field] === "") {
+                    sanitizedData[field] = null;
+                } else if (sanitizedData[field] !== undefined && sanitizedData[field] !== null) {
+                    // Also ensure they are numbers if they are strings
+                    sanitizedData[field] = Number(sanitizedData[field]);
+                }
+            });
+
+            const unit = units.find(u => u.id === data.unit_id);
+            const optimisticAccount = {
+                ...initialData,
+                ...sanitizedData,
+                units: unit ? { unit_name: unit.unit_name } : initialData?.units,
+                id: initialData?.id || `temp-${Date.now()}`
+            };
+
+            // Optimistic update
             if (isUpdate) {
-                await updateAccount(initialData.id, data)
+                setAccounts(prev => prev.map(acc => acc.id === initialData.id ? optimisticAccount : acc));
+                await updateAccount(initialData.id, sanitizedData)
                 toast.success("User account updated successfully")
             } else {
-                await createAccount(data)
+                setAccounts(prev => [optimisticAccount, ...prev]);
+                await createAccount(sanitizedData)
                 toast.success("User account created successfully")
             }
 
@@ -89,6 +117,8 @@ export const UserAccountsForm = ({ initialData, units = [], onSuccess, onCancel 
                 router.refresh()
             }
         } catch (error: any) {
+            // Rollback
+            setAccounts(previousAccounts);
             toast.error(error.message || "Failed to save user account")
         } finally {
             setIsPending(false)
@@ -299,15 +329,33 @@ export const UserAccountsForm = ({ initialData, units = [], onSuccess, onCancel 
                     <div className="relative">
                         <select
                             id="unit_id"
-                            {...register("unit_id")}
+                            {...register("unit_id", {
+                                onChange: (e) => {
+                                    const selectedUnitId = e.target.value;
+                                    const unit = units.find(u => u.id === selectedUnitId);
+                                    if (unit?.is_occupied && unit.id !== initialData?.unit_id) {
+                                        toast.error(`${unit.unit_name} is already occupied. Please select another unit.`);
+                                        // Reset to original value or empty
+                                        setValue("unit_id", initialData?.unit_id || "");
+                                    }
+                                }
+                            })}
                             className="flex h-10 w-full rounded-md border border-gray-700 bg-gray-800 text-white px-3 py-1 text-sm appearance-none focus:border-blue-500 transition-colors shadow-inner"
                         >
                             <option value="">-- Select Unit --</option>
-                            {units.map((unit) => (
-                                <option key={unit.id} value={unit.id}>
-                                    {unit.unit_name}
-                                </option>
-                            ))}
+                            {units
+                                .map((unit) => {
+                                    const isOccupied = unit.is_occupied && unit.id !== initialData?.unit_id;
+                                    return (
+                                        <option
+                                            key={unit.id}
+                                            value={unit.id}
+                                            className={isOccupied ? "text-gray-500" : "text-white"}
+                                        >
+                                            {unit.unit_name} {isOccupied ? "(Occupied)" : ""}
+                                        </option>
+                                    );
+                                })}
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                     </div>

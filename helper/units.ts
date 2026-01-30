@@ -94,7 +94,7 @@ export async function getUnitsWithCounts() {
     });
 }
 
-export async function getUnitById(id: number) {
+export async function getUnitById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("units")
@@ -122,7 +122,7 @@ export async function createUnit(formData: any) {
   return data;
 }
 
-export async function updateUnit(id: number, formData: any) {
+export async function updateUnit(id: string, formData: any) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("units")
@@ -136,7 +136,7 @@ export async function updateUnit(id: number, formData: any) {
   return data;
 }
 
-export async function deleteUnit(id: number) {
+export async function deleteUnit(id: string) {
   const supabase = await createClient();
   const { error } = await supabase
     .from("units")
@@ -149,7 +149,7 @@ export async function deleteUnit(id: number) {
   return true;
 }
 
-export async function updateUnitStatus(id: number, status: string) {
+export async function updateUnitStatus(id: string, status: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("units")
@@ -162,7 +162,7 @@ export async function updateUnitStatus(id: number, status: string) {
   }
   return data;
 }
-export async function archiveUnit(id: number) {
+export async function archiveUnit(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("units")
@@ -176,7 +176,7 @@ export async function archiveUnit(id: number) {
   return data;
 }
 
-export async function unarchiveUnit(id: number) {
+export async function unarchiveUnit(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("units")

@@ -18,7 +18,7 @@ export async function getFunders(): Promise<Funder[]> {
     return data as Funder[];
 }
 
-export async function getFunderById(id: number): Promise<Funder | null> {
+export async function getFunderById(id: string): Promise<Funder | null> {
     const supabase = await createClient();
     const { data, error } = await supabase
         .from("funders")
@@ -48,7 +48,7 @@ export async function createFunder(formData: CreateFunder) {
     return data;
 }
 
-export async function updateFunder(id: number, formData: UpdateFunder) {
+export async function updateFunder(id: string, formData: UpdateFunder) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("funders")
@@ -64,7 +64,7 @@ export async function updateFunder(id: number, formData: UpdateFunder) {
   return data;
 }
 
-export async function deleteFunder(id: number) {
+export async function deleteFunder(id: string) {
   const supabase = await createClient();
   const { error } = await supabase
     .from("funders")

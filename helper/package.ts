@@ -14,10 +14,13 @@ export async function getPackages() {
     console.error("Error fetching packages:", error);
     return [];
   }
+
+  console.log(data)
+
   return data;
 }
 
-export async function getPackageById(id: number) {
+export async function getPackageById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("package")
@@ -46,7 +49,7 @@ export async function createPackage(formData: any) {
   return data;
 }
 
-export async function updatePackage(id: number, formData: any) {
+export async function updatePackage(id: string, formData: any) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("package")
@@ -61,7 +64,7 @@ export async function updatePackage(id: number, formData: any) {
   return data;
 }
 
-export async function deletePackage(id: number) {
+export async function deletePackage(id: string) {
   const supabase = await createClient();
   const { error } = await supabase
     .from("package")

@@ -1,5 +1,5 @@
 export interface Funder {
-  id: number;
+  id: string;
   created_at: string;
   name: string | null;
   allias: string | null;

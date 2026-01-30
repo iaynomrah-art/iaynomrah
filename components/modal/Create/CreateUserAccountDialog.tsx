@@ -7,7 +7,12 @@ import { Plus } from 'lucide-react'
 import { UserAccountsForm } from '@/components/form/UserAccountsForm'
 import { useRouter } from 'next/navigation'
 
-export const CreateUserAccountDialog = () => {
+interface CreateUserAccountDialogProps {
+    units?: any[]
+    setAccounts: React.Dispatch<React.SetStateAction<any[]>>
+}
+
+export const CreateUserAccountDialog = ({ units = [], setAccounts }: CreateUserAccountDialogProps) => {
     const [open, setOpen] = useState(false)
     const router = useRouter()
 
@@ -33,6 +38,8 @@ export const CreateUserAccountDialog = () => {
 
                 <div className="mt-4">
                     <UserAccountsForm
+                        units={units}
+                        setAccounts={setAccounts}
                         onSuccess={handleSuccess}
                         onCancel={() => setOpen(false)}
                     />

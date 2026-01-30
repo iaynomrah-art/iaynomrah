@@ -60,7 +60,7 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
                 balance: parseFloat(data.balance),
                 phase: data.phase,
                 instrument: data.instrument,
-                funder_id: parseInt(data.funder_id),
+                funder_id: data.funder_id,
             }
 
             if (isUpdate) {

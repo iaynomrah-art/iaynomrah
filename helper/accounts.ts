@@ -17,7 +17,7 @@ export async function getAccounts() {
   return data;
 }
 
-export async function getAccountById(id: number) {
+export async function getAccountById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("accounts")
@@ -45,7 +45,7 @@ export async function createAccount(formData: any) {
   return data;
 }
 
-export async function updateAccount(id: number, formData: any) {
+export async function updateAccount(id: string, formData: any) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("accounts")
@@ -60,7 +60,7 @@ export async function updateAccount(id: number, formData: any) {
   return data;
 }
 
-export async function deleteAccount(id: number) {
+export async function deleteAccount(id: string) {
   const supabase = await createClient();
   const { error } = await supabase
     .from("accounts")

@@ -67,7 +67,7 @@ export const FunderForm = ({ initialData, onSuccess, onCancel }: FunderFormProps
             allias: initialData?.allias || "",
             resetTime: getFormattedTime(initialData?.reset_time),
             timezone: "Asia/Hong_Kong",
-            text_color: (initialData?.text_color as "white" | "black") || "white",
+            text_color: (initialData?.text_color === "black" ? "black" : "white") as "white" | "black",
             allias_color: initialData?.allias_color || "#1c64f2",
         },
     })

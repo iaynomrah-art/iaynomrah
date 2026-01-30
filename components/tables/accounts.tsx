@@ -10,16 +10,16 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Pencil, Trash2 } from "lucide-react"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Trash2 } from "lucide-react"
 import { DeleteAccountModal } from "@/components/modal/Delete/DeleteAccount"
 import { deleteAccount } from "@/helper/accounts"
 import { toast } from "sonner"
 import Link from "next/link"
 import { EditUserAccountDialog } from "@/components/modal/Edit/EditUserAccountDialog"
+export { AccountsTableSkeleton } from "@/components/skeleton/AccountTableSkeleton"
 
 interface Account {
-    id: number
+    id: string
     first_name: string
     middle_name: string
     last_name: string
@@ -35,14 +35,16 @@ interface Account {
 
 interface AccountsTableProps {
     data: Account[]
+    units?: any[]
+    setAccounts: React.Dispatch<React.SetStateAction<any[]>>
 }
 
-export const AccountsTable = ({ data }: AccountsTableProps) => {
-    const [selectedAccount, setSelectedAccount] = useState<{ id: number, name: string } | null>(null);
+export const AccountsTable = ({ data, units = [], setAccounts }: AccountsTableProps) => {
+    const [selectedAccount, setSelectedAccount] = useState<{ id: string, name: string } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const handleDeleteClick = (id: number, firstName: string, lastName: string) => {
+    const handleDeleteClick = (id: string, firstName: string, lastName: string) => {
         setSelectedAccount({ id, name: `${firstName} ${lastName}` });
         setIsDeleteModalOpen(true);
     };
@@ -50,19 +52,26 @@ export const AccountsTable = ({ data }: AccountsTableProps) => {
     const handleDeleteConfirm = async () => {
         if (!selectedAccount) return;
 
+        const accountToDelete = selectedAccount;
+        const previousAccounts = [...data];
+
         setIsDeleting(true);
+        // Optimistic update
+        setAccounts(prev => prev.filter(acc => acc.id !== accountToDelete.id));
+
         try {
-            await deleteAccount(selectedAccount.id);
-            toast.success("User account deleted successfully");
+            await deleteAccount(accountToDelete.id);
+            toast.success("Account deleted successfully");
             setIsDeleteModalOpen(false);
             setSelectedAccount(null);
         } catch (error: any) {
+            // Rollback
+            setAccounts(previousAccounts);
             toast.error(error.message || "Failed to delete account");
         } finally {
             setIsDeleting(false);
         }
     };
-
     return (
         <div className="w-full">
             <Table>
@@ -93,7 +102,7 @@ export const AccountsTable = ({ data }: AccountsTableProps) => {
                             <TableRow key={account.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
-                                        <EditUserAccountDialog account={account} />
+                                        <EditUserAccountDialog account={account} units={units} setAccounts={setAccounts} />
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -109,7 +118,11 @@ export const AccountsTable = ({ data }: AccountsTableProps) => {
                                 <TableCell className="text-white py-4">{account.middle_name || "-"}</TableCell>
                                 <TableCell className="text-white py-4">{account.last_name}</TableCell>
                                 <TableCell className="text-white py-4">{account.email}</TableCell>
-                                <TableCell className="text-white py-4">{`${account.address || ""}${account.city ? ", " + account.city : ""}${account.province ? ", " + account.province : ""}${account.zip_code ? ", " + account.zip_code : ""}` || "-"}</TableCell>
+                                <TableCell className="text-white py-4">
+                                    {[account.address, account.city, account.province, account.zip_code]
+                                        .filter(Boolean)
+                                        .join(", ") || "-"}
+                                </TableCell>
                                 <TableCell className="text-white py-4">{account.contact_number || "-"}</TableCell>
                                 <TableCell className="text-white py-4">{account.contact_number_2 || "-"}</TableCell>
                                 <TableCell className="text-white py-4">{account.id_type || "-"}</TableCell>
@@ -131,68 +144,4 @@ export const AccountsTable = ({ data }: AccountsTableProps) => {
     )
 }
 
-export const AccountsTableSkeleton = () => {
-    return (
-        <div className="w-full">
-            <Table>
-                <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
-                    <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-[100px] text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">SERVER UNIT</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">FIRST NAME</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">MIDDLE NAME</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">LAST NAME</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">EMAIL</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">ADDRESS</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">CONTACT NUMBER 1</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">CONTACT NUMBER 2</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">ID TYPE</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">BILLING</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {[1, 2, 3, 4, 5].map((i) => (
-                        <TableRow key={i} className="border-[#1a1a1a] hover:bg-transparent">
-                            <TableCell className="py-4">
-                                <div className="flex items-center gap-2">
-                                    <Skeleton className="h-8 w-8 rounded-md bg-[#1a1a1a]" />
-                                    <Skeleton className="h-8 w-8 rounded-md bg-[#1a1a1a]" />
-                                </div>
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[100px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[120px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[100px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[120px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[180px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[200px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[120px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[120px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[100px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[100px] bg-[#1a1a1a]" />
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
-    )
-}
+
