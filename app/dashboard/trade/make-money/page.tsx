@@ -14,6 +14,8 @@ import { useTradingFilter, PHASES, STATUSES } from "@/hooks/use-trading-filter"
 
 
 
+import { createClient } from "@/lib/supabase/client"
+
 const TradingAccountsPage = () => {
     const [data, setData] = useState<TradingAccount[]>([])
     const [funders, setFunders] = useState<Funder[]>([])
@@ -21,22 +23,43 @@ const TradingAccountsPage = () => {
     const [selectedAccounts, setSelectedAccounts] = useState<string[]>([])
     const [isModalOpen, setIsModalOpen] = React.useState(false)
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [accountsResult, fundersResult] = await Promise.all([
-                    getTradingAccounts(),
-                    getFunders()
-                ])
-                setData(accountsResult)
-                setFunders(fundersResult)
-            } catch (error) {
-                console.error("Failed to fetch data:", error)
-            } finally {
-                setIsLoading(false)
-            }
+    const fetchData = async () => {
+        try {
+            const [accountsResult, fundersResult] = await Promise.all([
+                getTradingAccounts(),
+                getFunders()
+            ])
+            setData(accountsResult)
+            setFunders(fundersResult)
+        } catch (error) {
+            console.error("Failed to fetch data:", error)
+        } finally {
+            setIsLoading(false)
         }
+    }
+
+    useEffect(() => {
         fetchData()
+
+        const supabase = createClient()
+        const channel = supabase
+            .channel('trading_accounts_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'trading_accounts'
+                },
+                () => {
+                    fetchData()
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
     }, [])
 
     const {

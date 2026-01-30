@@ -1,18 +1,18 @@
-"use server"
+"use server";
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export async function getTradingAccounts(type?: string) {
   const supabase = await createClient();
-  
+
   let query = supabase.from("trading_accounts").select(`
     *,
     funder_account:funder_account_id(
       *,
       package_ref:package!funder_account_package_id_fkey(*, funders(*)),
       accounts:accounts!funder_account_acount_id_fkey(*, units(*)),
-      credentials(*)
+      credentials:credentials!funder_account_credential_id_fkey(*)
     )
   `);
 
@@ -27,11 +27,11 @@ export async function getTradingAccounts(type?: string) {
   return data.map((item: any) => ({
     ...(item.funder_account || {}),
     ...item,
-    status: item.account_status || (item.funder_account?.status || 'idle'),
+    status: item.account_status || item.funder_account?.status || "idle",
     id: item.id,
     package_ref: item.funder_account?.package_ref,
     accounts: item.funder_account?.accounts,
-    credentials: item.funder_account?.credentials
+    credentials: item.funder_account?.credentials,
   }));
 }
 
@@ -39,15 +39,17 @@ export async function getTradingAccountById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("trading_accounts")
-    .select(`
+    .select(
+      `
       *,
       funder_account:funder_account_id(
         *,
         package_ref:package!funder_account_package_id_fkey(*, funders(*)),
         accounts:accounts!funder_account_acount_id_fkey(*, units(*)),
-        credentials(*)
+        credentials:credentials!funder_account_credential_id_fkey(*)
       )
-    `)
+    `,
+    )
     .eq("id", id)
     .single();
 
@@ -61,17 +63,17 @@ export async function getTradingAccountById(id: string) {
   return {
     ...(item.funder_account || {}),
     ...item,
-    status: item.account_status || (item.funder_account?.status || 'idle'),
+    status: item.account_status || item.funder_account?.status || "idle",
     id: item.id,
     package_ref: item.funder_account?.package_ref,
     accounts: item.funder_account?.accounts,
-    credentials: item.funder_account?.credentials
+    credentials: item.funder_account?.credentials,
   };
 }
 
 export async function createTradingAccount(formData: any) {
   const supabase = await createClient();
-  
+
   // If package_id is provided, fetch the package name/details if needed to populate the 'package' text column
   if (formData.package_id && !formData.package) {
     const { data: packageData } = await supabase
@@ -79,12 +81,12 @@ export async function createTradingAccount(formData: any) {
       .select("name")
       .eq("id", formData.package_id)
       .single();
-    
+
     if (packageData) {
       formData.package = packageData.name;
     }
   }
-  
+
   const { data, error } = await supabase
     .from("funder_account")
     .insert([formData])
@@ -93,14 +95,14 @@ export async function createTradingAccount(formData: any) {
   if (error) {
     throw new Error(error.message);
   }
-  
+
   revalidatePath("/dashboard/trading-accounts");
   return data;
 }
 
 export async function updateTradingAccount(id: string, formData: any) {
   const supabase = await createClient();
-  
+
   // If package_id is being updated, fetch the new package's name
   if (formData.package_id !== undefined && !formData.package) {
     const { data: packageData } = await supabase
@@ -108,12 +110,12 @@ export async function updateTradingAccount(id: string, formData: any) {
       .select("name")
       .eq("id", formData.package_id)
       .single();
-    
+
     if (packageData) {
       formData.package = packageData.name;
     }
   }
-  
+
   const { data, error } = await supabase
     .from("funder_account")
     .update(formData)
@@ -123,22 +125,19 @@ export async function updateTradingAccount(id: string, formData: any) {
   if (error) {
     throw new Error(error.message);
   }
-  
+
   revalidatePath("/dashboard/trading-accounts");
   return data;
 }
 
 export async function deleteTradingAccount(id: string) {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("funder_account")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("funder_account").delete().eq("id", id);
 
   if (error) {
     throw new Error(error.message);
   }
-  
+
   revalidatePath("/dashboard/trading-accounts");
   return true;
 }
@@ -148,11 +147,13 @@ export async function deleteTradingAccount(id: string) {
  */
 export async function syncAllTradingAccountPhases() {
   const supabase = await createClient();
-  
+
   // Get all accounts with package_id
   const { data: tradingAccounts, error: fetchError } = await supabase
     .from("funder_account")
-    .select("id, package_id, package, package_ref:package!funder_account_package_id_fkey(name)")
+    .select(
+      "id, package_id, package, package_ref:package!funder_account_package_id_fkey(name)",
+    )
     .not("package_id", "is", null);
 
   if (fetchError) {
@@ -160,14 +161,17 @@ export async function syncAllTradingAccountPhases() {
   }
 
   // Update each account where package name doesn't match
-  const updates = tradingAccounts
-    ?.filter((ta: any) => ta.package_ref?.name && ta.package !== ta.package_ref.name)
-    .map((ta: any) => 
-      supabase
-        .from("funder_account")
-        .update({ package: ta.package_ref.name })
-        .eq("id", ta.id)
-    ) || [];
+  const updates =
+    tradingAccounts
+      ?.filter(
+        (ta: any) => ta.package_ref?.name && ta.package !== ta.package_ref.name,
+      )
+      .map((ta: any) =>
+        supabase
+          .from("funder_account")
+          .update({ package: ta.package_ref.name })
+          .eq("id", ta.id),
+      ) || [];
 
   if (updates.length > 0) {
     await Promise.all(updates);

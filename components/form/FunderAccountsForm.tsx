@@ -46,7 +46,6 @@ export const FunderAccountsForm = ({
 }: FunderAccountsFormProps) => {
     const router = useRouter()
     const [isPending, setIsPending] = React.useState(false)
-    const [filteredPackages, setFilteredPackages] = useState<any[]>([])
     const isUpdate = !!initialData
 
     const {
@@ -64,34 +63,25 @@ export const FunderAccountsForm = ({
         },
     })
 
-    const selectedFunderId = watch("funder_id")
+    const selectedPackageId = watch("package_id")
 
-    // Filter packages when funder changes
+    // Auto-sync Funder when Package changes
     useEffect(() => {
-        if (selectedFunderId) {
-            const filtered = (packages || []).filter(pkg => pkg.funder_id === selectedFunderId)
-            setFilteredPackages(filtered)
-
-            // Only reset package if it's not in the filtered list AND we're not on initial load
-            const currentPackageId = watch("package_id")
-            const isInitialLoad = initialData && currentPackageId === initialData.package_id
-
-            if (currentPackageId && !isInitialLoad && !filtered.find(pkg => pkg.id === currentPackageId)) {
-                setValue("package_id", "")
+        if (selectedPackageId) {
+            // Find the package object
+            const pkg = packages.find(p => p.id.toString() === selectedPackageId);
+            if (pkg) {
+                // Determine the key for 'funder_id'. 
+                // Note: The Package type might use 'funder_id' (database column naming) or similar. 
+                // Based on previous code: pkg.funder_id
+                setValue("funder_id", pkg.funder_id?.toString() || "");
             }
-        } else {
-            setFilteredPackages([])
         }
-    }, [selectedFunderId, packages, setValue, watch, initialData])
+    }, [selectedPackageId, packages, setValue])
 
     const onSubmit = async (data: FunderAccountFormValues) => {
         setIsPending(true)
         try {
-            // Find labels for the text-based columns
-            const selectedPackage = packages.find(p => p.id.toString() === data.package_id)
-            const selectedAccount = accounts.find(a => a.id.toString() === data.acount_id)
-            const selectedFunder = funders.find(f => f.id.toString() === data.funder_id)
-
             // Prepare payload with correct types and keys
             const payload = {
                 package_id: data.package_id,
@@ -133,6 +123,13 @@ export const FunderAccountsForm = ({
         }
     }
 
+    // Helper to get Funder Name for a package
+    const getPackageDisplayName = (pkg: Package) => {
+        const funder = funders.find(f => f.id === pkg.funder_id);
+        const funderName = funder ? funder.name : "Unknown Funder";
+        return `${funderName} - ${pkg.name}`;
+    }
+
     return (
         <div className="space-y-6">
             {/* Only show Title if NOT in a modal (usually modals have their own headers) */}
@@ -162,16 +159,38 @@ export const FunderAccountsForm = ({
                     {errors.acount_id && <p className="text-xs text-red-500 mt-1">{errors.acount_id.message}</p>}
                 </div>
 
-                {/* FUNDER */}
+                {/* PACKAGE - MOVED UP and Logic Changed */}
                 <div className="space-y-2">
-                    <Label htmlFor="funder_id" className="text-white text-sm font-medium">FUNDER</Label>
+                    <Label htmlFor="package_id" className="text-white text-sm font-medium">PACKAGE</Label>
+                    <div className="relative">
+                        <select
+                            id="package_id"
+                            {...register("package_id")}
+                            className="flex h-11 w-full rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] text-white px-4 py-2 text-sm appearance-none focus:border-blue-500 transition-all outline-none ring-0 shadow-inner"
+                        >
+                            <option value="">-- Select Package --</option>
+                            {packages.map((pkg) => (
+                                <option key={pkg.id} value={pkg.id}>
+                                    {getPackageDisplayName(pkg)}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                    </div>
+                    {errors.package_id && <p className="text-xs text-red-500 mt-1">{errors.package_id.message}</p>}
+                </div>
+
+                {/* FUNDER - Now Disabled/Read-only */}
+                <div className="space-y-2">
+                    <Label htmlFor="funder_id" className="text-white text-sm font-medium">FUNDER (Auto-selected)</Label>
                     <div className="relative">
                         <select
                             id="funder_id"
                             {...register("funder_id")}
-                            className="flex h-11 w-full rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] text-white px-4 py-2 text-sm appearance-none focus:border-blue-500 transition-all outline-none ring-0 shadow-inner"
+                            disabled
+                            className="flex h-11 w-full rounded-lg border border-[#1a1a1a] bg-[#1a1a1a] text-gray-400 px-4 py-2 text-sm appearance-none cursor-not-allowed shadow-inner"
                         >
-                            <option value="">-- Select Funder --</option>
+                            <option value="">-- Funder --</option>
                             {funders.map((funder) => (
                                 <option key={funder.id} value={funder.id}>
                                     {funder.name}
@@ -181,30 +200,6 @@ export const FunderAccountsForm = ({
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                     </div>
                     {errors.funder_id && <p className="text-xs text-red-500 mt-1">{errors.funder_id.message}</p>}
-                </div>
-
-                {/* PACKAGE */}
-                <div className="space-y-2">
-                    <Label htmlFor="package_id" className="text-white text-sm font-medium">PACKAGE</Label>
-                    <div className="relative">
-                        <select
-                            id="package_id"
-                            {...register("package_id")}
-                            disabled={!selectedFunderId}
-                            className="flex h-11 w-full rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] text-white px-4 py-2 text-sm appearance-none focus:border-blue-500 transition-all outline-none ring-0 shadow-inner disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <option value="">
-                                {!selectedFunderId ? "-- Select Funder First --" : "-- Select Package --"}
-                            </option>
-                            {filteredPackages.map((pkg) => (
-                                <option key={pkg.id} value={pkg.id}>
-                                    {pkg.name}
-                                </option>
-                            ))}
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                    </div>
-                    {errors.package_id && <p className="text-xs text-red-500 mt-1">{errors.package_id.message}</p>}
                 </div>
 
 
