@@ -4,39 +4,100 @@ import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { ChevronDown, ChevronUp, PlayCircle, X, Monitor } from "lucide-react"
 import Row from "@/components/ui/row"
-import { inputCtraderOrder } from "@/helper/automation"
+import { updatePairedAccount } from "@/helper/paired_accounts"
 import { toast } from "sonner"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Save } from "lucide-react"
+import { confirmTrade } from "@/helper/automation"
 
 export default function PairedAccountRow({ pair }: { pair: any }) {
     const [isOpen, setIsOpen] = useState(false)
     const [isStarting, setIsStarting] = useState(false)
+    const [isUpdating, setIsUpdating] = useState(false)
+
+    interface TradeParams {
+        symbol: string;
+        primary_order_amount: number;
+        primary_take_profit: number;
+        primary_stop_loss: number;
+        primary_order_type: string;
+        secondary_order_amount: number;
+        secondary_take_profit: number;
+        secondary_stop_loss: number;
+        secondary_order_type: string;
+    }
+
+    // Local state for editable fields
+    const [params, setParams] = useState<TradeParams>({
+        symbol: pair.symbol || "XAUUSD",
+        primary_order_amount: pair.primary_order_amount,
+        primary_take_profit: pair.primary_take_profit,
+        primary_stop_loss: pair.primary_stop_loss,
+        primary_order_type: pair.primary_order_type,
+        secondary_order_amount: pair.secondary_order_amount,
+        secondary_take_profit: pair.secondary_take_profit,
+        secondary_stop_loss: pair.secondary_stop_loss,
+        secondary_order_type: pair.secondary_order_type,
+    })
+
+    const handleUpdateParameters = async () => {
+        try {
+            setIsUpdating(true)
+            await updatePairedAccount(pair.id, params)
+            toast.success("Parameters updated successfully")
+        } catch (error: any) {
+            console.error("Update error:", error)
+            toast.error(error.message || "Failed to update parameters")
+        } finally {
+            setIsUpdating(false)
+        }
+    }
 
     const handleStartTrading = async () => {
         try {
             setIsStarting(true)
-            const accounts = [
-                {
-                    data: pair.primary_account,
-                    params: {
-                        trade_type: pair.primary_order_type,
-                        order_amount: pair.primary_order_amount,
-                        tp_ticks: pair.primary_take_profit,
-                        sl_ticks: pair.primary_stop_loss,
-                    }
-                },
-                {
-                    data: pair.secondary_account,
-                    params: {
-                        trade_type: pair.secondary_order_type,
-                        order_amount: pair.secondary_order_amount,
-                        tp_ticks: pair.secondary_take_profit,
-                        sl_ticks: pair.secondary_stop_loss,
-                    }
-                }
-            ]
 
-            // Demo Mode: Simulate network delay without running actual automation
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            const primaryPayload = {
+                username: String(pair.primary_account?.credentials?.username || ""),
+                password: String(pair.primary_account?.credentials?.password || ""),
+                symbol: String(params.symbol),
+                order_amount: String(params.primary_order_amount),
+                tp_ticks: String(params.primary_take_profit),
+                sl_ticks: String(params.primary_stop_loss),
+                purchase_type: String(params.primary_order_type),
+                account_number: String(pair.primary_account?.credentials?.username || pair.primary_account?.id),
+                latest_equity: String(pair.primary_account?.live_equity || 0),
+                daily_pnl: String(pair.primary_account?.daily_pnl || 0),
+                rdd: String(pair.primary_account?.rdd || 0)
+            }
+
+            const secondaryPayload = {
+                username: String(pair.secondary_account?.credentials?.username || ""),
+                password: String(pair.secondary_account?.credentials?.password || ""),
+                symbol: String(params.symbol),
+                order_amount: String(params.secondary_order_amount),
+                tp_ticks: String(params.secondary_take_profit),
+                sl_ticks: String(params.secondary_stop_loss),
+                purchase_type: String(params.secondary_order_type),
+                account_number: String(pair.secondary_account?.credentials?.username || pair.secondary_account?.id),
+                latest_equity: String(pair.secondary_account?.live_equity || 0),
+                daily_pnl: String(pair.secondary_account?.daily_pnl || 0),
+                rdd: String(pair.secondary_account?.rdd || 0)
+            }
+
+            const primaryApiUrl = pair.primary_account?.accounts?.units?.api_base_url;
+            const secondaryApiUrl = pair.secondary_account?.accounts?.units?.api_base_url;
+
+            if (!primaryApiUrl || !secondaryApiUrl) {
+                throw new Error("API URL missing for one or both units");
+            }
+
+            // Run both confirmTrade calls
+            await Promise.all([
+                confirmTrade(primaryApiUrl, primaryPayload),
+                confirmTrade(secondaryApiUrl, secondaryPayload)
+            ]);
 
             toast.success("Trading session started successfully")
         } catch (error: any) {
@@ -47,51 +108,117 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
         }
     }
 
-    const AccountColumn = ({ account, tradeParams }: { account: any, tradeParams: any }) => (
-        <div className="flex flex-col bg-[#161a1e] w-full">
-            {/* Account Header */}
-            <div className={cn(
-                "px-4 py-2.5 flex items-center justify-between transition-colors",
-                tradeParams.purchase_type === 'buy' ? "bg-[#2ebc66]" : "bg-[#cf304a]"
-            )}>
-                <div className="flex items-center gap-1.5">
-                    <div className="bg-[#f0b90b] text-black px-1.5 py-0.5 rounded-[3px] text-[10px] font-black uppercase">
-                        {account.package_ref?.funders?.allias || account.funder || "UPFT"}
+    const AccountColumn = ({
+        account,
+        isPrimary
+    }: {
+        account: any,
+        isPrimary: boolean
+    }) => {
+        const prefix = isPrimary ? 'primary' : 'secondary';
+        const orderType = params[`${prefix}_order_type` as keyof TradeParams] as string;
+
+
+        return (
+            <div className="flex flex-col bg-[#161a1e] w-full">
+                {/* Account Header */}
+                <div className={cn(
+                    "px-4 py-2.5 flex items-center justify-between transition-colors",
+                    orderType === 'buy' ? "bg-[#2ebc66]" : "bg-[#cf304a]"
+                )}>
+                    <div className="flex items-center gap-1.5">
+                        <div className="bg-[#f0b90b] text-black px-1.5 py-0.5 rounded-[3px] text-[10px] font-black uppercase">
+                            {account.package_ref?.funders?.allias || account.funder || "UPFT"}
+                        </div>
+                        <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate ">
+                            {account.package_ref?.phase || account.package || "Standard Phase"}
+                        </div>
                     </div>
-                    <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate ">
-                        {account.package_ref?.phase || account.package || "Standard Phase"}
+                    <div className="text-white font-black text-[12px] uppercase tracking-tighter flex items-center gap-2">
+                        {account.accounts?.units?.unit_name || `UNIT ${account.id}`}
                     </div>
                 </div>
-                <div className="text-white font-black text-[12px] uppercase tracking-tighter flex items-center gap-2">
-                    {tradeParams.unit_name || `UNIT ${account.id}`}
-                </div>
-            </div>
 
-            {/* Account Details */}
-            <div className="divide-y divide-[#2b3139]">
-                <Row label="Phase" value={account.package_ref?.phase || "N/A"} color="text-[#f0b90b]" />
-                <Row label="Starting Balance" value={`$${(account.package_ref?.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
-                <Row label="Starting Daily Equity" value={`$${(tradeParams.start_equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
-                <Row label="Latest Equity" value={`$${(account.live_equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
-                <Row label="Daily P&L" value={`$${(account.daily_pnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={(account.daily_pnl || 0) >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
-                <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
-                <Row label="Symbol" value={account.package_ref?.symbol || "N/A"} />
-                <Row label="Order Amount" value={String(tradeParams.order_amount)} />
-                <Row label="Take Profit (Ticks)" value={String(tradeParams.tp_ticks)} />
-                <Row label="Stop Loss (Ticks)" value={String(tradeParams.sl_ticks)} />
+                {/* Account Details */}
+                <div className="divide-y divide-[#2b3139]">
+                    <Row label="Phase" value={account.package_ref?.phase || "N/A"} color="text-[#f0b90b]" />
+                    <Row label="Starting Balance" value={`$${(account.package_ref?.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                    <Row label="Latest Equity" value={`$${(account.live_equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                    <Row label="Daily P&L" value={`$${(account.daily_pnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={(account.daily_pnl || 0) >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
+                    <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
 
-                <div className="grid grid-cols-2 px-4 py-3 items-center hover:bg-[#2b3139]/30 transition-colors">
-                    <span className="text-[#848e9c] text-[13px] font-medium">Purchase Type</span>
-                    <div className="flex justify-end">
-                        <div className="bg-[#0b0e11] border border-[#2b3139] h-8 px-3 flex items-center text-[13px] font-bold rounded-[4px] min-w-[100px] justify-between text-white">
-                            {tradeParams.purchase_type === 'buy' ? 'Buy' : 'Sell'}
-                            <ChevronDown className="h-3 w-3 opacity-50" />
+                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                        <span className="text-[#848e9c] text-[13px] font-medium">Symbol</span>
+                        <div className="flex justify-end">
+                            <Input
+                                type="text"
+                                value={params.symbol}
+                                onChange={(e) => setParams(prev => ({ ...prev, symbol: e.target.value.toUpperCase() }))}
+                                className="h-8 bg-[#0b0e11] border-[#2b3139] text-white text-[13px] font-bold text-right w-24 uppercase"
+                            />
+                        </div>
+                    </div>
+
+
+
+                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                        <span className="text-[#848e9c] text-[13px] font-medium">Order Amount</span>
+                        <div className="flex justify-end">
+                            <Input
+                                type="number"
+                                step="0.01"
+                                value={params[`${prefix}_order_amount` as keyof typeof params]}
+                                onChange={(e) => setParams(prev => ({ ...prev, [`${prefix}_order_amount`]: Number(e.target.value) }))}
+                                className="h-8 bg-[#0b0e11] border-[#2b3139] text-white text-[13px] font-bold text-right w-24"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                        <span className="text-[#848e9c] text-[13px] font-medium">Take Profit (Ticks)</span>
+                        <div className="flex justify-end">
+                            <Input
+                                type="number"
+                                value={params[`${prefix}_take_profit` as keyof typeof params]}
+                                onChange={(e) => setParams(prev => ({ ...prev, [`${prefix}_take_profit`]: Number(e.target.value) }))}
+                                className="h-8 bg-[#0b0e11] border-[#2b3139] text-white text-[13px] font-bold text-right w-24"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                        <span className="text-[#848e9c] text-[13px] font-medium">Stop Loss (Ticks)</span>
+                        <div className="flex justify-end">
+                            <Input
+                                type="number"
+                                value={params[`${prefix}_stop_loss` as keyof typeof params]}
+                                onChange={(e) => setParams(prev => ({ ...prev, [`${prefix}_stop_loss`]: Number(e.target.value) }))}
+                                className="h-8 bg-[#0b0e11] border-[#2b3139] text-white text-[13px] font-bold text-right w-24"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 px-4 py-3 items-center hover:bg-[#2b3139]/30 transition-colors">
+                        <span className="text-[#848e9c] text-[13px] font-medium">Purchase Type</span>
+                        <div className="flex justify-end">
+                            <Select
+                                value={orderType}
+                                onValueChange={(val) => setParams(prev => ({ ...prev, [`${prefix}_order_type`]: val }))}
+                            >
+                                <SelectTrigger className="h-8 bg-[#0b0e11] border-[#2b3139] text-white text-[13px] font-bold w-24">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-[#1e2329] border-[#2b3139] text-white">
+                                    <SelectItem value="buy">Buy</SelectItem>
+                                    <SelectItem value="sell">Sell</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    )
+        )
+    }
 
     return (
         <div className="border border-[#1a1a1a] rounded-xl overflow-hidden bg-[#0a0a0a] shadow-sm">
@@ -167,25 +294,11 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                     <div className="grid grid-cols-2 w-full divide-x divide-[#2b3139]">
                         <AccountColumn
                             account={pair.primary_account}
-                            tradeParams={{
-                                unit_name: pair.primary_account?.accounts?.units?.unit_name,
-                                purchase_type: pair.primary_order_type,
-                                order_amount: pair.primary_order_amount,
-                                tp_ticks: pair.primary_take_profit,
-                                sl_ticks: pair.primary_stop_loss,
-                                start_equity: pair.primary_account?.live_equity // Fallback if start_equity isn't explicitly in schema
-                            }}
+                            isPrimary={true}
                         />
                         <AccountColumn
                             account={pair.secondary_account}
-                            tradeParams={{
-                                unit_name: pair.secondary_account?.accounts?.units?.unit_name,
-                                purchase_type: pair.secondary_order_type,
-                                order_amount: pair.secondary_order_amount,
-                                tp_ticks: pair.secondary_take_profit,
-                                sl_ticks: pair.secondary_stop_loss,
-                                start_equity: pair.secondary_account?.live_equity
-                            }}
+                            isPrimary={false}
                         />
                     </div>
 
@@ -203,7 +316,23 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                     )}
 
                     {pair.trade_status === 'paired' && (
-                        <div className="p-4 bg-[#161a1e] border-t border-[#2b3139] flex justify-center">
+                        <div className="p-4 bg-[#161a1e] border-t border-[#2b3139] flex justify-center gap-4">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUpdateParameters();
+                                }}
+                                disabled={isUpdating}
+                                className="bg-[#2a2e33] hover:bg-[#3a3e43] disabled:opacity-50 text-white font-bold py-3 px-8 rounded-lg flex items-center gap-2 transition-all shadow-lg active:scale-95 justify-center border border-[#3a3e43]"
+                            >
+                                {isUpdating ? (
+                                    <div className="h-5 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <Save className="h-4 w-4" />
+                                )}
+                                <span className="ml-2">Update Parameters</span>
+                            </button>
+
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();

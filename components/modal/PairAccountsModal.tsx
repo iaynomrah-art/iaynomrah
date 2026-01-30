@@ -41,6 +41,7 @@ type Pair = TradingAccount & {
     latest_equity: number
     daily_pnl: number
     rdd: number
+    symbol: string
 
     // Calculated fields for UI
     loss_profit: number
@@ -97,6 +98,7 @@ export const PairAccountsModal = ({
                 latest_equity: currentEquity,
                 daily_pnl: account.daily_pnl || 0,
                 rdd: account.rdd || 0,
+                symbol: account.package_ref?.symbol || account.package || "XAUUSD",
 
                 loss_profit: lProfit,
                 win_profit: wProfit,
@@ -153,6 +155,9 @@ export const PairAccountsModal = ({
                 isBuy = value === 'buy'
                 newPair.loss_price = isBuy ? basePrice - (newPair.sl_ticks * multiplier) : basePrice + (newPair.sl_ticks * multiplier)
                 newPair.win_price = isBuy ? basePrice + (newPair.tp_ticks * multiplier) : basePrice - (newPair.tp_ticks * multiplier)
+            } else if (field === 'symbol') {
+                updatedPairs = updatedPairs.map(p => ({ ...p, symbol: value.toUpperCase() }))
+                newPair = { ...updatedPairs[index] }
             }
 
             // Recalculate estimated profits based on start equity and ticks/order amount
@@ -180,7 +185,7 @@ export const PairAccountsModal = ({
                 const payload = {
                     username: String(pair.credentials?.username || ""),
                     password: String(pair.credentials?.password || ""),
-                    symbol: String(pair.package_ref?.symbol || pair.package || ""),
+                    symbol: String(pair.symbol),
                     order_amount: String(pair.order_amount),
                     tp_ticks: String(pair.tp_ticks),
                     sl_ticks: String(pair.sl_ticks),
@@ -206,7 +211,7 @@ export const PairAccountsModal = ({
             const pairData: CreatePairedAccountDTO = {
                 primary_account_id: String(primary.id),
                 secondary_account_id: String(secondary.id),
-                symbol: String(primary.package_ref?.symbol || primary.package || "XAUUSD"),
+                symbol: String(primary.symbol || "XAUUSD"),
 
                 primary_order_amount: primary.order_amount,
                 primary_stop_loss: primary.sl_ticks,
@@ -288,10 +293,13 @@ export const PairAccountsModal = ({
                                     {/* Actionable Fields */}
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
                                         <span className="text-[#848e9c] text-[13px] font-medium">Symbol</span>
-                                        <div className="flex justify-end px-2 py-0.5">
-                                            <span className="text-white text-[13px] font-bold text-right uppercase">
-                                                {account.package_ref?.symbol || account.package || "XAUUSD"}
-                                            </span>
+                                        <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
+                                            <input
+                                                type="text"
+                                                value={account.symbol}
+                                                onChange={(e) => updatePair(account.id, 'symbol', e.target.value)}
+                                                className="bg-transparent border-none text-white text-[13px] font-bold text-right focus:outline-none w-full uppercase"
+                                            />
                                         </div>
                                     </div>
 
