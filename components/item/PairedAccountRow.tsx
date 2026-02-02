@@ -6,19 +6,88 @@ import { ChevronDown, ChevronUp, PlayCircle, X, Monitor } from "lucide-react"
 import Row from "@/components/ui/row"
 import { toast } from "sonner"
 import { confirmTrade } from "@/helper/automation"
+import Swal from 'sweetalert2'
+import { EditPairedAccountModal } from "@/components/modal/EditPairedAccountModal"
+
+const AccountColumn = ({
+    account,
+    isPrimary,
+    pair
+}: {
+    account: any,
+    isPrimary: boolean,
+    pair: any
+}) => {
+    const orderType = isPrimary ? pair.primary_order_type : pair.secondary_order_type;
+
+    return (
+        <div className="flex flex-col bg-[#161a1e] w-full">
+            {/* Account Header */}
+            <div className={cn(
+                "px-4 py-2.5 flex items-center justify-between transition-colors",
+                orderType === 'buy' ? "bg-[#2ebc66]" : "bg-[#cf304a]"
+            )}>
+                <div className="flex items-center gap-1.5">
+                    <div className="bg-[#f0b90b] text-black px-1.5 py-0.5 rounded-[3px] text-[10px] font-black uppercase">
+                        {account.package_ref?.funders?.allias || account.funder || "UPFT"}
+                    </div>
+                    <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate ">
+                        {account.package_ref?.phase || account.package || "Standard Phase"}
+                    </div>
+                </div>
+                <div className="text-white font-black text-[12px] uppercase tracking-tighter flex items-center gap-2">
+                    {account.accounts?.units?.unit_name || `UNIT ${account.id}`}
+                </div>
+            </div>
+
+            {/* Account Details */}
+            <div className="divide-y divide-[#2b3139]">
+                <Row label="Phase" value={account.package_ref?.phase || "N/A"} color="text-[#f0b90b]" />
+                <Row label="Starting Balance" value={`$${(account.package_ref?.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                <Row label="Latest Equity" value={`$${(account.live_equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                <Row label="Daily P&L" value={`$${(account.daily_pnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={(account.daily_pnl || 0) >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
+                <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
+
+                {/* Static Parameters */}
+                <Row label="Symbol" value={pair.symbol} color="text-white font-bold uppercase" />
+                <Row
+                    label="Order Amount"
+                    value={isPrimary ? pair.primary_order_amount : pair.secondary_order_amount}
+                    color="text-[#4788ff] font-bold"
+                />
+                <Row
+                    label="TP (Ticks)"
+                    value={isPrimary ? pair.primary_take_profit : pair.secondary_take_profit}
+                    color="text-[#4788ff] font-bold"
+                />
+                <Row
+                    label="SL (Ticks)"
+                    value={isPrimary ? pair.primary_stop_loss : pair.secondary_stop_loss}
+                    color="text-[#4788ff] font-bold"
+                />
+                <Row
+                    label="Purchase Type"
+                    value={(isPrimary ? pair.primary_order_type : pair.secondary_order_type).toUpperCase()}
+                    color={orderType === 'buy' ? "text-[#2ebc66] font-bold" : "text-[#cf304a] font-bold"}
+                />
+            </div>
+        </div>
+    )
+}
 
 export default function PairedAccountRow({ pair }: { pair: any }) {
     const [isOpen, setIsOpen] = useState(false)
     const [isStarting, setIsStarting] = useState(false)
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
-    const handleStartTrading = async () => {
+    const handleStartTradingDirectly = async () => {
         try {
             setIsStarting(true)
 
             const primaryPayload = {
                 username: String(pair.primary_account?.credentials?.username || ""),
                 password: String(pair.primary_account?.credentials?.password || ""),
-                symbol: String(pair.symbol || "XAUUSD"),
+                symbol: String(pair.symbol),
                 order_amount: String(pair.primary_order_amount),
                 tp_ticks: String(pair.primary_take_profit),
                 sl_ticks: String(pair.primary_stop_loss),
@@ -32,7 +101,7 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
             const secondaryPayload = {
                 username: String(pair.secondary_account?.credentials?.username || ""),
                 password: String(pair.secondary_account?.credentials?.password || ""),
-                symbol: String(pair.symbol || "XAUUSD"),
+                symbol: String(pair.symbol),
                 order_amount: String(pair.secondary_order_amount),
                 tp_ticks: String(pair.secondary_take_profit),
                 sl_ticks: String(pair.secondary_stop_loss),
@@ -50,12 +119,14 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                 throw new Error("API URL missing for one or both units");
             }
 
+            const normalizeUrl = (url: string) => url.endsWith('/') ? url : `${url}/`;
+
             await Promise.all([
-                confirmTrade(primaryApiUrl, primaryPayload),
-                confirmTrade(secondaryApiUrl, secondaryPayload)
+                confirmTrade(normalizeUrl(primaryApiUrl), primaryPayload),
+                confirmTrade(normalizeUrl(secondaryApiUrl), secondaryPayload)
             ]);
 
-            toast.success("Trading session started successfully")
+            toast.success("Trading session started with existing parameters")
         } catch (error: any) {
             console.error("Start trading error:", error)
             toast.error(error.message || "Failed to start trading")
@@ -64,65 +135,28 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
         }
     }
 
-    const AccountColumn = ({
-        account,
-        isPrimary
-    }: {
-        account: any,
-        isPrimary: boolean
-    }) => {
-        const orderType = isPrimary ? pair.primary_order_type : pair.secondary_order_type;
-
-        return (
-            <div className="flex flex-col bg-[#161a1e] w-full">
-                {/* Account Header */}
-                <div className={cn(
-                    "px-4 py-2.5 flex items-center justify-between transition-colors",
-                    orderType === 'buy' ? "bg-[#2ebc66]" : "bg-[#cf304a]"
-                )}>
-                    <div className="flex items-center gap-1.5">
-                        <div className="bg-[#f0b90b] text-black px-1.5 py-0.5 rounded-[3px] text-[10px] font-black uppercase">
-                            {account.package_ref?.funders?.allias || account.funder || "UPFT"}
-                        </div>
-                        <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate ">
-                            {account.package_ref?.phase || account.package || "Standard Phase"}
-                        </div>
-                    </div>
-                    <div className="text-white font-black text-[12px] uppercase tracking-tighter flex items-center gap-2">
-                        {account.accounts?.units?.unit_name || `UNIT ${account.id}`}
-                    </div>
-                </div>
-
-                {/* Account Details */}
-                <div className="divide-y divide-[#2b3139]">
-                    <Row label="Phase" value={account.package_ref?.phase || "N/A"} color="text-[#f0b90b]" />
-                    <Row label="Starting Balance" value={`$${(account.package_ref?.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
-                    <Row label="Latest Equity" value={`$${(account.live_equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
-                    <Row label="Daily P&L" value={`$${(account.daily_pnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={(account.daily_pnl || 0) >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
-                    <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
-
-                    {/* Fixed Parameters Display (Static) */}
-                    <Row label="Symbol" value={pair.symbol || "XAUUSD"} color="text-white font-bold" />
-                    <Row
-                        label="Order Amount"
-                        value={isPrimary ? pair.primary_order_amount : pair.secondary_order_amount}
-                    />
-                    <Row
-                        label="Take Profit"
-                        value={`${isPrimary ? pair.primary_take_profit : pair.secondary_take_profit} Ticks`}
-                    />
-                    <Row
-                        label="Stop Loss"
-                        value={`${isPrimary ? pair.primary_stop_loss : pair.secondary_stop_loss} Ticks`}
-                    />
-                    <Row
-                        label="Purchase Type"
-                        value={orderType}
-                        color={orderType === 'buy' ? "text-[#2ebc66] font-bold uppercase" : "text-[#f6465d] font-bold uppercase"}
-                    />
-                </div>
-            </div>
-        )
+    const handleStartClick = () => {
+        Swal.fire({
+            title: 'Start Trading Session?',
+            text: "Do you want to edit parameters before starting?",
+            icon: 'question',
+            showCancelButton: false,
+            showDenyButton: true,
+            showCloseButton: true,
+            confirmButtonText: 'Edit Parameters',
+            denyButtonText: 'Start Immediately',
+            background: '#1e2329',
+            color: '#ffffff',
+            confirmButtonColor: '#2f66d4',
+            denyButtonColor: '#2ebc66',
+            cancelButtonColor: '#2a2e33',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                setIsEditModalOpen(true)
+            } else if (result.isDenied) {
+                handleStartTradingDirectly()
+            }
+        })
     }
 
     return (
@@ -200,10 +234,12 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                         <AccountColumn
                             account={pair.primary_account}
                             isPrimary={true}
+                            pair={pair}
                         />
                         <AccountColumn
                             account={pair.secondary_account}
                             isPrimary={false}
+                            pair={pair}
                         />
                     </div>
 
@@ -225,7 +261,7 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    handleStartTrading();
+                                    handleStartClick();
                                 }}
                                 disabled={isStarting}
                                 className="bg-[#2ebc66] hover:bg-[#34d399] disabled:bg-[#2ebc66]/50 text-white font-bold py-3 px-12 rounded-lg flex items-center gap-2 transition-all shadow-lg active:scale-95 min-w-[300px] justify-center"
@@ -241,6 +277,16 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                     )}
                 </div>
             )}
+
+            <EditPairedAccountModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                pair={pair}
+                onConfirm={() => {
+                    setIsEditModalOpen(false)
+                    // The modal handles automation and DB update
+                }}
+            />
         </div>
     )
 }

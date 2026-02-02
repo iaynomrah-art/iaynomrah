@@ -1,15 +1,201 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
-import { ChevronDown, ChevronUp, RefreshCw, X, Monitor } from "lucide-react"
+import { ChevronDown, ChevronUp, RefreshCw, X, Monitor, Save } from "lucide-react"
 import Row from "@/components/ui/row"
 import { toast } from "sonner"
 import { confirmTrade } from "@/helper/automation"
+import { updatePairedAccount } from "@/helper/paired_accounts"
+import { Input } from "@/components/ui/input"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+
+interface AccountColumnProps {
+    account: any;
+    isPrimary: boolean;
+    params: any;
+    setParams: (val: any) => void;
+    handleUpdateParameters: (newParams?: any) => Promise<void>;
+}
+
+const AccountColumn = ({
+    account,
+    isPrimary,
+    params,
+    setParams,
+    handleUpdateParameters
+}: AccountColumnProps) => {
+    const orderType = isPrimary ? params.primary_order_type : params.secondary_order_type;
+
+    return (
+        <div className="flex flex-col bg-[#161a1e] w-full">
+            {/* Account Header */}
+            <div className={cn(
+                "px-4 py-2.5 flex items-center justify-between transition-colors",
+                orderType === 'buy' ? "bg-[#2ebc66]" : "bg-[#cf304a]"
+            )}>
+                <div className="flex items-center gap-1.5">
+                    <div className="bg-[#f0b90b] text-black px-1.5 py-0.5 rounded-[3px] text-[10px] font-black uppercase">
+                        {account.package_ref?.funders?.allias || account.funder || "UPFT"}
+                    </div>
+                    <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate ">
+                        {account.package_ref?.phase || account.package || "Standard Phase"}
+                    </div>
+                </div>
+                <div className="text-white font-black text-[12px] uppercase tracking-tighter flex items-center gap-2">
+                    {account.accounts?.units?.unit_name || "NO UNIT"}
+                </div>
+            </div>
+
+            {/* Account Details */}
+            <div className="divide-y divide-[#2b3139]">
+                <Row label="Phase" value={account.package_ref?.phase || "N/A"} color="text-[#f0b90b]" />
+                <Row label="Starting Balance" value={`$${(account.package_ref?.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                <Row label="Latest Equity" value={`$${(account.live_equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                <Row label="Daily P&L" value={`$${(account.daily_pnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={(account.daily_pnl || 0) >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
+                <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
+
+                {/* Editable Parameters */}
+                <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                    <span className="text-[#848e9c] text-[13px] font-medium">Symbol</span>
+                    <Input
+                        value={params.symbol}
+                        onChange={(e) => setParams((prev: any) => ({ ...prev, symbol: e.target.value.toUpperCase() }))}
+                        onBlur={() => handleUpdateParameters()}
+                        className="h-8 bg-[#0b0e11] border-[#2b3139] text-right text-[13px] font-bold uppercase w-32 ml-auto"
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                    <span className="text-[#4788ff] text-[13px] font-medium">Order Amount</span>
+                    <Input
+                        type="number"
+                        step="0.01"
+                        value={isPrimary ? params.primary_order_amount : params.secondary_order_amount}
+                        onChange={(e) => setParams((prev: any) => ({
+                            ...prev,
+                            [isPrimary ? "primary_order_amount" : "secondary_order_amount"]: Number(e.target.value)
+                        }))}
+                        onBlur={() => handleUpdateParameters()}
+                        className="h-8 bg-[#0b0e11] border-[#2b3139] text-right text-[13px] font-bold w-32 ml-auto"
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                    <span className="text-[#4788ff] text-[13px] font-medium">TP (Ticks)</span>
+                    <Input
+                        type="number"
+                        value={isPrimary ? params.primary_take_profit : params.secondary_take_profit}
+                        onChange={(e) => setParams((prev: any) => ({
+                            ...prev,
+                            [isPrimary ? "primary_take_profit" : "secondary_take_profit"]: Number(e.target.value)
+                        }))}
+                        onBlur={() => handleUpdateParameters()}
+                        className="h-8 bg-[#0b0e11] border-[#2b3139] text-right text-[13px] font-bold w-32 ml-auto"
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                    <span className="text-[#4788ff] text-[13px] font-medium">SL (Ticks)</span>
+                    <Input
+                        type="number"
+                        value={isPrimary ? params.primary_stop_loss : params.secondary_stop_loss}
+                        onChange={(e) => setParams((prev: any) => ({
+                            ...prev,
+                            [isPrimary ? "primary_stop_loss" : "secondary_stop_loss"]: Number(e.target.value)
+                        }))}
+                        onBlur={() => handleUpdateParameters()}
+                        className="h-8 bg-[#0b0e11] border-[#2b3139] text-right text-[13px] font-bold w-32 ml-auto"
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
+                    <span className="text-[#848e9c] text-[13px] font-medium">Purchase Type</span>
+                    <Select
+                        value={orderType}
+                        onValueChange={(val) => {
+                            const newParams = {
+                                ...params,
+                                [isPrimary ? "primary_order_type" : "secondary_order_type"]: val
+                            };
+                            setParams(newParams);
+                            handleUpdateParameters(newParams);
+                        }}
+                    >
+                        <SelectTrigger className="h-8 bg-[#0b0e11] border-[#2b3139] text-[13px] font-bold w-32 ml-auto">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1e2329] border-[#2b3139] text-white">
+                            <SelectItem value="buy">BUY</SelectItem>
+                            <SelectItem value="sell">SELL</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+        </div>
+    )
+}
 
 export default function OngoingTradeRow({ pair }: { pair: any }) {
     const [isOpen, setIsOpen] = useState(false)
     const [isRecovering, setIsRecovering] = useState(false)
+    const [isSaving, setIsSaving] = useState(false)
+
+    // Local state for editable parameters
+    const [params, setParams] = useState({
+        symbol: pair.symbol || "XAUUSD",
+        primary_order_amount: pair.primary_order_amount || 0.1,
+        primary_take_profit: pair.primary_take_profit || 100,
+        primary_stop_loss: pair.primary_stop_loss || 50,
+        primary_order_type: pair.primary_order_type || "buy",
+        secondary_order_amount: pair.secondary_order_amount || 0.1,
+        secondary_take_profit: pair.secondary_take_profit || 100,
+        secondary_stop_loss: pair.secondary_stop_loss || 50,
+        secondary_order_type: pair.secondary_order_type || "sell"
+    })
+
+    // Update local state when pair prop changes (sync from DB)
+    useEffect(() => {
+        setParams({
+            symbol: pair.symbol || "XAUUSD",
+            primary_order_amount: pair.primary_order_amount || 0.1,
+            primary_take_profit: pair.primary_take_profit || 100,
+            primary_stop_loss: pair.primary_stop_loss || 50,
+            primary_order_type: pair.primary_order_type || "buy",
+            secondary_order_amount: pair.secondary_order_amount || 0.1,
+            secondary_take_profit: pair.secondary_take_profit || 100,
+            secondary_stop_loss: pair.secondary_stop_loss || 50,
+            secondary_order_type: pair.secondary_order_type || "sell"
+        })
+    }, [pair])
+
+    const handleUpdateParameters = async (newParams = params) => {
+        try {
+            setIsSaving(true)
+            await updatePairedAccount(pair.id, {
+                symbol: newParams.symbol,
+                primary_order_amount: newParams.primary_order_amount,
+                primary_take_profit: newParams.primary_take_profit,
+                primary_stop_loss: newParams.primary_stop_loss,
+                primary_order_type: newParams.primary_order_type as any,
+                secondary_order_amount: newParams.secondary_order_amount,
+                secondary_take_profit: newParams.secondary_take_profit,
+                secondary_stop_loss: newParams.secondary_stop_loss,
+                secondary_order_type: newParams.secondary_order_type as any
+            })
+        } catch (error) {
+            console.error("Failed to update parameters:", error)
+            toast.error("Failed to save parameter changes")
+        } finally {
+            setIsSaving(false)
+        }
+    }
 
     const handleRecover = async () => {
         try {
@@ -18,11 +204,11 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
             const primaryPayload = {
                 username: String(pair.primary_account?.credentials?.username || ""),
                 password: String(pair.primary_account?.credentials?.password || ""),
-                symbol: String(pair.symbol || "XAUUSD"),
-                order_amount: String(pair.primary_order_amount),
-                tp_ticks: String(pair.primary_take_profit),
-                sl_ticks: String(pair.primary_stop_loss),
-                purchase_type: String(pair.primary_order_type),
+                symbol: String(params.symbol),
+                order_amount: String(params.primary_order_amount),
+                tp_ticks: String(params.primary_take_profit),
+                sl_ticks: String(params.primary_stop_loss),
+                purchase_type: String(params.primary_order_type),
                 account_number: String(pair.primary_account?.credentials?.username || pair.primary_account?.id),
                 latest_equity: String(pair.primary_account?.live_equity || 0),
                 daily_pnl: String(pair.primary_account?.daily_pnl || 0),
@@ -32,11 +218,11 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
             const secondaryPayload = {
                 username: String(pair.secondary_account?.credentials?.username || ""),
                 password: String(pair.secondary_account?.credentials?.password || ""),
-                symbol: String(pair.symbol || "XAUUSD"),
-                order_amount: String(pair.secondary_order_amount),
-                tp_ticks: String(pair.secondary_take_profit),
-                sl_ticks: String(pair.secondary_stop_loss),
-                purchase_type: String(pair.secondary_order_type),
+                symbol: String(params.symbol),
+                order_amount: String(params.secondary_order_amount),
+                tp_ticks: String(params.secondary_take_profit),
+                sl_ticks: String(params.secondary_stop_loss),
+                purchase_type: String(params.secondary_order_type),
                 account_number: String(pair.secondary_account?.credentials?.username || pair.secondary_account?.id),
                 latest_equity: String(pair.secondary_account?.live_equity || 0),
                 daily_pnl: String(pair.secondary_account?.daily_pnl || 0),
@@ -67,66 +253,6 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
         } finally {
             setIsRecovering(false)
         }
-    }
-
-    const AccountColumn = ({
-        account,
-        isPrimary
-    }: {
-        account: any,
-        isPrimary: boolean
-    }) => {
-        const orderType = isPrimary ? pair.primary_order_type : pair.secondary_order_type;
-
-        return (
-            <div className="flex flex-col bg-[#161a1e] w-full">
-                {/* Account Header */}
-                <div className={cn(
-                    "px-4 py-2.5 flex items-center justify-between transition-colors",
-                    orderType === 'buy' ? "bg-[#2ebc66]" : "bg-[#cf304a]"
-                )}>
-                    <div className="flex items-center gap-1.5">
-                        <div className="bg-[#f0b90b] text-black px-1.5 py-0.5 rounded-[3px] text-[10px] font-black uppercase">
-                            {account.package_ref?.funders?.allias || account.funder || "UPFT"}
-                        </div>
-                        <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate ">
-                            {account.package_ref?.phase || account.package || "Standard Phase"}
-                        </div>
-                    </div>
-                    <div className="text-white font-black text-[12px] uppercase tracking-tighter flex items-center gap-2">
-                        {account.accounts?.units?.unit_name || "NO UNIT"}
-                    </div>
-                </div>
-
-                {/* Account Details */}
-                <div className="divide-y divide-[#2b3139]">
-                    <Row label="Phase" value={account.package_ref?.phase || "N/A"} color="text-[#f0b90b]" />
-                    <Row label="Starting Balance" value={`$${(account.package_ref?.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
-                    <Row label="Latest Equity" value={`$${(account.live_equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
-                    <Row label="Daily P&L" value={`$${(account.daily_pnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={(account.daily_pnl || 0) >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
-                    <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
-
-                    <Row label="Symbol" value={pair.symbol || "XAUUSD"} color="text-white font-bold" />
-                    <Row
-                        label="Order Amount"
-                        value={isPrimary ? pair.primary_order_amount : pair.secondary_order_amount}
-                    />
-                    <Row
-                        label="Take Profit"
-                        value={`${isPrimary ? pair.primary_take_profit : pair.secondary_take_profit} Ticks`}
-                    />
-                    <Row
-                        label="Stop Loss"
-                        value={`${isPrimary ? pair.primary_stop_loss : pair.secondary_stop_loss} Ticks`}
-                    />
-                    <Row
-                        label="Purchase Type"
-                        value={orderType}
-                        color={orderType === 'buy' ? "text-[#2ebc66] font-bold uppercase" : "text-[#f6465d] font-bold uppercase"}
-                    />
-                </div>
-            </div>
-        )
     }
 
     return (
@@ -191,6 +317,12 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {isSaving && (
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground animate-pulse">
+                            <Save className="h-3 w-3" />
+                            Saving...
+                        </div>
+                    )}
                     <button className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all">
                         <X className="h-4 w-4" />
                     </button>
@@ -204,10 +336,16 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
                         <AccountColumn
                             account={pair.primary_account}
                             isPrimary={true}
+                            params={params}
+                            setParams={setParams}
+                            handleUpdateParameters={handleUpdateParameters}
                         />
                         <AccountColumn
                             account={pair.secondary_account}
                             isPrimary={false}
+                            params={params}
+                            setParams={setParams}
+                            handleUpdateParameters={handleUpdateParameters}
                         />
                     </div>
 
