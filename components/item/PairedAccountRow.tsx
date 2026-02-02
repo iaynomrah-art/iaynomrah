@@ -4,55 +4,12 @@ import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { ChevronDown, ChevronUp, PlayCircle, X, Monitor } from "lucide-react"
 import Row from "@/components/ui/row"
-import { updatePairedAccount } from "@/helper/paired_accounts"
 import { toast } from "sonner"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { Save } from "lucide-react"
 import { confirmTrade } from "@/helper/automation"
 
 export default function PairedAccountRow({ pair }: { pair: any }) {
     const [isOpen, setIsOpen] = useState(false)
     const [isStarting, setIsStarting] = useState(false)
-    const [isUpdating, setIsUpdating] = useState(false)
-
-    interface TradeParams {
-        symbol: string;
-        primary_order_amount: number;
-        primary_take_profit: number;
-        primary_stop_loss: number;
-        primary_order_type: string;
-        secondary_order_amount: number;
-        secondary_take_profit: number;
-        secondary_stop_loss: number;
-        secondary_order_type: string;
-    }
-
-    // Local state for editable fields
-    const [params, setParams] = useState<TradeParams>({
-        symbol: pair.symbol || "XAUUSD",
-        primary_order_amount: pair.primary_order_amount,
-        primary_take_profit: pair.primary_take_profit,
-        primary_stop_loss: pair.primary_stop_loss,
-        primary_order_type: pair.primary_order_type,
-        secondary_order_amount: pair.secondary_order_amount,
-        secondary_take_profit: pair.secondary_take_profit,
-        secondary_stop_loss: pair.secondary_stop_loss,
-        secondary_order_type: pair.secondary_order_type,
-    })
-
-    const handleUpdateParameters = async () => {
-        try {
-            setIsUpdating(true)
-            await updatePairedAccount(pair.id, params)
-            toast.success("Parameters updated successfully")
-        } catch (error: any) {
-            console.error("Update error:", error)
-            toast.error(error.message || "Failed to update parameters")
-        } finally {
-            setIsUpdating(false)
-        }
-    }
 
     const handleStartTrading = async () => {
         try {
@@ -61,11 +18,11 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
             const primaryPayload = {
                 username: String(pair.primary_account?.credentials?.username || ""),
                 password: String(pair.primary_account?.credentials?.password || ""),
-                symbol: String(params.symbol),
-                order_amount: String(params.primary_order_amount),
-                tp_ticks: String(params.primary_take_profit),
-                sl_ticks: String(params.primary_stop_loss),
-                purchase_type: String(params.primary_order_type),
+                symbol: String(pair.symbol || "XAUUSD"),
+                order_amount: String(pair.primary_order_amount),
+                tp_ticks: String(pair.primary_take_profit),
+                sl_ticks: String(pair.primary_stop_loss),
+                purchase_type: String(pair.primary_order_type),
                 account_number: String(pair.primary_account?.credentials?.username || pair.primary_account?.id),
                 latest_equity: String(pair.primary_account?.live_equity || 0),
                 daily_pnl: String(pair.primary_account?.daily_pnl || 0),
@@ -75,11 +32,11 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
             const secondaryPayload = {
                 username: String(pair.secondary_account?.credentials?.username || ""),
                 password: String(pair.secondary_account?.credentials?.password || ""),
-                symbol: String(params.symbol),
-                order_amount: String(params.secondary_order_amount),
-                tp_ticks: String(params.secondary_take_profit),
-                sl_ticks: String(params.secondary_stop_loss),
-                purchase_type: String(params.secondary_order_type),
+                symbol: String(pair.symbol || "XAUUSD"),
+                order_amount: String(pair.secondary_order_amount),
+                tp_ticks: String(pair.secondary_take_profit),
+                sl_ticks: String(pair.secondary_stop_loss),
+                purchase_type: String(pair.secondary_order_type),
                 account_number: String(pair.secondary_account?.credentials?.username || pair.secondary_account?.id),
                 latest_equity: String(pair.secondary_account?.live_equity || 0),
                 daily_pnl: String(pair.secondary_account?.daily_pnl || 0),
@@ -93,7 +50,6 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                 throw new Error("API URL missing for one or both units");
             }
 
-            // Run both confirmTrade calls
             await Promise.all([
                 confirmTrade(primaryApiUrl, primaryPayload),
                 confirmTrade(secondaryApiUrl, secondaryPayload)
@@ -115,9 +71,7 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
         account: any,
         isPrimary: boolean
     }) => {
-        const prefix = isPrimary ? 'primary' : 'secondary';
-        const orderType = params[`${prefix}_order_type` as keyof TradeParams] as string;
-
+        const orderType = isPrimary ? pair.primary_order_type : pair.secondary_order_type;
 
         return (
             <div className="flex flex-col bg-[#161a1e] w-full">
@@ -147,74 +101,25 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                     <Row label="Daily P&L" value={`$${(account.daily_pnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={(account.daily_pnl || 0) >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
                     <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
 
-                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
-                        <span className="text-[#848e9c] text-[13px] font-medium">Symbol</span>
-                        <div className="flex justify-end">
-                            <Input
-                                type="text"
-                                value={params.symbol}
-                                onChange={(e) => setParams(prev => ({ ...prev, symbol: e.target.value.toUpperCase() }))}
-                                className="h-8 bg-[#0b0e11] border-[#2b3139] text-white text-[13px] font-bold text-right w-24 uppercase"
-                            />
-                        </div>
-                    </div>
-
-
-
-                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
-                        <span className="text-[#848e9c] text-[13px] font-medium">Order Amount</span>
-                        <div className="flex justify-end">
-                            <Input
-                                type="number"
-                                step="0.01"
-                                value={params[`${prefix}_order_amount` as keyof typeof params]}
-                                onChange={(e) => setParams(prev => ({ ...prev, [`${prefix}_order_amount`]: Number(e.target.value) }))}
-                                className="h-8 bg-[#0b0e11] border-[#2b3139] text-white text-[13px] font-bold text-right w-24"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
-                        <span className="text-[#848e9c] text-[13px] font-medium">Take Profit (Ticks)</span>
-                        <div className="flex justify-end">
-                            <Input
-                                type="number"
-                                value={params[`${prefix}_take_profit` as keyof typeof params]}
-                                onChange={(e) => setParams(prev => ({ ...prev, [`${prefix}_take_profit`]: Number(e.target.value) }))}
-                                className="h-8 bg-[#0b0e11] border-[#2b3139] text-white text-[13px] font-bold text-right w-24"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
-                        <span className="text-[#848e9c] text-[13px] font-medium">Stop Loss (Ticks)</span>
-                        <div className="flex justify-end">
-                            <Input
-                                type="number"
-                                value={params[`${prefix}_stop_loss` as keyof typeof params]}
-                                onChange={(e) => setParams(prev => ({ ...prev, [`${prefix}_stop_loss`]: Number(e.target.value) }))}
-                                className="h-8 bg-[#0b0e11] border-[#2b3139] text-white text-[13px] font-bold text-right w-24"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 px-4 py-3 items-center hover:bg-[#2b3139]/30 transition-colors">
-                        <span className="text-[#848e9c] text-[13px] font-medium">Purchase Type</span>
-                        <div className="flex justify-end">
-                            <Select
-                                value={orderType}
-                                onValueChange={(val) => setParams(prev => ({ ...prev, [`${prefix}_order_type`]: val }))}
-                            >
-                                <SelectTrigger className="h-8 bg-[#0b0e11] border-[#2b3139] text-white text-[13px] font-bold w-24">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-[#1e2329] border-[#2b3139] text-white">
-                                    <SelectItem value="buy">Buy</SelectItem>
-                                    <SelectItem value="sell">Sell</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
+                    {/* Fixed Parameters Display (Static) */}
+                    <Row label="Symbol" value={pair.symbol || "XAUUSD"} color="text-white font-bold" />
+                    <Row
+                        label="Order Amount"
+                        value={isPrimary ? pair.primary_order_amount : pair.secondary_order_amount}
+                    />
+                    <Row
+                        label="Take Profit"
+                        value={`${isPrimary ? pair.primary_take_profit : pair.secondary_take_profit} Ticks`}
+                    />
+                    <Row
+                        label="Stop Loss"
+                        value={`${isPrimary ? pair.primary_stop_loss : pair.secondary_stop_loss} Ticks`}
+                    />
+                    <Row
+                        label="Purchase Type"
+                        value={orderType}
+                        color={orderType === 'buy' ? "text-[#2ebc66] font-bold uppercase" : "text-[#f6465d] font-bold uppercase"}
+                    />
                 </div>
             </div>
         )
@@ -316,30 +221,14 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                     )}
 
                     {pair.trade_status === 'paired' && (
-                        <div className="p-4 bg-[#161a1e] border-t border-[#2b3139] flex justify-center gap-4">
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleUpdateParameters();
-                                }}
-                                disabled={isUpdating}
-                                className="bg-[#2a2e33] hover:bg-[#3a3e43] disabled:opacity-50 text-white font-bold py-3 px-8 rounded-lg flex items-center gap-2 transition-all shadow-lg active:scale-95 justify-center border border-[#3a3e43]"
-                            >
-                                {isUpdating ? (
-                                    <div className="h-5 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    <Save className="h-4 w-4" />
-                                )}
-                                <span className="ml-2">Update Parameters</span>
-                            </button>
-
+                        <div className="p-4 bg-[#161a1e] border-t border-[#2b3139] flex justify-center">
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     handleStartTrading();
                                 }}
                                 disabled={isStarting}
-                                className="bg-[#2ebc66] hover:bg-[#34d399] disabled:bg-[#2ebc66]/50 text-white font-bold py-3 px-12 rounded-lg flex items-center gap-2 transition-all shadow-lg active:scale-95 min-w-[200px] justify-center"
+                                className="bg-[#2ebc66] hover:bg-[#34d399] disabled:bg-[#2ebc66]/50 text-white font-bold py-3 px-12 rounded-lg flex items-center gap-2 transition-all shadow-lg active:scale-95 min-w-[300px] justify-center"
                             >
                                 {isStarting ? (
                                     <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />

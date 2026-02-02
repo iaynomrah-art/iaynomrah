@@ -197,15 +197,32 @@ export async function unarchiveUnit(id: string) {
 }
 
 export async function checkUnitHealth(apiBaseUrl: string) {
+  if (!apiBaseUrl) return false;
+
+  let normalizedUrl = apiBaseUrl;
+  if (
+    !normalizedUrl.startsWith("http://") &&
+    !normalizedUrl.startsWith("https://")
+  ) {
+    normalizedUrl = `http://${normalizedUrl}`;
+  }
+
   try {
-    const baseUrl = apiBaseUrl.endsWith("/")
-      ? apiBaseUrl.slice(0, -1)
-      : apiBaseUrl;
+    const baseUrl = normalizedUrl.endsWith("/")
+      ? normalizedUrl.slice(0, -1)
+      : normalizedUrl;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout for health check
+
     const response = await fetch(`${baseUrl}/api/v1/health`, {
       method: "GET",
       headers: { Accept: "application/json" },
       next: { revalidate: 0 },
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
     return response.status === 200;
   } catch (error) {
     console.error(`Health check failed for ${apiBaseUrl}:`, error);
@@ -214,16 +231,35 @@ export async function checkUnitHealth(apiBaseUrl: string) {
 }
 
 export async function updateUnitConfig(apiBaseUrl: string, unitName: string) {
+  if (!apiBaseUrl) {
+    throw new Error("API Base URL is required");
+  }
+
+  let normalizedUrl = apiBaseUrl;
+  if (
+    !normalizedUrl.startsWith("http://") &&
+    !normalizedUrl.startsWith("https://")
+  ) {
+    normalizedUrl = `http://${normalizedUrl}`;
+  }
+
   try {
-    const baseUrl = apiBaseUrl.endsWith("/")
-      ? apiBaseUrl.slice(0, -1)
-      : apiBaseUrl;
+    const baseUrl = normalizedUrl.endsWith("/")
+      ? normalizedUrl.slice(0, -1)
+      : normalizedUrl;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
     const response = await fetch(`${baseUrl}/api/v1/config/update`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ server_name: unitName }),
       next: { revalidate: 0 },
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -233,6 +269,16 @@ export async function updateUnitConfig(apiBaseUrl: string, unitName: string) {
     return await response.json();
   } catch (error: any) {
     console.error(`Config update failed for ${apiBaseUrl}:`, error);
+    if (error.name === "AbortError") {
+      throw new Error(
+        "Connection timed out. The unit server might be offline.",
+      );
+    }
+    if (error.message === "fetch failed") {
+      throw new Error(
+        "Connection failed. Please ensure the API URL is correct and the server is reachable.",
+      );
+    }
     throw error;
   }
 }
