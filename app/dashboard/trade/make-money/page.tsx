@@ -4,6 +4,8 @@ import React, { useEffect, useState, useMemo, Dispatch, SetStateAction } from 'r
 import { TradingAccountsTable } from "@/components/tables/TradingAccountsTable"
 import { getTradingAccounts } from "@/helper/trading_accounts"
 import { getFunders } from "@/helper/funders"
+import Swal from 'sweetalert2'
+import { toast } from "sonner"
 import { Funder } from "@/types/funder"
 import { TradingAccount } from "@/types/trading_accounts"
 import { cn } from "@/lib/utils"
@@ -76,7 +78,52 @@ const TradingAccountsPage = () => {
         resetFilters
     } = useTradingFilter(data)
 
-    const handlePairAccounts = () => {
+    const handlePairAccounts = async () => {
+        const selected = data.filter(acc => selectedAccounts.includes(acc.id))
+
+        if (selected.length !== 2) {
+            toast.error("Please select exactly 2 accounts to pair")
+            return
+        }
+
+        const [acc1, acc2] = selected
+        const isLive1 = acc1.package_ref?.phase?.toLowerCase() === 'live'
+        const isLive2 = acc2.package_ref?.phase?.toLowerCase() === 'live'
+
+        // 1. Live vs Not Live Restriction
+        if (isLive1 !== isLive2) {
+            Swal.fire({
+                title: 'Pairing Restricted',
+                text: 'You cannot pair a Live account with a Non-Live account.',
+                icon: 'error',
+                confirmButtonColor: '#3085d6',
+                background: '#1a1a1a',
+                color: '#fff'
+            })
+            return
+        }
+
+        // 2. Same Funder Warning
+        const funder1 = acc1.package_ref?.funder_id || acc1.funder
+        const funder2 = acc2.package_ref?.funder_id || acc2.funder
+
+        if (funder1 && funder2 && funder1 === funder2) {
+            const result = await Swal.fire({
+                title: 'Same Funder Warning',
+                text: 'Both accounts belong to the same funder. This might violate their terms. Do you want to continue?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, proceed',
+                cancelButtonText: 'No, cancel',
+                background: '#1a1a1a',
+                color: '#fff'
+            })
+
+            if (!result.isConfirmed) return
+        }
+
         setIsModalOpen(true)
     }
 
