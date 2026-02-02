@@ -11,7 +11,7 @@ export async function getTradingAccounts(type?: string) {
     funder_account:funder_account_id(
       *,
       package_ref:package!funder_account_package_id_fkey(*, funders(*)),
-      accounts:accounts!funder_account_acount_id_fkey(*, units(*)),
+      accounts:accounts!funder_account_acount_id_fkey(*, units:unit_id(*)),
       credentials:credentials!funder_account_credential_id_fkey(*)
     )
   `);
@@ -23,15 +23,23 @@ export async function getTradingAccounts(type?: string) {
     return [];
   }
 
+  // console.log(JSON.stringify(data, null, 2));
+
   // Flatten the data to maintain compatibility with existing components
   return data.map((item: any) => ({
     ...(item.funder_account || {}),
     ...item,
     status: item.account_status || item.funder_account?.status || "idle",
     id: item.id,
-    package_ref: item.funder_account?.package_ref,
-    accounts: item.funder_account?.accounts,
-    credentials: item.funder_account?.credentials,
+    package_ref: Array.isArray(item.funder_account?.package_ref)
+      ? item.funder_account.package_ref[0]
+      : item.funder_account?.package_ref,
+    accounts: Array.isArray(item.funder_account?.accounts)
+      ? item.funder_account.accounts[0]
+      : item.funder_account?.accounts,
+    credentials: Array.isArray(item.funder_account?.credentials)
+      ? item.funder_account.credentials[0]
+      : item.funder_account?.credentials,
   }));
 }
 
@@ -45,7 +53,7 @@ export async function getTradingAccountById(id: string) {
       funder_account:funder_account_id(
         *,
         package_ref:package!funder_account_package_id_fkey(*, funders(*)),
-        accounts:accounts!funder_account_acount_id_fkey(*, units(*)),
+        accounts:accounts!funder_account_acount_id_fkey(*, units:unit_id(*)),
         credentials:credentials!funder_account_credential_id_fkey(*)
       )
     `,
@@ -65,9 +73,15 @@ export async function getTradingAccountById(id: string) {
     ...item,
     status: item.account_status || item.funder_account?.status || "idle",
     id: item.id,
-    package_ref: item.funder_account?.package_ref,
-    accounts: item.funder_account?.accounts,
-    credentials: item.funder_account?.credentials,
+    package_ref: Array.isArray(item.funder_account?.package_ref)
+      ? item.funder_account.package_ref[0]
+      : item.funder_account?.package_ref,
+    accounts: Array.isArray(item.funder_account?.accounts)
+      ? item.funder_account.accounts[0]
+      : item.funder_account?.accounts,
+    credentials: Array.isArray(item.funder_account?.credentials)
+      ? item.funder_account.credentials[0]
+      : item.funder_account?.credentials,
   };
 }
 

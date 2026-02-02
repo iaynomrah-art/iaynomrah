@@ -175,13 +175,21 @@ export const PairAccountsModal = ({
     const handleConfirm = async () => {
         try {
             setIsLoading(true)
-            if (!pairs[0]?.accounts?.units?.api_base_url || !pairs[1]?.accounts?.units?.api_base_url) {
-                toast.error("Units are not configured with API URL")
-                return
+            // 1. Validate units and API URLs
+            const unit1 = pairs[0]?.accounts?.units;
+            const unit2 = pairs[1]?.accounts?.units;
+
+            if (!unit1?.api_base_url || !unit2?.api_base_url) {
+                toast.error("One or both accounts are not assigned to a unit with an API URL");
+                return;
             }
 
+            const normalizeUrl = (url: string) => url.endsWith('/') ? url : `${url}/`;
+            const api1 = normalizeUrl(unit1.api_base_url);
+            const api2 = normalizeUrl(unit2.api_base_url);
+
             // 2. Trigger automation for both accounts
-            await Promise.all(pairs.map(pair => {
+            await Promise.all(pairs.map((pair, index) => {
                 const payload = {
                     username: String(pair.credentials?.username || ""),
                     password: String(pair.credentials?.password || ""),
@@ -191,7 +199,7 @@ export const PairAccountsModal = ({
                     sl_ticks: String(pair.sl_ticks),
                     purchase_type: String(pair.trade_type),
                     // Metadata/Tracking
-                    account_number: String(pair.credential_id || pair.id),
+                    account_number: String(pair.credentials?.username || pair.id),
                     starting_balance: String(pair.starting_balance),
                     starting_equity: String(pair.starting_equity),
                     latest_equity: String(pair.latest_equity),
@@ -201,7 +209,8 @@ export const PairAccountsModal = ({
 
                 console.log(payload)
 
-                return inputCtraderOrder(pair.accounts?.units?.api_base_url || "", payload)
+                const apiUrl = index === 0 ? api1 : api2;
+                return inputCtraderOrder(apiUrl, payload)
             }))
 
             // 3. Create database record for the pair
@@ -257,13 +266,16 @@ export const PairAccountsModal = ({
                                     account.trade_type === 'buy' ? "bg-[#2ebc66]" : "bg-[#cf304a]"
                                 )}>
                                     <div className="flex items-center gap-1.5">
-                                        <div className="bg-[#f0b90b] text-black px-1.5 py-0.5 rounded-[3px] text-[10px] font-black uppercase">UPFT</div>
+                                        <div className="bg-[#f0b90b] text-black px-1.5 py-0.5 rounded-[3px] text-[10px] font-black uppercase">
+                                            {account.package_ref?.funders?.allias || "UPFT"}
+                                        </div>
                                         <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate max-w-[70px]">
-                                            {account.package_ref?.name?.split(' ')[0] || account.package?.split(' ')[0] || "UPTDay5..."}
+                                            {account.package_ref?.phase || account.package?.split(' ')[0] || "PHASE 1"}
                                         </div>
                                     </div>
-                                    <div className="text-white font-black text-[12px] uppercase tracking-tighter">
-                                        {account.accounts?.units?.unit_name || `UNIT ${account.id}`}
+                                    <div className="text-white font-black text-[12px] uppercase tracking-tighter flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                                        {account.accounts?.units?.unit_name || "NO UNIT"}
                                     </div>
                                 </div>
 
@@ -288,7 +300,8 @@ export const PairAccountsModal = ({
 
                                     <Row label="Latest Equity" value={`$${account.latest_equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
                                     <Row label="Daily P&L" value={`$${account.daily_pnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={account.daily_pnl >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
-                                    <Row label="RDD" value={`$${account.rdd.toLocaleString()}`} />
+                                    <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
+                                    <Row label="Unit" value={account.accounts?.units?.unit_name || "None"} color="text-blue-400 font-mono text-[11px]" />
 
                                     {/* Actionable Fields */}
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
@@ -401,7 +414,3 @@ export const PairAccountsModal = ({
         </Dialog>
     )
 }
-
-
-
-
