@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from 'react'
-import { getUnitsWithCounts } from '@/helper/units'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { getUnitsWithCounts, updateUnitStatus, archiveUnit, checkUnitHealth } from '@/helper/units'
 import { UnitsSearch } from '@/components/search/UnitsSearch'
 import { Button } from '@/components/ui/button'
 import { Plus, RefreshCw } from 'lucide-react'
@@ -11,7 +11,7 @@ import { Unit } from "@/types/units"
 import { ArchiveUnitModal } from "@/components/modal/ArchieveUniit"
 import { FranchiseModal } from "@/components/modal/FranchiseModal"
 import { toast } from "sonner"
-import { updateUnitStatus, archiveUnit } from "@/helper/units"
+import { cn } from "@/lib/utils"
 
 interface MyUnitsClientProps {
     initialUnits: any[];
@@ -28,18 +28,81 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
     const [isArchiving, setIsArchiving] = useState(false);
     const [isFranchiseModalOpen, setIsFranchiseModalOpen] = useState(false);
 
+    // Use a ref to prevent multiple simultaneous health checks
+    const isCheckingHealth = useRef(false);
+
+    const handleHealthCheck = useCallback(async (unitsToCheck: any[]) => {
+        if (isCheckingHealth.current || unitsToCheck.length === 0) return;
+
+        isCheckingHealth.current = true;
+        const checkToast = toast.loading(`Checking health for ${unitsToCheck.length} units...`);
+
+        try {
+            let healthyCount = 0;
+            let failedCount = 0;
+
+            const results = await Promise.all(unitsToCheck.map(async (unit) => {
+                if (!unit.api_base_url) return null;
+
+                const isHealthy = await checkUnitHealth(unit.api_base_url);
+                const newStatus = isHealthy ? "enabled" : "not connected" as any;
+
+                // Only update if status changed
+                if (unit.status !== newStatus) {
+                    await updateUnitStatus(unit.id, newStatus);
+                    if (isHealthy) healthyCount++;
+                    else failedCount++;
+                    return { id: unit.id, status: newStatus };
+                }
+
+                if (isHealthy) healthyCount++;
+                else failedCount++;
+                return null;
+            }));
+
+            const updates = results.filter(r => r !== null);
+            if (updates.length > 0) {
+                setUnits((prev: any) => prev.map((u: any) => {
+                    const result = updates.find(r => r!.id === u.id);
+                    return result ? { ...u, status: result.status } : u;
+                }));
+            }
+
+            toast.success(`Health check complete: ${healthyCount} healthy, ${failedCount} failed`, {
+                id: checkToast,
+            });
+        } catch (err) {
+            toast.error("Failed to complete health check", {
+                id: checkToast,
+            });
+        } finally {
+            isCheckingHealth.current = false;
+        }
+    }, []);
+
     const handleRefresh = async () => {
         setIsRefreshing(true);
         try {
             const data = await getUnitsWithCounts();
             setUnits(data as any);
             toast.success("Units refreshed");
+            // Run health check after refresh
+            const unitsWithApi = data.filter((u: any) => u.api_base_url && !u.archived);
+            handleHealthCheck(unitsWithApi);
         } catch (error) {
             toast.error("Failed to refresh units");
         } finally {
             setIsRefreshing(false);
         }
     };
+
+    // Run health check on mount (every visit)
+    useEffect(() => {
+        const unitsWithApi = units.filter((u: any) => u.api_base_url && !u.archived);
+        if (unitsWithApi.length > 0) {
+            handleHealthCheck(unitsWithApi);
+        }
+    }, []); // Empty dependency array runs once on mount
 
     const handleEdit = (unit: Unit) => {
         setUnitToEdit(unit);
@@ -76,7 +139,6 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
             ));
 
             await updateUnitStatus(unitId, newStatus);
-            toast.success("Status updated");
         } catch (error: any) {
             toast.error("Failed to update status");
             handleRefresh();
