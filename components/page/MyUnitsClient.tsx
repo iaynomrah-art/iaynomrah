@@ -179,6 +179,15 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
                         />
 
                         <Button
+                            onClick={() => setIsFranchiseModalOpen(true)}
+                            className="h-10 bg-[#16a34a] hover:bg-[#15803d] text-white font-medium px-4 gap-2 shadow-lg shadow-green-900/10 transition-all active:scale-95"
+                        >
+                            <Plus className="h-4 w-4" />
+                            <span className="hidden sm:inline">Franchise</span>
+                            <span className="sm:hidden">Franchise</span>
+                        </Button>
+
+                        <Button
                             onClick={() => {
                                 setUnitToEdit(null);
                                 setIsUnitModalOpen(true);
@@ -188,15 +197,6 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
                             <Plus className="h-4 w-4" />
                             <span className="hidden sm:inline">Add Unit</span>
                             <span className="sm:hidden">Add</span>
-                        </Button>
-
-                        <Button
-                            onClick={() => setIsFranchiseModalOpen(true)}
-                            className="h-10 bg-[#16a34a] hover:bg-[#15803d] text-white font-medium px-4 gap-2 shadow-lg shadow-green-900/10 transition-all active:scale-95"
-                        >
-                            <Plus className="h-4 w-4" />
-                            <span className="hidden sm:inline">Franchise</span>
-                            <span className="sm:hidden">Franchise</span>
                         </Button>
                     </div>
                 </div>

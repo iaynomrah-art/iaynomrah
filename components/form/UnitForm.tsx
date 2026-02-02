@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Unit, UnitStatus } from "@/types/units"
 import { Franchise } from "@/types/franchise"
 import { getFranchises } from "@/helper/franchise"
-import { createUnit, updateUnit, getUnits } from "@/helper/units"
+import { createUnit, updateUnit, getUnits, updateUnitConfig } from "@/helper/units"
 import { toast } from "sonner"
 import { Loader2, ExternalLink } from "lucide-react"
 import Link from "next/link"
@@ -72,6 +72,17 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
         setIsLoading(true)
 
         try {
+            // Test the unit configuration before completing creation/update
+            if (formData.api_base_url) {
+                try {
+                    await updateUnitConfig(formData.api_base_url, formData.unit_name);
+                    toast.success("Unit configuration verified");
+                } catch (configError: any) {
+                    console.error("Config test failed:", configError);
+                    toast.error(`Config test failed: ${configError.message}. Proceeding anyway...`);
+                }
+            }
+
             if (isEditing && initialData) {
                 await updateUnit(initialData.id, formData)
                 toast.success("Unit updated successfully")
