@@ -120,7 +120,6 @@ export function DashboardSidebar() {
                     <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
                         <SidebarMenuButton
-                          tooltip={item.title}
                           className={cn(
                             "text-gray-400 hover:text-white hover:bg-[#1a1a1a] transition-all duration-200 px-4 py-6",
                             isChildActive && "text-blue-400 bg-blue-400/5"
