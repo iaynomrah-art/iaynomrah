@@ -18,7 +18,7 @@ const packageSchema = z.object({
     name: z.string().min(1, "Package name is required"),
     balance: z.string().min(1, "Balance is required"),
     phase: z.string().min(1, "Phase is required"),
-    instrument: z.string().min(1, "Instrument is required"),
+    symbol: z.string().min(1, "symbol is required"),
     funder_id: z.string().min(1, "Funder is required"),
 })
 
@@ -47,7 +47,7 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
             name: initialData?.name || "",
             balance: initialData?.balance?.toString() || "",
             phase: initialData?.phase?.toLowerCase() || "",
-            instrument: initialData?.instrument || "",
+            symbol: initialData?.symbol || "",
             funder_id: initialData?.funder_id?.toString() || "",
         },
     })
@@ -59,7 +59,7 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
                 name: data.name,
                 balance: parseFloat(data.balance),
                 phase: data.phase,
-                instrument: data.instrument,
+                symbol: data.symbol,
                 funder_id: data.funder_id,
             }
 
@@ -169,18 +169,18 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
                     {errors.phase && <p className="text-xs text-red-500">{errors.phase.message}</p>}
                 </div>
 
-                {/* Instrument */}
+                {/* symbol */}
                 <div className="space-y-2">
-                    <Label htmlFor="instrument" className="text-white">
-                        Instrument <span className="text-red-400">*</span>
+                    <Label htmlFor="symbol" className="text-white">
+                        Symbol <span className="text-red-400">*</span>
                     </Label>
                     <Input
-                        id="instrument"
-                        {...register("instrument")}
+                        id="symbol"
+                        {...register("symbol")}
                         className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
                         placeholder="e.g. MT5"
                     />
-                    {errors.instrument && <p className="text-xs text-red-500">{errors.instrument.message}</p>}
+                    {errors.symbol && <p className="text-xs text-red-500">{errors.symbol.message}</p>}
                 </div>
             </div>
 
