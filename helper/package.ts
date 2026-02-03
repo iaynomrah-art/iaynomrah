@@ -80,7 +80,7 @@ export async function packageTable() {
       name,
       balance,
       phase,
-      instrument,
+      symbol,
       funder:funders(name)
     `);
 

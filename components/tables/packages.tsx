@@ -89,7 +89,7 @@ export const PackagesTable = ({ data, onEdit }: PackagesTableProps) => {
                                 <TableCell className="text-white py-4 text-sm">{item.name}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">{item.balance || "-"}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">{item.phase || "-"}</TableCell>
-                                <TableCell className="text-white py-4 text-sm">{item.instrument || "-"}</TableCell>
+                                <TableCell className="text-white py-4 text-sm">{item.symbol || "-"}</TableCell>
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
                                         <Button

@@ -6,7 +6,6 @@ export interface Package {
   name: string | null;
   balance: number | null;
   phase: PackagePhase | null;
-  instrument: string | null;
   symbol: string | null;
   funder_id: string | null; // Changed from number to string
   funder?: Funder;
