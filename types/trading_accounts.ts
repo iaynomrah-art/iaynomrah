@@ -32,10 +32,10 @@ export interface TradingAccount {
   remaining_target_days?: number | null;
   remaining_target_profit?: number | null;
   challenge_type?: string | null;
-  
+
   // Joined fields
   package_ref?: Package | null;
   accounts?: (any & { units?: Unit | null }) | null; // Joined accounts
-  credentials?: Credential | null
+  credentials?: Credential | null;
+  accounts_id?: string | null;
 }
-

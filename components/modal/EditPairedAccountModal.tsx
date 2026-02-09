@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { X } from "lucide-react"
 
-import { confirmTrade } from "@/helper/automation"
+
 import Row from "@/components/ui/row"
 import PlayIcon from "@/components/ui/playicon"
 
@@ -220,55 +220,52 @@ export const EditPairedAccountModal = ({
                 secondary_order_type: localParams.secondary_order_type as any,
             })
 
-            // 2. Trigger automation
-            const primaryApiUrl = pair.primary_account?.accounts?.units?.api_base_url;
-            const secondaryApiUrl = pair.secondary_account?.accounts?.units?.api_base_url;
+            // 2. Prepare payload for Edge Function
+            const payload = {
+                primary_account_id: String(pair.primary_account_id),
+                secondary_account_id: String(pair.secondary_account_id),
+                details: "edit-place-order",
+                primary: {
+                    symbol: String(localParams.symbol),
+                    order_amount: localParams.primary_order_amount,
+                    stop_loss: localParams.primary_stop_loss,
+                    take_profit: localParams.primary_take_profit,
+                    order_type: localParams.primary_order_type,
+                    accounts_id: pair.primary_account?.accounts_id
+                },
+                secondary: {
+                    symbol: String(localParams.symbol),
+                    order_amount: localParams.secondary_order_amount,
+                    stop_loss: localParams.secondary_stop_loss,
+                    take_profit: localParams.secondary_take_profit,
+                    order_type: localParams.secondary_order_type,
+                    accounts_id: pair.secondary_account?.accounts_id
+                }
+            }
 
-            if (!primaryApiUrl || !secondaryApiUrl) {
-                toast.error("API URL missing for one or both units");
+            // 3. Call Edge Function
+            const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+            const response = await fetch('https://cisszbamrleoxcnyeoku.supabase.co/functions/v1/pairing-trading-accounts', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${supabaseKey}`,
+                    'apikey': `${supabaseKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
+                toast.error(errorData.error || errorData.message || `Edge Function Error: ${response.statusText}`);
                 return;
             }
-
-            const normalizeUrl = (url: string) => url.endsWith('/') ? url : `${url}/`;
-
-            const primaryPayload = {
-                username: String(pair.primary_account?.credentials?.username || ""),
-                password: String(pair.primary_account?.credentials?.password || ""),
-                symbol: String(localParams.symbol),
-                order_amount: String(localParams.primary_order_amount),
-                tp_ticks: String(localParams.primary_take_profit),
-                sl_ticks: String(localParams.primary_stop_loss),
-                purchase_type: String(localParams.primary_order_type),
-                account_number: String(pair.primary_account?.credentials?.username || pair.primary_account?.id),
-                latest_equity: String(pair.primary_account?.live_equity || 0),
-                daily_pnl: String(pair.primary_account?.daily_pnl || 0),
-                rdd: String(pair.primary_account?.rdd || 0)
-            }
-
-            const secondaryPayload = {
-                username: String(pair.secondary_account?.credentials?.username || ""),
-                password: String(pair.secondary_account?.credentials?.password || ""),
-                symbol: String(localParams.symbol),
-                order_amount: String(localParams.secondary_order_amount),
-                tp_ticks: String(localParams.secondary_take_profit),
-                sl_ticks: String(localParams.secondary_stop_loss),
-                purchase_type: String(localParams.secondary_order_type),
-                account_number: String(pair.secondary_account?.credentials?.username || pair.secondary_account?.id),
-                latest_equity: String(pair.secondary_account?.live_equity || 0),
-                daily_pnl: String(pair.secondary_account?.daily_pnl || 0),
-                rdd: String(pair.secondary_account?.rdd || 0)
-            }
-
-            await Promise.all([
-                confirmTrade(normalizeUrl(primaryApiUrl), primaryPayload),
-                confirmTrade(normalizeUrl(secondaryApiUrl), secondaryPayload)
-            ])
 
             toast.success("Trade parameters updated and session started")
             onConfirm()
         } catch (error: any) {
             console.error("Update error:", error)
-            toast.error(error.message || "Failed to update and start")
+            toast.error(error.message || error.error || "Failed to update and start")
         } finally {
             setIsLoading(false)
         }

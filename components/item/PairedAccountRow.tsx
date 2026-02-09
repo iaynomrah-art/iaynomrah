@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils"
 import { ChevronDown, ChevronUp, PlayCircle, X, Monitor } from "lucide-react"
 import Row from "@/components/ui/row"
 import { toast } from "sonner"
-import { confirmTrade } from "@/helper/automation"
 import Swal from 'sweetalert2'
 import { EditPairedAccountModal } from "@/components/modal/EditPairedAccountModal"
 import { deletePairedAccount } from "@/helper/paired_accounts"
@@ -86,52 +85,51 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
         try {
             setIsStarting(true)
 
-            const primaryPayload = {
-                username: String(pair.primary_account?.credentials?.username || ""),
-                password: String(pair.primary_account?.credentials?.password || ""),
-                symbol: String(pair.symbol),
-                order_amount: String(pair.primary_order_amount),
-                tp_ticks: String(pair.primary_take_profit),
-                sl_ticks: String(pair.primary_stop_loss),
-                purchase_type: String(pair.primary_order_type),
-                account_number: String(pair.primary_account?.credentials?.username || pair.primary_account?.id),
-                latest_equity: String(pair.primary_account?.live_equity || 0),
-                daily_pnl: String(pair.primary_account?.daily_pnl || 0),
-                rdd: String(pair.primary_account?.rdd || 0)
+            // 1. Prepare payload for Edge Function
+            const payload = {
+                primary_account_id: String(pair.primary_account_id),
+                secondary_account_id: String(pair.secondary_account_id),
+                details: "place-order",
+                primary: {
+                    symbol: String(pair.symbol),
+                    order_amount: pair.primary_order_amount,
+                    stop_loss: pair.primary_stop_loss,
+                    take_profit: pair.primary_take_profit,
+                    order_type: pair.primary_order_type,
+                    accounts_id: pair.primary_account?.accounts_id
+                },
+                secondary: {
+                    symbol: String(pair.symbol),
+                    order_amount: pair.secondary_order_amount,
+                    stop_loss: pair.secondary_stop_loss,
+                    take_profit: pair.secondary_take_profit,
+                    order_type: pair.secondary_order_type,
+                    accounts_id: pair.secondary_account?.accounts_id
+                }
             }
 
-            const secondaryPayload = {
-                username: String(pair.secondary_account?.credentials?.username || ""),
-                password: String(pair.secondary_account?.credentials?.password || ""),
-                symbol: String(pair.symbol),
-                order_amount: String(pair.secondary_order_amount),
-                tp_ticks: String(pair.secondary_take_profit),
-                sl_ticks: String(pair.secondary_stop_loss),
-                purchase_type: String(pair.secondary_order_type),
-                account_number: String(pair.secondary_account?.credentials?.username || pair.secondary_account?.id),
-                latest_equity: String(pair.secondary_account?.live_equity || 0),
-                daily_pnl: String(pair.secondary_account?.daily_pnl || 0),
-                rdd: String(pair.secondary_account?.rdd || 0)
+            // 2. Call Edge Function
+            const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+            const response = await fetch('https://cisszbamrleoxcnyeoku.supabase.co/functions/v1/pairing-trading-accounts', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${supabaseKey}`,
+                    'apikey': `${supabaseKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
+                toast.error(errorData.error || errorData.message || `Edge Function Error: ${response.statusText}`);
+                return;
             }
-
-            const primaryApiUrl = pair.primary_account?.accounts?.units?.api_base_url;
-            const secondaryApiUrl = pair.secondary_account?.accounts?.units?.api_base_url;
-
-            if (!primaryApiUrl || !secondaryApiUrl) {
-                throw new Error("API URL missing for one or both units");
-            }
-
-            const normalizeUrl = (url: string) => url.endsWith('/') ? url : `${url}/`;
-
-            await Promise.all([
-                confirmTrade(normalizeUrl(primaryApiUrl), primaryPayload),
-                confirmTrade(normalizeUrl(secondaryApiUrl), secondaryPayload)
-            ]);
 
             toast.success("Trading session started with existing parameters")
         } catch (error: any) {
             console.error("Start trading error:", error)
-            toast.error(error.message || "Failed to start trading")
+            toast.error(error.message || error.error || "Failed to start trading")
         } finally {
             setIsStarting(false)
         }

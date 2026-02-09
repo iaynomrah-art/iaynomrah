@@ -237,14 +237,16 @@ export const PairAccountsModal = ({
                     order_amount: primary.order_amount,
                     stop_loss: primary.sl_ticks,
                     take_profit: primary.tp_ticks,
-                    order_type: primary.trade_type
+                    order_type: primary.trade_type,
+                    accounts_id: primary.accounts_id
                 },
                 secondary: {
                     symbol: String(secondary.symbol || "XAUUSD"),
                     order_amount: secondary.order_amount,
                     stop_loss: secondary.sl_ticks,
                     take_profit: secondary.tp_ticks,
-                    order_type: secondary.trade_type
+                    order_type: secondary.trade_type,
+                    accounts_id: secondary.accounts_id
                 }
             }
 

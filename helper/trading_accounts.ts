@@ -12,7 +12,7 @@ export async function getTradingAccounts(type?: string) {
       *,
       package_ref:package!funder_account_package_id_fkey(*, funders(*)),
       accounts:accounts!funder_account_acount_id_fkey(*, units:unit_id(*)),
-      credentials:credentials!funder_account_credential_id_fkey(*)
+      credentials:credentials!funder_account_credential_id_fkey(*, platform_id(*))
     )
   `);
 
@@ -23,7 +23,7 @@ export async function getTradingAccounts(type?: string) {
     return [];
   }
 
-  // console.log(JSON.stringify(data, null, 2));
+  console.log(JSON.stringify(data, null, 2));
 
   // Flatten the data to maintain compatibility with existing components
   return data.map((item: any) => ({
@@ -40,6 +40,10 @@ export async function getTradingAccounts(type?: string) {
     credentials: Array.isArray(item.funder_account?.credentials)
       ? item.funder_account.credentials[0]
       : item.funder_account?.credentials,
+    accounts_id: Array.isArray(item.funder_account?.credentials)
+      ? item.funder_account.credentials[0]?.platform_id?.[0]?.platform_id
+      : (item.funder_account?.credentials as any)?.platform_id?.[0]
+          ?.platform_id,
   }));
 }
 
@@ -54,7 +58,7 @@ export async function getTradingAccountById(id: string) {
         *,
         package_ref:package!funder_account_package_id_fkey(*, funders(*)),
         accounts:accounts!funder_account_acount_id_fkey(*, units:unit_id(*)),
-        credentials:credentials!funder_account_credential_id_fkey(*)
+        credentials:credentials!funder_account_credential_id_fkey(*, platform_id(*))
       )
     `,
     )
@@ -82,6 +86,10 @@ export async function getTradingAccountById(id: string) {
     credentials: Array.isArray(item.funder_account?.credentials)
       ? item.funder_account.credentials[0]
       : item.funder_account?.credentials,
+    accounts_id: Array.isArray(item.funder_account?.credentials)
+      ? item.funder_account.credentials[0]?.platform_id?.[0]?.platform_id
+      : (item.funder_account?.credentials as any)?.platform_id?.[0]
+          ?.platform_id,
   };
 }
 

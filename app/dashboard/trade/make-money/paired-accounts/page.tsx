@@ -12,13 +12,18 @@ const PairedAccountsPage = () => {
     const [pairs, setPairs] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
+    const [isFetching, setIsFetching] = useState(false)
+
     const fetchPairs = async () => {
+        if (isFetching) return;
         try {
+            setIsFetching(true)
             const data = await realTimeGetPairedAccounts()
             setPairs(data)
         } catch (error) {
             console.error("Failed to fetch pairs:", error)
         } finally {
+            setIsFetching(false)
             setIsLoading(false)
         }
     }

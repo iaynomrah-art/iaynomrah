@@ -86,11 +86,25 @@ const TradingAccountsPage = () => {
             return
         }
 
+        // 1. Trading Status Restriction
+        const tradingAccount = selected.find(acc => acc.status?.toLowerCase() === 'trading')
+        if (tradingAccount) {
+            Swal.fire({
+                title: 'Account Busy',
+                text: `The account "${tradingAccount.credential_id || tradingAccount.id}" is already in a trading session. You cannot pair it again.`,
+                icon: 'error',
+                confirmButtonColor: '#3085d6',
+                background: '#1a1a1a',
+                color: '#fff'
+            })
+            return
+        }
+
         const [acc1, acc2] = selected
         const isLive1 = acc1.package_ref?.phase?.toLowerCase() === 'live'
         const isLive2 = acc2.package_ref?.phase?.toLowerCase() === 'live'
 
-        // 1. Live vs Not Live Restriction
+        // 2. Live vs Not Live Restriction
         if (isLive1 !== isLive2) {
             Swal.fire({
                 title: 'Pairing Restricted',

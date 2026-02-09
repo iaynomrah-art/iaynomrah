@@ -7,13 +7,20 @@ export async function getCredentials() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("credentials")
-    .select("*, funder_account!funder_account_credential_id_fkey(*)")
+    .select(
+      `
+      *,
+      platform:platform_id!platform_id_credentials_id_fkey(*),
+      funder_account!funder_account_credential_id_fkey(*)
+    `,
+    )
     .order("created_at", { ascending: false });
 
   if (error) {
     console.error("Error fetching credentials:", error);
     return [];
   }
+  console.log(JSON.stringify(data, null, 2));
   return data;
 }
 
@@ -21,7 +28,7 @@ export async function getCredentialById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("credentials")
-    .select("*")
+    .select("*, platform:platform_id!platform_id_credentials_id_fkey(*)")
     .eq("id", id)
     .single();
 
@@ -34,29 +41,74 @@ export async function getCredentialById(id: string) {
 
 export async function createCredential(formData: any) {
   const supabase = await createClient();
+  const { platform, platform_id, ...credentialData } = formData;
+
   const { data, error } = await supabase
     .from("credentials")
-    .insert([formData])
-    .select();
+    .insert([credentialData])
+    .select()
+    .single();
 
   if (error) {
     throw new Error(error.message);
   }
+
+  if (platform || platform_id) {
+    await supabase.from("platform_id").insert([
+      {
+        platform: platform || "",
+        platform_id: platform_id || "",
+        credentials_id: data.id,
+      },
+    ]);
+  }
+
   revalidatePath("/dashboard/trading-accounts/credentials");
   return data;
 }
 
 export async function updateCredential(id: string, formData: any) {
   const supabase = await createClient();
+  const { platform, platform_id, ...credentialData } = formData;
+
   const { data, error } = await supabase
     .from("credentials")
-    .update(formData)
+    .update(credentialData)
     .eq("id", id)
-    .select();
+    .select()
+    .single();
 
   if (error) {
     throw new Error(error.message);
   }
+
+  if (platform !== undefined || platform_id !== undefined) {
+    // Check if platform_id record exists
+    const { data: existingPlatform } = await supabase
+      .from("platform_id")
+      .select("id")
+      .eq("credentials_id", id)
+      .maybeSingle();
+
+    if (existingPlatform) {
+      await supabase
+        .from("platform_id")
+        .update({
+          platform: platform,
+          platform_id: platform_id,
+        })
+        .eq("credentials_id", id);
+    } else {
+      await supabase.from("platform_id").insert([
+        {
+          platform: platform || "",
+          platform_id: platform_id || "",
+          credentials_id: id,
+        },
+      ]);
+    }
+  }
+
   revalidatePath("/dashboard/trading-accounts/credentials");
   return data;
 }
@@ -82,6 +134,7 @@ export async function credentialsTable() {
       name,
       username,
       password,
+      platform:platform_id!platform_id_credentials_id_fkey(*),
       funder_account!funder_account_credential_id_fkey(
         id,
         package(
