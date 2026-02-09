@@ -77,3 +77,4 @@ export async function deleteFunder(id: string) {
     revalidatePath("/dashboard/funders");
     return true;
 }
+

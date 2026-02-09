@@ -23,13 +23,10 @@ import { toast } from "sonner"
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { inputCtraderOrder } from "@/helper/automation"
-
 import Row from "@/components/ui/row"
 import PlayIcon from "@/components/ui/playicon"
 
-import { TradeStatus, CreateTradePairDTO, CreatePairedAccountDTO } from "@/types/paired"
-import { createPairedAccount } from "@/helper/paired_accounts"
+import { TradeStatus } from "@/types/paired"
 
 type Pair = TradingAccount & {
     trade_type: 'buy' | 'sell'
@@ -175,72 +172,103 @@ export const PairAccountsModal = ({
     const handleConfirm = async () => {
         try {
             setIsLoading(true)
-            // 1. Validate units and API URLs
-            const unit1 = pairs[0]?.accounts?.units;
-            const unit2 = pairs[1]?.accounts?.units;
 
-            if (!unit1?.api_base_url || !unit2?.api_base_url) {
-                toast.error("One or both accounts are not assigned to a unit with an API URL");
-                return;
+            if (pairs.length < 2) {
+                toast.error("At least two accounts are required for pairing")
+                return
             }
 
-            const normalizeUrl = (url: string) => url.endsWith('/') ? url : `${url}/`;
-            const api1 = normalizeUrl(unit1.api_base_url);
-            const api2 = normalizeUrl(unit2.api_base_url);
-
-            // 2. Trigger automation for both accounts
-            await Promise.all(pairs.map((pair, index) => {
-                const payload = {
-                    username: String(pair.credentials?.username || ""),
-                    password: String(pair.credentials?.password || ""),
-                    symbol: String(pair.symbol),
-                    order_amount: String(pair.order_amount),
-                    tp_ticks: String(pair.tp_ticks),
-                    sl_ticks: String(pair.sl_ticks),
-                    purchase_type: String(pair.trade_type),
-                    // Metadata/Tracking
-                    account_number: String(pair.credentials?.username || pair.id),
-                    starting_balance: String(pair.starting_balance),
-                    starting_equity: String(pair.starting_equity),
-                    latest_equity: String(pair.latest_equity),
-                    daily_pnl: String(pair.daily_pnl),
-                    rdd: String(pair.rdd)
-                }
-
-                console.log(payload)
-
-                const apiUrl = index === 0 ? api1 : api2;
-                return inputCtraderOrder(apiUrl, payload)
-            }))
-
-            // 3. Create database record for the pair
             const primary = pairs[0]
             const secondary = pairs[1]
 
-            const pairData: CreatePairedAccountDTO = {
-                primary_account_id: String(primary.id),
-                secondary_account_id: String(secondary.id),
-                symbol: String(primary.symbol || "XAUUSD"),
+            // 1. Validation: Same Funder Warning
+            const funderId1 = primary.package_ref?.funder_id
+            const funderId2 = secondary.package_ref?.funder_id
 
-                primary_order_amount: primary.order_amount,
-                primary_stop_loss: primary.sl_ticks,
-                primary_take_profit: primary.tp_ticks,
-                primary_order_type: primary.trade_type,
-                primary_automation_status: "initiated",
-                secondary_order_amount: secondary.order_amount,
-                secondary_stop_loss: secondary.sl_ticks,
-                secondary_take_profit: secondary.tp_ticks,
-                secondary_order_type: secondary.trade_type,
-                secondary_automation_status: "initiated",
-
-                trade_status: "initializing",
-                is_active: true,
-                notes: `Paired session starting at ${new Date().toISOString()}`
+            if (funderId1 && funderId2 && funderId1 === funderId2) {
+                const proceed = window.confirm(
+                    `Warning: Both accounts belong to the same funder (${primary.package_ref?.funders?.name || 'Same Funder'}). \n\nMultiple accounts from the same funder might violate their rules. Do you want to proceed?`
+                )
+                if (!proceed) {
+                    setIsLoading(false)
+                    return
+                }
             }
 
-            await createPairedAccount(pairData)
+            // 2. Validation: Live paired with Not Live
+            const phase1 = primary.package_ref?.phase?.toLowerCase()
+            const phase2 = secondary.package_ref?.phase?.toLowerCase()
+            const isLive1 = phase1 === 'live'
+            const isLive2 = phase2 === 'live'
 
-            toast.success("Accounts paired and record created")
+            if (isLive1 !== isLive2) {
+                const proceed = window.confirm(
+                    `Notice: You are pairing a ${isLive1 ? 'Live' : 'Phase'} account with a ${isLive2 ? 'Live' : 'Phase'} account. \n\nDo you want to proceed?`
+                )
+                if (!proceed) {
+                    setIsLoading(false)
+                    return
+                }
+            }
+
+            // 3. Validation: Unit Health
+            const unit1 = primary.accounts?.units
+            const unit2 = secondary.accounts?.units
+
+            if (!unit1?.api_base_url || unit1?.status !== 'enabled') {
+                toast.error(`Unit unavailable.`)
+                setIsLoading(false)
+                return
+            }
+
+            if (!unit2?.api_base_url || unit2?.status !== 'enabled') {
+                toast.error(`Unit unavailable.`)
+                setIsLoading(false)
+                return
+            }
+
+            // 3. Prepare minimal data for Edge Function
+            const payload = {
+                primary_account_id: String(primary.id),
+                secondary_account_id: String(secondary.id),
+
+                primary: {
+                    symbol: String(primary.symbol || "XAUUSD"),
+                    order_amount: primary.order_amount,
+                    stop_loss: primary.sl_ticks,
+                    take_profit: primary.tp_ticks,
+                    order_type: primary.trade_type
+                },
+                secondary: {
+                    symbol: String(secondary.symbol || "XAUUSD"),
+                    order_amount: secondary.order_amount,
+                    stop_loss: secondary.sl_ticks,
+                    take_profit: secondary.tp_ticks,
+                    order_type: secondary.trade_type
+                }
+            }
+
+            // 4. Call Edge Function
+            // Note: Using NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY as shown in the curl command
+            // If NEXT_PRIVATE_SUPABASE_ANON_KEY is needed and exposed, it can be substituted here.
+            const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+            const response = await fetch('https://cisszbamrleoxcnyeoku.supabase.co/functions/v1/pairing-trading-accounts', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${supabaseKey}`,
+                    'apikey': `${supabaseKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
+                throw new Error(errorData.message || `Edge Function Error: ${response.statusText}`);
+            }
+
+            toast.success("Pairing initiated successfully")
             onConfirm(pairs)
         } catch (error: any) {
             console.error("Pairing error:", error)
