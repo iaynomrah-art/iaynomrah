@@ -112,7 +112,7 @@ export async function createPairedAccount(formData: CreatePairedAccountDTO) {
     throw new Error(error.message);
   }
 
-  revalidatePath("/dashboard/paired-accounts");
+  revalidatePath("/dashboard/trade/make-money/paired-accounts");
   return data;
 }
 
@@ -132,22 +132,53 @@ export async function updatePairedAccount(
     throw new Error(error.message);
   }
 
-  revalidatePath("/dashboard/paired-accounts");
+  revalidatePath("/dashboard/trade/make-money/paired-accounts");
   return data;
 }
 
 export async function deletePairedAccount(id: string) {
   const supabase = await createClient();
-  const { error } = await supabase
+
+  // 1. Fetch the pair details to get primary and secondary account IDs
+  const { data: pair, error: fetchError } = await supabase
+    .from("paired_trading_accounts")
+    .select("primary_account_id, secondary_account_id")
+    .eq("id", id)
+    .single();
+
+  if (fetchError) {
+    console.error("Error fetching pair details for unpairing:", fetchError);
+  }
+
+  // 2. Delete the pair
+  const { error: deleteError } = await supabase
     .from("paired_trading_accounts")
     .delete()
     .eq("id", id);
 
-  if (error) {
-    throw new Error(error.message);
+  if (deleteError) {
+    throw new Error(deleteError.message);
   }
 
-  revalidatePath("/dashboard/paired-accounts");
+  // 3. Reset associated trading accounts status to 'idle'
+  if (pair) {
+    const accountIds = [
+      pair.primary_account_id,
+      pair.secondary_account_id,
+    ].filter(Boolean);
+    if (accountIds.length > 0) {
+      const { error: updateError } = await supabase
+        .from("trading_accounts")
+        .update({ account_status: "idle" })
+        .in("id", accountIds);
+
+      if (updateError) {
+        console.error("Error resetting account status to idle:", updateError);
+      }
+    }
+  }
+
+  revalidatePath("/dashboard/trade/make-money/paired-accounts");
   return true;
 }
 

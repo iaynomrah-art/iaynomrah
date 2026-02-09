@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { confirmTrade } from "@/helper/automation"
 import Swal from 'sweetalert2'
 import { EditPairedAccountModal } from "@/components/modal/EditPairedAccountModal"
+import { deletePairedAccount } from "@/helper/paired_accounts"
 
 const AccountColumn = ({
     account,
@@ -78,6 +79,7 @@ const AccountColumn = ({
 export default function PairedAccountRow({ pair }: { pair: any }) {
     const [isOpen, setIsOpen] = useState(false)
     const [isStarting, setIsStarting] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
     const handleStartTradingDirectly = async () => {
@@ -159,6 +161,34 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
         })
     }
 
+    const handleDeletePair = () => {
+        Swal.fire({
+            title: 'Remove Pair?',
+            text: "Are you sure you want to unpair these accounts? This action cannot be undone.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Unpair',
+            cancelButtonText: 'Cancel',
+            background: '#1e2329',
+            color: '#ffffff',
+            confirmButtonColor: '#cf304a',
+            cancelButtonColor: '#2a2e33',
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    setIsDeleting(true)
+                    await deletePairedAccount(pair.id)
+                    toast.success("Accounts successfully unpaired")
+                } catch (error: any) {
+                    console.error("Delete pair error:", error)
+                    toast.error(error.message || "Failed to unpair accounts")
+                } finally {
+                    setIsDeleting(false)
+                }
+            }
+        })
+    }
+
     return (
         <div className="border border-[#1a1a1a] rounded-xl overflow-hidden bg-[#0a0a0a] shadow-sm">
             {/* Clickable Header */}
@@ -221,8 +251,19 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all">
-                        <X className="h-4 w-4" />
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePair();
+                        }}
+                        disabled={isDeleting}
+                        className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all disabled:opacity-50"
+                    >
+                        {isDeleting ? (
+                            <div className="h-4 w-4 border-2 border-muted-foreground/20 border-t-muted-foreground rounded-full animate-spin" />
+                        ) : (
+                            <X className="h-4 w-4" />
+                        )}
                     </button>
                 </div>
             </div>
