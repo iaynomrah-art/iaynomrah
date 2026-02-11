@@ -17,7 +17,7 @@ export async function getPairedAccounts() {
             *, 
             package_ref:package!funder_account_package_id_fkey(*, funders(*)), 
             accounts:accounts!funder_account_acount_id_fkey(*, units(*)), 
-            credentials:credentials!funder_account_credential_id_fkey(*, platform_id(*))
+            credentials:credentials!funder_account_credential_id_fkey(*)
         )
       ),
       secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(
@@ -26,7 +26,7 @@ export async function getPairedAccounts() {
             *, 
             package_ref:package!funder_account_package_id_fkey(*, funders(*)), 
             accounts:accounts!funder_account_acount_id_fkey(*, units(*)), 
-            credentials:credentials!funder_account_credential_id_fkey(*, platform_id(*))
+            credentials:credentials!funder_account_credential_id_fkey(*)
         )
       )
     `,
@@ -51,10 +51,9 @@ export async function getPairedAccounts() {
           accounts_id: Array.isArray(
             pair.primary_account.funder_account?.credentials,
           )
-            ? pair.primary_account.funder_account.credentials[0]
-                ?.platform_id?.[0]?.platform_id
+            ? pair.primary_account.funder_account.credentials[0]?.platform_id
             : (pair.primary_account.funder_account?.credentials as any)
-                ?.platform_id?.[0]?.platform_id,
+                ?.platform_id,
         }
       : null,
     secondary_account: pair.secondary_account
@@ -209,7 +208,7 @@ export async function realTimeGetPairedAccounts() {
                 *, 
                 package_ref:package!funder_account_package_id_fkey(*, funders(*)), 
                 accounts:accounts!funder_account_acount_id_fkey(*, units(*)), 
-                credentials:credentials!funder_account_credential_id_fkey(*, platform_id(*))
+                credentials:credentials!funder_account_credential_id_fkey(*)
             )
           ),
           secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(
@@ -218,7 +217,7 @@ export async function realTimeGetPairedAccounts() {
                 *, 
                 package_ref:package!funder_account_package_id_fkey(*, funders(*)), 
                 accounts:accounts!funder_account_acount_id_fkey(*, units(*)), 
-                credentials:credentials!funder_account_credential_id_fkey(*, platform_id(*))
+                credentials:credentials!funder_account_credential_id_fkey(*)
             )
           )
         `,
@@ -243,10 +242,9 @@ export async function realTimeGetPairedAccounts() {
           accounts_id: Array.isArray(
             pair.primary_account.funder_account?.credentials,
           )
-            ? pair.primary_account.funder_account.credentials[0]
-                ?.platform_id?.[0]?.platform_id
+            ? pair.primary_account.funder_account.credentials[0]?.platform_id
             : (pair.primary_account.funder_account?.credentials as any)
-                ?.platform_id?.[0]?.platform_id,
+                ?.platform_id,
         }
       : null,
     secondary_account: pair.secondary_account
@@ -260,10 +258,9 @@ export async function realTimeGetPairedAccounts() {
           accounts_id: Array.isArray(
             pair.secondary_account.funder_account?.credentials,
           )
-            ? pair.secondary_account.funder_account.credentials[0]
-                ?.platform_id?.[0]?.platform_id
+            ? pair.secondary_account.funder_account.credentials[0]?.platform_id
             : (pair.secondary_account.funder_account?.credentials as any)
-                ?.platform_id?.[0]?.platform_id,
+                ?.platform_id,
         }
       : null,
   }));

@@ -6,8 +6,8 @@ export interface Credential {
   password: string | null;
   username: string | null;
   name: string | null;
-  platform_id?: PlatformId[];
-  platform?: PlatformId[];
+  platform?: string;
+  platform_id?: string;
 }
 
 export type CreateCredential = Omit<Credential, "id" | "created_at">;

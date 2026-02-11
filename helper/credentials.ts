@@ -10,7 +10,6 @@ export async function getCredentials() {
     .select(
       `
       *,
-      platform:platform_id!platform_id_credentials_id_fkey(*),
       funder_account!funder_account_credential_id_fkey(*)
     `,
     )
@@ -28,7 +27,7 @@ export async function getCredentialById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("credentials")
-    .select("*, platform:platform_id!platform_id_credentials_id_fkey(*)")
+    .select("*")
     .eq("id", id)
     .single();
 
@@ -41,26 +40,15 @@ export async function getCredentialById(id: string) {
 
 export async function createCredential(formData: any) {
   const supabase = await createClient();
-  const { platform, platform_id, ...credentialData } = formData;
 
   const { data, error } = await supabase
     .from("credentials")
-    .insert([credentialData])
+    .insert([formData])
     .select()
     .single();
 
   if (error) {
     throw new Error(error.message);
-  }
-
-  if (platform || platform_id) {
-    await supabase.from("platform_id").insert([
-      {
-        platform: platform || "",
-        platform_id: platform_id || "",
-        credentials_id: data.id,
-      },
-    ]);
   }
 
   revalidatePath("/dashboard/trading-accounts/credentials");
@@ -69,44 +57,16 @@ export async function createCredential(formData: any) {
 
 export async function updateCredential(id: string, formData: any) {
   const supabase = await createClient();
-  const { platform, platform_id, ...credentialData } = formData;
 
   const { data, error } = await supabase
     .from("credentials")
-    .update(credentialData)
+    .update(formData)
     .eq("id", id)
     .select()
     .single();
 
   if (error) {
     throw new Error(error.message);
-  }
-
-  if (platform !== undefined || platform_id !== undefined) {
-    // Check if platform_id record exists
-    const { data: existingPlatform } = await supabase
-      .from("platform_id")
-      .select("id")
-      .eq("credentials_id", id)
-      .maybeSingle();
-
-    if (existingPlatform) {
-      await supabase
-        .from("platform_id")
-        .update({
-          platform: platform,
-          platform_id: platform_id,
-        })
-        .eq("credentials_id", id);
-    } else {
-      await supabase.from("platform_id").insert([
-        {
-          platform: platform || "",
-          platform_id: platform_id || "",
-          credentials_id: id,
-        },
-      ]);
-    }
   }
 
   revalidatePath("/dashboard/trading-accounts/credentials");
@@ -134,7 +94,8 @@ export async function credentialsTable() {
       name,
       username,
       password,
-      platform:platform_id!platform_id_credentials_id_fkey(*),
+      platform,
+      platform_id,
       funder_account!funder_account_credential_id_fkey(
         id,
         package(

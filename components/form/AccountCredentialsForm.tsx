@@ -48,11 +48,6 @@ export const AccountCredentialsForm = ({
     const [showPassword, setShowPassword] = useState(false)
     const isUpdate = !!initialData
 
-    // Extract platform data from join if it exists
-    const platformData = Array.isArray(initialData?.platform)
-        ? initialData.platform[0]
-        : (initialData as any)?.platform
-
     const {
         register,
         handleSubmit,
@@ -64,8 +59,8 @@ export const AccountCredentialsForm = ({
             name: initialData?.name || "",
             username: initialData?.username || "",
             password: initialData?.password || "",
-            platform: platformData?.platform || "",
-            platform_id: platformData?.platform_id || "",
+            platform: initialData?.platform ?? "",
+            platform_id: initialData?.platform_id ?? "",
         },
     })
 
