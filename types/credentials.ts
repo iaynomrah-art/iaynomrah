@@ -1,5 +1,3 @@
-import { PlatformId } from "./platform";
-
 export interface Credential {
   id: string;
   created_at: string;
