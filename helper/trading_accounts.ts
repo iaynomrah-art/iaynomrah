@@ -23,8 +23,6 @@ export async function getTradingAccounts(type?: string) {
     return [];
   }
 
-  console.log(JSON.stringify(data, null, 2));
-
   // Flatten the data to maintain compatibility with existing components
   return data.map((item: any) => ({
     ...(item.funder_account || {}),

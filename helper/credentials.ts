@@ -19,7 +19,6 @@ export async function getCredentials() {
     console.error("Error fetching credentials:", error);
     return [];
   }
-  console.log(JSON.stringify(data, null, 2));
   return data;
 }
 
