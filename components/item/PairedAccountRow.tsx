@@ -35,8 +35,11 @@ const AccountColumn = ({
                         {account.package_ref?.phase || account.package || "Standard Phase"}
                     </div>
                 </div>
-                <div className="text-white font-black text-[12px] uppercase tracking-tighter flex items-center gap-2">
-                    {account.accounts?.units?.unit_name || `UNIT ${account.id}`}
+                <div className="text-white font-black text-[11px] uppercase tracking-tighter flex flex-col items-end leading-none">
+                    <span>{account.accounts?.units?.unit_name || `UNIT ${account.id}`}</span>
+                    <span className="text-[9px] text-white/50 mt-1">
+                        {account.accounts ? `${account.accounts.first_name} ${account.accounts.last_name}` : ""}
+                    </span>
                 </div>
             </div>
 
@@ -207,9 +210,14 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                             <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate max-w-[80px]">
                                 {pair.primary_account?.package_ref?.phase || pair.primary_account?.package || "PHASE 1"}
                             </div>
-                            <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
-                                {pair.primary_account?.accounts?.units?.unit_name}
-                            </span>
+                            <div className="flex flex-col leading-none">
+                                <span className="text-[10px] text-white font-black uppercase tracking-widest">
+                                    {pair.primary_account?.accounts?.units?.unit_name}
+                                </span>
+                                <span className="text-[9px] text-muted-foreground font-bold uppercase mt-0.5">
+                                    {pair.primary_account?.accounts?.first_name} {pair.primary_account?.accounts?.last_name}
+                                </span>
+                            </div>
                             <a
                                 href="https://remotedesktop.google.com/access"
                                 target="_blank"
@@ -231,9 +239,14 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                             <div className="bg-[#ffffff20] text-white px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase truncate max-w-[80px]">
                                 {pair.secondary_account?.package_ref?.phase || pair.secondary_account?.package || "PHASE 1"}
                             </div>
-                            <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
-                                {pair.secondary_account?.accounts?.units?.unit_name}
-                            </span>
+                            <div className="flex flex-col leading-none">
+                                <span className="text-[10px] text-white font-black uppercase tracking-widest">
+                                    {pair.secondary_account?.accounts?.units?.unit_name}
+                                </span>
+                                <span className="text-[9px] text-muted-foreground font-bold uppercase mt-0.5">
+                                    {pair.secondary_account?.accounts?.first_name} {pair.secondary_account?.accounts?.last_name}
+                                </span>
+                            </div>
                             <a
                                 href="https://remotedesktop.google.com/access"
                                 target="_blank"

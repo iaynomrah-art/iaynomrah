@@ -10,9 +10,12 @@ export async function getTradingAccounts(type?: string) {
     *,
     funder_account:funder_account_id(
       *,
-      package_ref:package!funder_account_package_id_fkey(*, funders(*)),
-      accounts:accounts!funder_account_acount_id_fkey(*, units:unit_id(*)),
-      credentials:credentials!funder_account_credential_id_fkey(*)
+      package_data:package(
+        *, 
+        funders(*), 
+        account:accounts(*, units(*)), 
+        credential:credentials(*)
+      )
     )
   `);
 
@@ -24,24 +27,19 @@ export async function getTradingAccounts(type?: string) {
   }
 
   // Flatten the data to maintain compatibility with existing components
-  return data.map((item: any) => ({
-    ...(item.funder_account || {}),
-    ...item,
-    status: item.account_status || item.funder_account?.status || "idle",
-    id: item.id,
-    package_ref: Array.isArray(item.funder_account?.package_ref)
-      ? item.funder_account.package_ref[0]
-      : item.funder_account?.package_ref,
-    accounts: Array.isArray(item.funder_account?.accounts)
-      ? item.funder_account.accounts[0]
-      : item.funder_account?.accounts,
-    credentials: Array.isArray(item.funder_account?.credentials)
-      ? item.funder_account.credentials[0]
-      : item.funder_account?.credentials,
-    accounts_id: Array.isArray(item.funder_account?.credentials)
-      ? item.funder_account.credentials[0]?.platform_id
-      : item.funder_account?.credentials?.platform_id,
-  }));
+  return data.map((item: any) => {
+    const pkg = item.funder_account?.package_data;
+    return {
+      ...(item.funder_account || {}),
+      ...item,
+      status: item.account_status || item.funder_account?.status || "idle",
+      id: item.id,
+      package_ref: pkg,
+      accounts: pkg?.account,
+      credentials: pkg?.credential,
+      accounts_id: pkg?.credential?.platform_id,
+    };
+  });
 }
 
 export async function getTradingAccountById(id: string) {
@@ -53,9 +51,12 @@ export async function getTradingAccountById(id: string) {
       *,
       funder_account:funder_account_id(
         *,
-        package_ref:package!funder_account_package_id_fkey(*, funders(*)),
-        accounts:accounts!funder_account_acount_id_fkey(*, units:unit_id(*)),
-        credentials:credentials!funder_account_credential_id_fkey(*)
+        package_data:package(
+          *, 
+          funders(*), 
+          account:accounts(*, units(*)), 
+          credential:credentials(*)
+        )
       )
     `,
     )
@@ -69,23 +70,16 @@ export async function getTradingAccountById(id: string) {
 
   // Flatten the data
   const item = data as any;
+  const pkg = item.funder_account?.package_data;
   return {
     ...(item.funder_account || {}),
     ...item,
     status: item.account_status || item.funder_account?.status || "idle",
     id: item.id,
-    package_ref: Array.isArray(item.funder_account?.package_ref)
-      ? item.funder_account.package_ref[0]
-      : item.funder_account?.package_ref,
-    accounts: Array.isArray(item.funder_account?.accounts)
-      ? item.funder_account.accounts[0]
-      : item.funder_account?.accounts,
-    credentials: Array.isArray(item.funder_account?.credentials)
-      ? item.funder_account.credentials[0]
-      : item.funder_account?.credentials,
-    accounts_id: Array.isArray(item.funder_account?.credentials)
-      ? item.funder_account.credentials[0]?.platform_id
-      : item.funder_account?.credentials?.platform_id,
+    package_ref: pkg,
+    accounts: pkg?.account,
+    credentials: pkg?.credential,
+    accounts_id: pkg?.credential?.platform_id,
   };
 }
 

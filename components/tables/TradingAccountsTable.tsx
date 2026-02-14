@@ -207,9 +207,18 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                                                 {account.package_ref?.phase || 'N/A'}
                                             </div>
                                         </div>
-                                        <span className="text-[11px] tracking-wider text-white/90">{account.credential_id}</span>
-                                        <span className="text-[11px] tracking-wider text-white/90">{account.package || account.package_ref?.name}</span>
-                                        <span className="text-[11px] tracking-wider text-white/90">{account.accounts?.units?.unit_name}</span>
+                                        <div className="flex flex-col gap-0.5">
+                                            <span className="text-[11px] font-bold text-white tracking-tight">
+                                                {account.accounts ? `${account.accounts.first_name} ${account.accounts.last_name}` : "UNLINKED"}
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground uppercase font-black">
+                                                {account.credentials?.username || account.credential_id || "No Creds"}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-col opacity-60">
+                                            <span className="text-[10px] tracking-wider text-white/80">{account.package || account.package_ref?.name || "No Package"}</span>
+                                            <span className="text-[10px] tracking-wider text-white/80">{account.accounts?.units?.unit_name || "No Unit"}</span>
+                                        </div>
                                     </div>
                                 </TableCell>
                                 <TableCell className="py-6">

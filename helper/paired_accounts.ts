@@ -15,18 +15,24 @@ export async function getPairedAccounts() {
         *, 
         funder_account:funder_account_id(
             *, 
-            package_ref:package!funder_account_package_id_fkey(*, funders(*)), 
-            accounts:accounts!funder_account_acount_id_fkey(*, units(*)), 
-            credentials:credentials!funder_account_credential_id_fkey(*)
+            package_data:package(
+              *, 
+              funders(*), 
+              account:accounts(*, units(*)), 
+              credential:credentials(*)
+            )
         )
       ),
       secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(
         *, 
         funder_account:funder_account_id(
             *, 
-            package_ref:package!funder_account_package_id_fkey(*, funders(*)), 
-            accounts:accounts!funder_account_acount_id_fkey(*, units(*)), 
-            credentials:credentials!funder_account_credential_id_fkey(*)
+            package_data:package(
+              *, 
+              funders(*), 
+              account:accounts(*, units(*)), 
+              credential:credentials(*)
+            )
         )
       )
     `,
@@ -38,42 +44,36 @@ export async function getPairedAccounts() {
     return [];
   }
 
-  return data.map((pair: any) => ({
-    ...pair,
-    primary_account: pair.primary_account
-      ? {
+  return data.map((pair: any) => {
+    const primaryPkg = pair.primary_account?.funder_account?.package_data;
+    const secondaryPkg = pair.secondary_account?.funder_account?.package_data;
+
+    return {
+      ...pair,
+      primary_account: pair.primary_account
+        ? {
           ...(pair.primary_account.funder_account || {}),
           ...pair.primary_account,
           status: pair.primary_account.account_status,
-          package_ref: pair.primary_account.funder_account?.package_ref,
-          accounts: pair.primary_account.funder_account?.accounts,
-          credentials: pair.primary_account.funder_account?.credentials,
-          accounts_id: Array.isArray(
-            pair.primary_account.funder_account?.credentials,
-          )
-            ? pair.primary_account.funder_account.credentials[0]?.platform_id
-            : (pair.primary_account.funder_account?.credentials as any)
-                ?.platform_id,
+          package_ref: primaryPkg,
+          accounts: primaryPkg?.account,
+          credentials: primaryPkg?.credential,
+          accounts_id: primaryPkg?.credential?.platform_id,
         }
-      : null,
-    secondary_account: pair.secondary_account
-      ? {
+        : null,
+      secondary_account: pair.secondary_account
+        ? {
           ...(pair.secondary_account.funder_account || {}),
           ...pair.secondary_account,
           status: pair.secondary_account.account_status,
-          package_ref: pair.secondary_account.funder_account?.package_ref,
-          accounts: pair.secondary_account.funder_account?.accounts,
-          credentials: pair.secondary_account.funder_account?.credentials,
-          accounts_id: Array.isArray(
-            pair.secondary_account.funder_account?.credentials,
-          )
-            ? pair.secondary_account.funder_account.credentials[0]
-                ?.platform_id?.[0]?.platform_id
-            : (pair.secondary_account.funder_account?.credentials as any)
-                ?.platform_id?.[0]?.platform_id,
+          package_ref: secondaryPkg,
+          accounts: secondaryPkg?.account,
+          credentials: secondaryPkg?.credential,
+          accounts_id: secondaryPkg?.credential?.platform_id,
         }
-      : null,
-  }));
+        : null,
+    };
+  });
 }
 
 export async function getPairedAccountById(id: string) {
@@ -83,8 +83,30 @@ export async function getPairedAccountById(id: string) {
     .select(
       `
       *,
-      primary_account:trading_accounts!paired_trading_accounts_primary_account_fkey(*, funder_account:funder_account_id(*)),
-      secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(*)
+      primary_account:trading_accounts!paired_trading_accounts_primary_account_fkey(
+        *, 
+        funder_account:funder_account_id(
+            *, 
+            package_data:package(
+              *, 
+              funders(*), 
+              account:accounts(*, units(*)), 
+              credential:credentials(*)
+            )
+        )
+      ),
+      secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(
+        *, 
+        funder_account:funder_account_id(
+            *, 
+            package_data:package(
+              *, 
+              funders(*), 
+              account:accounts(*, units(*)), 
+              credential:credentials(*)
+            )
+        )
+      )
     `,
     )
     .eq("id", id)
@@ -96,19 +118,32 @@ export async function getPairedAccountById(id: string) {
   }
 
   const pair = data as any;
+  const primaryPkg = pair.primary_account?.funder_account?.package_data;
+  const secondaryPkg = pair.secondary_account?.funder_account?.package_data;
+
   return {
     ...pair,
     primary_account: pair.primary_account
       ? {
-          ...(pair.primary_account.funder_account || {}),
-          ...pair.primary_account,
-        }
+        ...(pair.primary_account.funder_account || {}),
+        ...pair.primary_account,
+        status: pair.primary_account.account_status,
+        package_ref: primaryPkg,
+        accounts: primaryPkg?.account,
+        credentials: primaryPkg?.credential,
+        accounts_id: primaryPkg?.credential?.platform_id,
+      }
       : null,
     secondary_account: pair.secondary_account
       ? {
-          ...(pair.secondary_account.funder_account || {}),
-          ...pair.secondary_account,
-        }
+        ...(pair.secondary_account.funder_account || {}),
+        ...pair.secondary_account,
+        status: pair.secondary_account.account_status,
+        package_ref: secondaryPkg,
+        accounts: secondaryPkg?.account,
+        credentials: secondaryPkg?.credential,
+        accounts_id: secondaryPkg?.credential?.platform_id,
+      }
       : null,
   };
 }
@@ -206,18 +241,24 @@ export async function realTimeGetPairedAccounts() {
             *, 
             funder_account:funder_account_id(
                 *, 
-                package_ref:package!funder_account_package_id_fkey(*, funders(*)), 
-                accounts:accounts!funder_account_acount_id_fkey(*, units(*)), 
-                credentials:credentials!funder_account_credential_id_fkey(*)
+                package_data:package(
+                  *, 
+                  funders(*), 
+                  account:accounts(*, units(*)), 
+                  credential:credentials(*)
+                )
             )
           ),
           secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(
             *, 
             funder_account:funder_account_id(
                 *, 
-                package_ref:package!funder_account_package_id_fkey(*, funders(*)), 
-                accounts:accounts!funder_account_acount_id_fkey(*, units(*)), 
-                credentials:credentials!funder_account_credential_id_fkey(*)
+                package_data:package(
+                  *, 
+                  funders(*), 
+                  account:accounts(*, units(*)), 
+                  credential:credentials(*)
+                )
             )
           )
         `,
@@ -229,39 +270,34 @@ export async function realTimeGetPairedAccounts() {
     return [];
   }
 
-  return data.map((pair: any) => ({
-    ...pair,
-    primary_account: pair.primary_account
-      ? {
+  return data.map((pair: any) => {
+    const primaryPkg = pair.primary_account?.funder_account?.package_data;
+    const secondaryPkg = pair.secondary_account?.funder_account?.package_data;
+
+    return {
+      ...pair,
+      primary_account: pair.primary_account
+        ? {
           ...(pair.primary_account.funder_account || {}),
           ...pair.primary_account,
           status: pair.primary_account.account_status,
-          package_ref: pair.primary_account.funder_account?.package_ref,
-          accounts: pair.primary_account.funder_account?.accounts,
-          credentials: pair.primary_account.funder_account?.credentials,
-          accounts_id: Array.isArray(
-            pair.primary_account.funder_account?.credentials,
-          )
-            ? pair.primary_account.funder_account.credentials[0]?.platform_id
-            : (pair.primary_account.funder_account?.credentials as any)
-                ?.platform_id,
+          package_ref: primaryPkg,
+          accounts: primaryPkg?.account,
+          credentials: primaryPkg?.credential,
+          accounts_id: primaryPkg?.credential?.platform_id,
         }
-      : null,
-    secondary_account: pair.secondary_account
-      ? {
+        : null,
+      secondary_account: pair.secondary_account
+        ? {
           ...(pair.secondary_account.funder_account || {}),
           ...pair.secondary_account,
           status: pair.secondary_account.account_status,
-          package_ref: pair.secondary_account.funder_account?.package_ref,
-          accounts: pair.secondary_account.funder_account?.accounts,
-          credentials: pair.secondary_account.funder_account?.credentials,
-          accounts_id: Array.isArray(
-            pair.secondary_account.funder_account?.credentials,
-          )
-            ? pair.secondary_account.funder_account.credentials[0]?.platform_id
-            : (pair.secondary_account.funder_account?.credentials as any)
-                ?.platform_id,
+          package_ref: secondaryPkg,
+          accounts: secondaryPkg?.account,
+          credentials: secondaryPkg?.credential,
+          accounts_id: secondaryPkg?.credential?.platform_id,
         }
-      : null,
-  }));
+        : null,
+    };
+  });
 }
