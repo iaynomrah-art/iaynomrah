@@ -84,13 +84,13 @@ export const FunderAccountsTable = ({
                         data.map((item) => (
                             <TableRow key={item.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
                                 <TableCell className="text-white py-4 text-sm font-medium">
-                                    {item.accounts?.units?.unit_name || "-"}
+                                    {item.package?.account?.units?.unit_name || "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
-                                    {item.accounts ? `${item.accounts.first_name} ${item.accounts.last_name}`.trim() : "-"}
+                                    {item.package?.account ? `${item.package.account.first_name} ${item.package.account.last_name}`.trim() : "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
-                                    {item.accounts?.id || "-"}
+                                    {item.package?.account?.id || "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
                                     {item.package?.name || "-"}
@@ -136,7 +136,7 @@ export const FunderAccountsTable = ({
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-red-500 transition-colors"
-                                            onClick={() => handleDeleteClick(item.id, item.accounts?.first_name, item.accounts?.last_name)}
+                                            onClick={() => handleDeleteClick(item.id, item.package?.account?.first_name, item.package?.account?.last_name)}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>

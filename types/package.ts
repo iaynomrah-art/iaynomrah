@@ -1,19 +1,25 @@
 import { Funder } from "./funder";
+import { Account } from "./accounts";
+import { Credential } from "./credentials";
 
 export interface Package {
-  id: string; // Changed from number to string
+  id: string;
   created_at: string;
   name: string | null;
   balance: number | null;
   phase: PackagePhase | null;
   symbol: string | null;
-  funder_id: string | null; // Changed from number to string
+  funder_id: string | null;
   funder?: Funder;
-  funders?: Funder; // Added for plural join result
+  funders?: Funder;
   is_used?: boolean;
+  credential_id: string | null;
+  account_id: string | null;
+  credential?: Credential;
+  account?: Account;
 }
 
-export type CreatePackage = Omit<Package, "id" | "created_at" | "funder">;
+export type CreatePackage = Omit<Package, "id" | "created_at" | "funder" | "credential" | "account">;
 export type UpdatePackage = Partial<CreatePackage>;
 
 export type PackagePhase = "phase 1" | "phase 2" | "live" | string;

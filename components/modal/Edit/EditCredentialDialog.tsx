@@ -8,15 +8,37 @@ import { useRouter } from 'next/navigation'
 
 interface EditCredentialDialogProps {
     credential: any
-    funders: any[]
 }
 
 export const EditCredentialDialog = ({
     credential,
-    funders
 }: EditCredentialDialogProps) => {
     const [open, setOpen] = useState(false)
+    const [accounts, setAccounts] = useState<any[]>([])
+    const [funders, setFunders] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
+
+    React.useEffect(() => {
+        const fetchOptions = async () => {
+            if (open) {
+                setIsLoading(true)
+                try {
+                    const [fnds, accs] = await Promise.all([
+                        import('@/helper/funders').then(m => m.getFunders()),
+                        import('@/helper/accounts').then(m => m.getAccounts())
+                    ])
+                    setFunders(fnds)
+                    setAccounts(accs)
+                } catch (error) {
+                    console.error("Failed to fetch options", error)
+                } finally {
+                    setIsLoading(false)
+                }
+            }
+        }
+        fetchOptions()
+    }, [open])
 
     const handleSuccess = () => {
         setOpen(false)
@@ -39,11 +61,21 @@ export const EditCredentialDialog = ({
                 </DialogHeader>
 
                 <div className="mt-4">
-                    <AccountCredentialsForm
-                        initialData={credential}
-                        onSuccess={handleSuccess}
-                        onCancel={() => setOpen(false)}
-                    />
+                    {isLoading ? (
+                        <div className="space-y-4 py-4">
+                            <div className="h-10 bg-[#1a1a1a] rounded animate-pulse" />
+                            <div className="h-10 bg-[#1a1a1a] rounded animate-pulse" />
+                            <div className="h-10 bg-[#1a1a1a] rounded animate-pulse" />
+                        </div>
+                    ) : (
+                        <AccountCredentialsForm
+                            initialData={credential}
+                            accounts={accounts}
+                            funders={funders}
+                            onSuccess={handleSuccess}
+                            onCancel={() => setOpen(false)}
+                        />
+                    )}
                 </div>
             </DialogContent>
         </Dialog>

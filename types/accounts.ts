@@ -17,6 +17,7 @@ export interface Account {
   id_type: string;
   billing: string | null;
   unit_id: string | null;
+  units?: import("./units").Unit;
 }
 
 export type CreateAccount = Omit<Account, "id" | "created_at">;

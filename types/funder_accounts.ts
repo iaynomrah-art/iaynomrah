@@ -20,17 +20,18 @@ export interface FunderAccount {
   created_at: string;
   package_id: string | null;
   status: AccountStatus;
-  acount_id: string | null;
-  credential_id: string | null;
 
   // Joined fields
-  package?: Package & { funders?: Funder };
-  accounts?: (Account & { units?: Unit | null }) | null;
-  credentials?: Credential | null;
+  // The Package is now the primary data carrier for a FunderAccount connection
+  package?: Package;
+
+  // Keep these for joined data from API if needed at top level
+  accounts?: Account & { units?: Unit };
+  credentials?: Credential;
 }
 
 export type CreateFunderAccount = Omit<
   FunderAccount,
-  "id" | "created_at" | "package" | "account" | "credential" | "unit"
+  "id" | "created_at" | "package" | "accounts" | "credentials"
 >;
 export type UpdateFunderAccount = Partial<CreateFunderAccount>;

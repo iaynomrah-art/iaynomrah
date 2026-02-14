@@ -10,7 +10,13 @@ export async function getCredentials() {
     .select(
       `
       *,
-      funder_account!funder_account_credential_id_fkey(*)
+      package:package(
+        id,
+        funder_id,
+        account_id,
+        funders(id, name, allias, allias_color, text_color),
+        account:accounts(id, first_name, last_name)
+      )
     `,
     )
     .order("created_at", { ascending: false });
@@ -39,37 +45,86 @@ export async function getCredentialById(id: string) {
 
 export async function createCredential(formData: any) {
   const supabase = await createClient();
+  const { account_id, funder_id, ...credentialData } = formData;
 
-  const { data, error } = await supabase
+  const { data: credential, error: credError } = await supabase
     .from("credentials")
-    .insert([formData])
+    .insert([credentialData])
     .select()
     .single();
 
-  if (error) {
-    throw new Error(error.message);
+  if (credError) {
+    console.error("Error creating credential:", credError);
+    throw new Error(credError.message);
+  }
+
+  // Handle Package link – the package table is the bridge between credential, account, and funder
+  if (account_id || funder_id) {
+    const { error: pkgError } = await supabase
+      .from("package")
+      .insert([
+        {
+          credential_id: credential.id,
+          account_id: account_id || null,
+          funder_id: funder_id || null,
+          name: credentialData.name || "Auto-linked Package",
+        },
+      ]);
+
+    if (pkgError) {
+      console.error("Error creating associated package:", pkgError);
+      // We don't throw here to avoid failing the whole process if package creation fails
+    }
   }
 
   revalidatePath("/dashboard/trading-accounts/credentials");
-  return data;
+  return credential;
 }
 
 export async function updateCredential(id: string, formData: any) {
   const supabase = await createClient();
+  const { account_id, funder_id, ...credentialData } = formData;
 
-  const { data, error } = await supabase
+  const { data: credential, error: credError } = await supabase
     .from("credentials")
-    .update(formData)
+    .update(credentialData)
     .eq("id", id)
     .select()
     .single();
 
-  if (error) {
-    throw new Error(error.message);
+  if (credError) {
+    console.error("Error updating credential:", credError);
+    throw new Error(credError.message);
+  }
+
+  // Handle Package link – the package table is the bridge between credential, account, and funder
+  if (account_id || funder_id) {
+    // Check if an existing package points to this credential
+    const { data: existingPkg } = await supabase
+      .from("package")
+      .select("id")
+      .eq("credential_id", id)
+      .maybeSingle();
+
+    if (existingPkg) {
+      await supabase
+        .from("package")
+        .update({ account_id, funder_id })
+        .eq("id", existingPkg.id);
+    } else {
+      await supabase.from("package").insert([
+        {
+          credential_id: id,
+          account_id,
+          funder_id,
+          name: credentialData.name || "Auto-linked Package",
+        },
+      ]);
+    }
   }
 
   revalidatePath("/dashboard/trading-accounts/credentials");
-  return data;
+  return credential;
 }
 
 export async function deleteCredential(id: string) {
@@ -95,11 +150,12 @@ export async function credentialsTable() {
       password,
       platform,
       platform_id,
-      funder_account!funder_account_credential_id_fkey(
+      package:package(
         id,
-        package(
-          funders(name, allias, allias_color, text_color)
-        )
+        funder_id,
+        account_id,
+        funders(id, name, allias, allias_color, text_color),
+        account:accounts(id, first_name, last_name)
       )
     `,
     )

@@ -59,7 +59,7 @@ export const FunderAccountsForm = ({
         defaultValues: {
             funder_id: initialData?.package?.funder_id || "",
             package_id: initialData?.package_id || "",
-            acount_id: initialData?.acount_id || "",
+            acount_id: initialData?.package?.account_id || initialData?.accounts?.id || "",
         },
     })
 
@@ -75,6 +75,10 @@ export const FunderAccountsForm = ({
                 // Note: The Package type might use 'funder_id' (database column naming) or similar. 
                 // Based on previous code: pkg.funder_id
                 setValue("funder_id", pkg.funder_id?.toString() || "");
+                // Auto-sync User when Package changes
+                if (pkg.account_id) {
+                    setValue("acount_id", pkg.account_id.toString());
+                }
             }
         }
     }, [selectedPackageId, packages, setValue])

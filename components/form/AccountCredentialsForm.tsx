@@ -22,17 +22,19 @@ import { Controller } from "react-hook-form"
 import { Credential } from "@/types/credentials"
 
 const credentialSchema = z.object({
-    name: z.string().min(1, "Account Name is required"),
     username: z.string().min(1, "Username is required"),
     password: z.string().min(1, "Password is required"),
     platform: z.string().optional(),
     platform_id: z.string().optional(),
+    account_id: z.string().min(1, "User is required"),
 })
 
 type CredentialFormValues = z.infer<typeof credentialSchema>
 
 interface AccountCredentialsFormProps {
     initialData?: Credential | null
+    accounts?: import("@/types/accounts").Account[]
+    funders?: import("@/types/funder").Funder[]
     // Add Modal Logic Props
     onSuccess?: () => void;
     onCancel?: () => void;
@@ -40,6 +42,8 @@ interface AccountCredentialsFormProps {
 
 export const AccountCredentialsForm = ({
     initialData,
+    accounts = [],
+    funders = [],
     onSuccess,
     onCancel
 }: AccountCredentialsFormProps) => {
@@ -56,11 +60,11 @@ export const AccountCredentialsForm = ({
     } = useForm<CredentialFormValues>({
         resolver: zodResolver(credentialSchema),
         values: {
-            name: initialData?.name || "",
             username: initialData?.username || "",
             password: initialData?.password || "",
             platform: initialData?.platform ?? "",
             platform_id: initialData?.platform_id ?? "",
+            account_id: initialData?.package?.[0]?.account_id || "",
         },
     })
 
@@ -104,23 +108,25 @@ export const AccountCredentialsForm = ({
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Only show title if NOT in a modal */}
-            {!onSuccess && (
-                <h1 className="text-xl font-semibold text-white tracking-tight">
-                    {isUpdate ? "Update Credential" : "Add Account Credentials"}
-                </h1>
-            )}
-
-            {/* ACCOUNT NAME */}
+            {/* USER */}
             <div className="space-y-2">
-                <Label htmlFor="name" className="text-white text-sm font-medium uppercase tracking-wider">ACCOUNT NAME</Label>
-                <Input
-                    id="name"
-                    {...register("name")}
-                    className="bg-[#0d0d0d] border-[#1a1a1a] text-white placeholder:text-gray-500 h-11 focus:border-blue-500 transition-all shadow-inner"
-                    placeholder="Enter account profile name"
-                />
-                {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
+                <Label htmlFor="account_id" className="text-white text-sm font-medium uppercase tracking-wider">USER</Label>
+                <div className="relative">
+                    <select
+                        id="account_id"
+                        {...register("account_id")}
+                        className="flex h-11 w-full rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] text-white px-4 py-2 text-sm appearance-none focus:border-blue-500 transition-all outline-none ring-0 shadow-inner"
+                    >
+                        <option value="">-- Select User --</option>
+                        {accounts?.map((acc: any) => (
+                            <option key={acc.id} value={acc.id}>
+                                {acc.first_name} {acc.last_name} ({acc.email})
+                            </option>
+                        ))}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                </div>
+                {errors.account_id && <p className="text-xs text-red-500 mt-1">{errors.account_id.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -219,6 +225,6 @@ export const AccountCredentialsForm = ({
                     {isUpdate ? "Update Credential" : "Add Credentials"}
                 </Button>
             </div>
-        </form>
+        </form >
     )
 }

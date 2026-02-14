@@ -24,15 +24,17 @@ interface Credential {
     password?: string
     username?: string
     name?: string
-    funder_account?: Array<{
+    package?: Array<{
         id: string
-        package?: {
-            funders?: {
-                name: string
-                allias: string
-                allias_color: string
-                text_color: string
-            } | null
+        account?: {
+            first_name: string
+            last_name: string
+        } | null
+        funders?: {
+            name: string
+            allias: string
+            allias_color: string
+            text_color: string
         } | null
     }> | null
     [key: string]: any
@@ -86,11 +88,10 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm pb-4">ACCOUNT NAME</TableHead>
-                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">FUNDER ACCOUNT ID</TableHead>
-                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
-                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
-                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">USER</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -104,10 +105,9 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
                         data.map((credential) => (
                             <TableRow key={credential.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
                                 <TableCell className="text-white py-4 font-medium text-sm">
-                                    {credential.name || "-"}
-                                </TableCell>
-                                <TableCell className="text-white py-4 text-sm whitespace-nowrap">
-                                    {credential.funder_account?.[0]?.id || "-"}
+                                    {credential.package?.[0]?.account ?
+                                        `${credential.package[0].account.first_name} ${credential.package[0].account.last_name}` :
+                                        "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">{credential.username || "-"}</TableCell>
                                 <TableCell className="text-white py-4 font-mono text-sm">
@@ -131,7 +131,6 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
                                     <div className="flex items-center gap-2">
                                         <EditCredentialDialog
                                             credential={credential}
-                                            funders={funders}
                                         />
                                         <Button
                                             variant="ghost"
@@ -166,11 +165,10 @@ export const CredentialsTableSkeleton = () => {
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm pb-4">ACCOUNT NAME</TableHead>
-                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">FUNDER ACCOUNT ID</TableHead>
-                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
-                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
-                        <TableHead className="w-1/5 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">USER</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
+                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -178,9 +176,6 @@ export const CredentialsTableSkeleton = () => {
                         <TableRow key={i} className="border-[#1a1a1a] hover:bg-transparent">
                             <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[150px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[100px] bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[120px] bg-[#1a1a1a]" />
