@@ -215,7 +215,7 @@ export async function checkUnitHealth(apiBaseUrl: string) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout for health check
 
-    const response = await fetch(`${baseUrl}/api/v1/health`, {
+    const response = await fetch(`${baseUrl}/api/health`, {
       method: "GET",
       headers: { Accept: "application/json" },
       next: { revalidate: 0 },
