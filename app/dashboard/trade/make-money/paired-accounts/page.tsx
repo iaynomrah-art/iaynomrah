@@ -19,7 +19,9 @@ const PairedAccountsPage = () => {
         try {
             setIsFetching(true)
             const data = await realTimeGetPairedAccounts()
-            setPairs(data)
+            // Filter only paired and initializing accounts
+            const filtered = data.filter((p: any) => p.trade_status === 'paired' || p.trade_status === 'initializing')
+            setPairs(filtered)
         } catch (error) {
             console.error("Failed to fetch pairs:", error)
         } finally {
