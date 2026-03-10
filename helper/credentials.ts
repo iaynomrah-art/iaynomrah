@@ -9,7 +9,12 @@ export async function getCredentials() {
     .from("credentials")
     .select(
       `
-      *,
+      id,
+      created_at,
+      username,
+      password,
+      platform,
+      platform_id,
       package:package(
         id,
         funder_id,
@@ -32,7 +37,7 @@ export async function getCredentialById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("credentials")
-    .select("*")
+    .select("id, created_at, username, password, platform, platform_id")
     .eq("id", id)
     .single();
 
@@ -145,7 +150,6 @@ export async function credentialsTable() {
     .select(
       `
       id,
-      name,
       username,
       password,
       platform,

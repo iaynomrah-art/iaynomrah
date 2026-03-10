@@ -3,8 +3,8 @@ export interface Credential {
   created_at: string;
   password: string | null;
   username: string | null;
-  platform?: string;
-  platform_id?: string;
+  platform: string | null;
+  platform_id: string | null;
   name?: string;
 
   // Joined fields

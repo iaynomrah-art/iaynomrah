@@ -24,6 +24,8 @@ interface Credential {
     password?: string
     username?: string
     name?: string
+    platform?: string
+    platform_id?: string
     package?: Array<{
         id: string
         account?: {
@@ -88,16 +90,18 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">USER</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">USER</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PLATFORM</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PLATFORM ID</TableHead>
+                        <TableHead className="w-[20%] text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
+                        <TableHead className="w-[20%] text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {data.length === 0 ? (
                         <TableRow className="border-[#1a1a1a]">
-                            <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                            <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                                 No credentials found.
                             </TableCell>
                         </TableRow>
@@ -109,6 +113,14 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
                                         `${credential.package[0].account.first_name} ${credential.package[0].account.last_name}` :
                                         "-"}
                                 </TableCell>
+                                <TableCell className="text-white py-4 text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <span className="px-2 py-0.5 rounded bg-[#1a1a1a] text-xs font-medium text-blue-400 border border-blue-500/20">
+                                            {credential.platform || "N/A"}
+                                        </span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-white py-4 text-sm font-mono">{credential.platform_id || "-"}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">{credential.username || "-"}</TableCell>
                                 <TableCell className="text-white py-4 font-mono text-sm">
                                     <div className="flex items-center gap-2 group">
@@ -165,23 +177,31 @@ export const CredentialsTableSkeleton = () => {
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">USER</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">USER</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PLATFORM</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PLATFORM ID</TableHead>
+                        <TableHead className="w-[20%] text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
+                        <TableHead className="w-[20%] text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {[1, 2, 3, 4, 5].map((i) => (
                         <TableRow key={i} className="border-[#1a1a1a] hover:bg-transparent">
                             <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[150px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[120px] bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
+                                <Skeleton className="h-5 w-[80px] rounded bg-[#1a1a1a]" />
+                            </TableCell>
+                            <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[100px] bg-[#1a1a1a]" />
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <Skeleton className="h-4 w-[100px] bg-[#1a1a1a]" />
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
                                 <div className="flex items-center gap-2">
