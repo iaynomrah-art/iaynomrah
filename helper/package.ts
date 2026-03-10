@@ -81,6 +81,9 @@ export async function packageTable() {
       balance,
       phase,
       symbol,
+      max_daily_loss,
+      max_total_loss,
+      profit_target,
       funder:funders(name)
     `);
 

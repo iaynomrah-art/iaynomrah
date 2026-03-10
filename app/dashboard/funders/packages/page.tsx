@@ -63,6 +63,9 @@ const PackagesPage = () => {
             (pkg.balance?.toString() || "").includes(query) ||
             (pkg.phase?.toString() || "").includes(query) ||
             (pkg.instrument?.toLowerCase() || "").includes(query) ||
+            (pkg.max_daily_loss?.toString() || "").includes(query) ||
+            (pkg.max_total_loss?.toString() || "").includes(query) ||
+            (pkg.profit_target?.toString() || "").includes(query) ||
             (pkg.funders?.name?.toLowerCase() || "").includes(query)
         )
     })

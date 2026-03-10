@@ -65,18 +65,21 @@ export const PackagesTable = ({ data, onEdit }: PackagesTableProps) => {
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-1/6 text-muted-foreground font-medium text-sm pb-4">FUNDER</TableHead>
-                        <TableHead className="w-1/6 text-muted-foreground font-medium text-sm pb-4">PACKAGE NAME</TableHead>
-                        <TableHead className="w-1/6 text-muted-foreground font-medium text-sm pb-4">BALANCE</TableHead>
-                        <TableHead className="w-1/6 text-muted-foreground font-medium text-sm pb-4">PHASE</TableHead>
-                        <TableHead className="w-1/6 text-muted-foreground font-medium text-sm pb-4">INSTRUMENT</TableHead>
-                        <TableHead className="w-1/6 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">FUNDER</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PACKAGE NAME</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">BALANCE</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PHASE</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">INSTRUMENT</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">DAILY LOSS</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">TOTAL LOSS</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">PROFIT TGT</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {data.length === 0 ? (
                         <TableRow className="border-[#1a1a1a]">
-                            <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                            <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                                 No packages found.
                             </TableCell>
                         </TableRow>
@@ -90,6 +93,9 @@ export const PackagesTable = ({ data, onEdit }: PackagesTableProps) => {
                                 <TableCell className="text-white py-4 text-sm">{item.balance || "-"}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">{item.phase || "-"}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">{item.symbol || "-"}</TableCell>
+                                <TableCell className="text-white py-4 text-sm">${item.max_daily_loss || "0"}</TableCell>
+                                <TableCell className="text-white py-4 text-sm">${item.max_total_loss || "0"}</TableCell>
+                                <TableCell className="text-white py-4 text-sm">${item.profit_target || "0"}</TableCell>
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
                                         <Button
@@ -133,12 +139,15 @@ export const PackagesTableSkeleton = () => {
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-1/6 text-muted-foreground font-medium text-sm pb-4">FUNDER</TableHead>
-                        <TableHead className="w-1/6 text-muted-foreground font-medium text-sm pb-4">PACKAGE NAME</TableHead>
-                        <TableHead className="w-1/6 text-muted-foreground font-medium text-sm pb-4">BALANCE</TableHead>
-                        <TableHead className="w-1/6 text-muted-foreground font-medium text-sm pb-4">PHASE</TableHead>
-                        <TableHead className="w-1/6 text-muted-foreground font-medium text-sm pb-4">INSTRUMENT</TableHead>
-                        <TableHead className="w-1/6 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">FUNDER</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PACKAGE NAME</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">BALANCE</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PHASE</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">INSTRUMENT</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">DAILY LOSS</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">TOTAL LOSS</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PROFIT TGT</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -156,8 +165,20 @@ export const PackagesTableSkeleton = () => {
                             <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
                             </TableCell>
-                            <TableCell className="py-4">
+                             <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <Skeleton className="h-4 w-[60px] bg-[#1a1a1a]" />
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <Skeleton className="h-4 w-[60px] bg-[#1a1a1a]" />
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <Skeleton className="h-4 w-[60px] bg-[#1a1a1a]" />
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <Skeleton className="h-4 w-[60px] bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
                                 <div className="flex items-center gap-2">
