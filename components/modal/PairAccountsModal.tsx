@@ -61,7 +61,7 @@ export const PairAccountsModal = ({
     onClose,
     selectedAccounts,
     onConfirm
-}: PairAccountsModalProps) => {
+}: PairAccountsModalProps): React.JSX.Element | null => {
     const [basePrice, setBasePrice] = React.useState<number>(2000)
     const [pairs, setPairs] = React.useState<Pair[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
@@ -69,33 +69,56 @@ export const PairAccountsModal = ({
 
     // Initialize/Sync pairs when selectedAccounts changes
     React.useEffect(() => {
-        if (!isOpen) return
+        if (!isOpen || selectedAccounts.length < 2) return
 
-        const initialPairs = selectedAccounts.map((account, index) => {
+        // Shared calculation for the pair
+        const acc1 = selectedAccounts[0]
+        const acc2 = selectedAccounts[1]
+        
+        const getAccMetrics = (acc: TradingAccount) => {
+            const pkg = acc.package_ref
+            const target = acc.remaining_target_profit || pkg?.profit_target || 1000
+            const dailyLimit = pkg?.max_daily_loss || 5000
+            const incurredLoss = acc.daily_pnl || 0
+            const remainingDailyLoss = Math.max(0, dailyLimit + incurredLoss)
+            return { target, remainingDailyLoss }
+        }
+
+        const m1 = getAccMetrics(acc1)
+        const m2 = getAccMetrics(acc2)
+
+        // Amount to move: We want Account 1 to hit its target, but Account 2 must not exceed its daily loss limit.
+        // We take the minimum of (Target of A) and (Remaining Daily Loss of B).
+        // Plus a 90% safety factor.
+        const sharedSafeAmount = Math.min(m1.target, m2.remainingDailyLoss) * 0.9
+
+        // Standard Gold settings: 1000 ticks = $10 move
+        const tpTicks = 1000
+        const slTicks = 1000
+        const sharedOrderAmount = Number((sharedSafeAmount / 1000).toFixed(2))
+
+        const initialPairs = selectedAccounts.map((account: TradingAccount, index: number) => {
             const currentEquity = account.live_equity || 0
-            const slTicks = 50
-            const tpTicks = 100
-            const orderAmount = 0.1
-
-            const type = (selectedAccounts.length === 2 && index === 1) ? 'sell' as const : 'buy' as const
+            const pkg = account.package_ref
+            
+            const type = index === 1 ? 'sell' as const : 'buy' as const
             const isBuy = type === 'buy'
 
-            // Default risk 1% based on starting equity
-            const lProfit = currentEquity * 0.01
-            const wProfit = lProfit * (tpTicks / slTicks)
+            const lProfit = sharedOrderAmount * slTicks
+            const wProfit = sharedOrderAmount * tpTicks
 
             return {
                 ...account,
                 trade_type: type,
-                order_amount: orderAmount,
+                order_amount: sharedOrderAmount,
                 sl_ticks: slTicks,
                 tp_ticks: tpTicks,
-                starting_balance: account.package_ref?.balance || 0,
+                starting_balance: pkg?.balance || 0,
                 starting_equity: currentEquity,
                 latest_equity: currentEquity,
                 daily_pnl: account.daily_pnl || 0,
                 rdd: account.rdd || 0,
-                symbol: account.package_ref?.symbol || account.package || "XAUUSD",
+                symbol: pkg?.symbol || account.package || "XAUUSD",
 
                 loss_profit: lProfit,
                 win_profit: wProfit,
@@ -157,10 +180,10 @@ export const PairAccountsModal = ({
                 newPair = { ...updatedPairs[index] }
             }
 
-            // Recalculate estimated profits based on start equity and ticks/order amount
-            // This is a simplified formula, might need contract size adjustment based on symbol
-            newPair.loss_profit = startEquity * 0.01 // Keeping 1% risk as baseline for UI feedback
-            newPair.win_profit = newPair.loss_profit * (newPair.tp_ticks / newPair.sl_ticks)
+            // Recalculate estimated profits based on ticks and order amount
+            // Profit = OrderAmount * Ticks (Standard calc for Gold/100 oz)
+            newPair.loss_profit = newPair.order_amount * newPair.sl_ticks
+            newPair.win_profit = newPair.order_amount * newPair.tp_ticks
             newPair.loss_balance = startEquity - newPair.loss_profit
             newPair.win_balance = startEquity + newPair.win_profit
 
@@ -332,6 +355,8 @@ export const PairAccountsModal = ({
                                     <Row label="Daily P&L" value={`$${account.daily_pnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={account.daily_pnl >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
                                     <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
                                     <Row label="Unit" value={account.accounts?.units?.unit_name || "None"} color="text-blue-400 font-mono text-[11px]" />
+                                    <Row label="Est. Loss" value={`-$${account.loss_profit.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color="text-[#f6465d]" />
+                                    <Row label="Est. Profit" value={`+$${account.win_profit.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color="text-[#2ebc66]" />
 
                                     {/* Actionable Fields */}
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
