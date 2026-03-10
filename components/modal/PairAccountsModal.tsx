@@ -273,12 +273,10 @@ export const PairAccountsModal = ({
                 }
             }
 
-            // 4. Call Edge Function
-            // Note: Using NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY as shown in the curl command
-            // If NEXT_PRIVATE_SUPABASE_ANON_KEY is needed and exposed, it can be substituted here.
+            // 4. Call Edge Function (Fire and forget the long part)
             const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-            const response = await fetch('https://cisszbamrleoxcnyeoku.supabase.co/functions/v1/pairing-trading-accounts', {
+            fetch('https://cisszbamrleoxcnyeoku.supabase.co/functions/v1/pairing-trading-accounts', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${supabaseKey}`,
@@ -286,15 +284,20 @@ export const PairAccountsModal = ({
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload)
+            }).then(async (response) => {
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: "Request failed" }));
+                    toast.error(`Background Error: ${errorData.message || response.statusText}`);
+                }
+            }).catch(error => {
+                console.error("Background pairing fetch error:", error);
             });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
-                throw new Error(errorData.message || `Edge Function Error: ${response.statusText}`);
-            }
-
-            toast.success("Pairing initiated successfully")
+            // 5. Immediately give feedback and close
+            toast.success("Pairing request sent to unit")
             onConfirm(pairs)
+            onClose()
+
         } catch (error: any) {
             console.error("Pairing error:", error)
             toast.error(error.message || "Failed to initiate pairing")
