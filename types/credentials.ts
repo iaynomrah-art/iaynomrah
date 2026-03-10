@@ -5,25 +5,24 @@ export interface Credential {
   username: string | null;
   platform: string | null;
   platform_id: string | null;
-  name?: string;
 
   // Joined fields
   package?: Array<{
     id: string;
     funder_id?: string;
     account_id?: string;
-    account?: {
+    accounts?: Array<{
       id: string;
       first_name: string;
       last_name: string;
-    } | null;
-    funders?: {
+    }> | { id: string; first_name: string; last_name: string } | null;
+    funders?: Array<{
       id: string;
       name: string;
       allias: string;
       allias_color: string;
       text_color: string;
-    } | null;
+    }> | { id: string; name: string; allias: string; allias_color: string; text_color: string } | null;
   }> | null;
 }
 

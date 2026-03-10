@@ -17,30 +17,8 @@ import { DeleteCredentialModal } from "@/components/modal/Delete/DeleteCredentia
 import { deleteCredential } from "@/helper/credentials"
 import Link from "next/link"
 import { EditCredentialDialog } from "@/components/modal/Edit/EditCredentialDialog"
+import { Credential } from "@/types/credentials"
 
-interface Credential {
-    id: string
-    created_at: string
-    password?: string
-    username?: string
-    name?: string
-    platform?: string
-    platform_id?: string
-    package?: Array<{
-        id: string
-        account?: {
-            first_name: string
-            last_name: string
-        } | null
-        funders?: {
-            name: string
-            allias: string
-            allias_color: string
-            text_color: string
-        } | null
-    }> | null
-    [key: string]: any
-}
 
 interface CredentialsTableProps {
     data: Credential[]
@@ -109,9 +87,14 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
                         data.map((credential) => (
                             <TableRow key={credential.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
                                 <TableCell className="text-white py-4 font-medium text-sm">
-                                    {credential.package?.[0]?.account ?
-                                        `${credential.package[0].account.first_name} ${credential.package[0].account.last_name}` :
-                                        "-"}
+                                    {((): string => {
+                                        const pkg = credential.package?.[0];
+                                        if (!pkg) return "-";
+                                        const accounts = pkg.accounts;
+                                        const acc = Array.isArray(accounts) ? accounts[0] : accounts;
+                                        if (!acc) return "-";
+                                        return `${acc.first_name || ""} ${acc.last_name || ""}`.trim() || "-";
+                                    })()}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
                                     <div className="flex items-center gap-2">
@@ -148,7 +131,7 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-red-500 transition-colors"
-                                            onClick={() => handleDeleteClick(credential.id, credential.name || "this credential")}
+                                            onClick={() => handleDeleteClick(credential.id, (credential as any).name || credential.username || "this credential")}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>

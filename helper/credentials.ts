@@ -2,8 +2,9 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { Credential } from "@/types/credentials";
 
-export async function getCredentials() {
+export async function getCredentials(): Promise<Credential[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("credentials")
@@ -20,11 +21,12 @@ export async function getCredentials() {
         funder_id,
         account_id,
         funders(id, name, allias, allias_color, text_color),
-        account:accounts(id, first_name, last_name)
+        accounts:accounts(id, first_name, last_name)
       )
     `,
     )
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("created_at", { referencedTable: "package", ascending: false });
 
   if (error) {
     console.error("Error fetching credentials:", error);
@@ -143,13 +145,14 @@ export async function deleteCredential(id: string) {
   return true;
 }
 
-export async function credentialsTable() {
+export async function credentialsTable(): Promise<Credential[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("credentials")
     .select(
       `
       id,
+      created_at,
       username,
       password,
       platform,
@@ -159,11 +162,12 @@ export async function credentialsTable() {
         funder_id,
         account_id,
         funders(id, name, allias, allias_color, text_color),
-        account:accounts(id, first_name, last_name)
+        accounts:accounts(id, first_name, last_name)
       )
     `,
     )
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("created_at", { referencedTable: "package", ascending: false });
 
   if (error) {
     console.error("Error fetching credentials table data:", error);
