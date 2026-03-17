@@ -150,6 +150,7 @@ export async function credentialsTable() {
       password,
       platform,
       platform_id,
+      server,
       package:package(
         id,
         funder_id,

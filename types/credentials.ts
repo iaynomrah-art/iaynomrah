@@ -5,6 +5,7 @@ export interface Credential {
   username: string | null;
   platform?: string;
   platform_id?: string;
+  server?: string;
   name?: string;
 
   // Joined fields
