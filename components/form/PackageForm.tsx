@@ -20,6 +20,9 @@ const packageSchema = z.object({
     phase: z.string().min(1, "Phase is required"),
     symbol: z.string().min(1, "symbol is required"),
     funder_id: z.string().min(1, "Funder is required"),
+    max_daily_loss: z.string().optional(),
+    max_total_loss: z.string().optional(),
+    profit_target: z.string().optional(),
 })
 
 type PackageFormValues = z.infer<typeof packageSchema>
@@ -49,6 +52,9 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
             phase: initialData?.phase?.toLowerCase() || "",
             symbol: initialData?.symbol || "",
             funder_id: initialData?.funder_id?.toString() || "",
+            max_daily_loss: initialData?.max_daily_loss?.toString() || "",
+            max_total_loss: initialData?.max_total_loss?.toString() || "",
+            profit_target: initialData?.profit_target?.toString() || "",
         },
     })
 
@@ -61,6 +67,9 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
                 phase: data.phase,
                 symbol: data.symbol,
                 funder_id: data.funder_id,
+                max_daily_loss: data.max_daily_loss ? parseFloat(data.max_daily_loss) : null,
+                max_total_loss: data.max_total_loss ? parseFloat(data.max_total_loss) : null,
+                profit_target: data.profit_target ? parseFloat(data.profit_target) : null,
             }
 
             if (isUpdate) {
@@ -131,7 +140,8 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
                 {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
             </div>
 
-            <div className="space-y-6">
+            {/* Grid for Balance, Phase, Symbol */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Balance */}
                 <div className="space-y-2">
                     <Label htmlFor="balance" className="text-white">
@@ -181,6 +191,57 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
                         placeholder="e.g. MT5"
                     />
                     {errors.symbol && <p className="text-xs text-red-500">{errors.symbol.message}</p>}
+                </div>
+            </div>
+
+            {/* Metrics Section */}
+            <div className="space-y-4 pt-4 border-t border-gray-800">
+                <h3 className="text-sm font-medium text-gray-400">Risk & Profit Metrics</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Max Daily Loss */}
+                    <div className="space-y-2">
+                        <Label htmlFor="max_daily_loss" className="text-white text-xs">
+                            Max Daily Loss ($)
+                        </Label>
+                        <Input
+                            id="max_daily_loss"
+                            type="number"
+                            step="0.01"
+                            {...register("max_daily_loss")}
+                            className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
+                            placeholder="0.00"
+                        />
+                    </div>
+
+                    {/* Max Total Loss */}
+                    <div className="space-y-2">
+                        <Label htmlFor="max_total_loss" className="text-white text-xs">
+                            Max Total Loss ($)
+                        </Label>
+                        <Input
+                            id="max_total_loss"
+                            type="number"
+                            step="0.01"
+                            {...register("max_total_loss")}
+                            className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
+                            placeholder="0.00"
+                        />
+                    </div>
+
+                    {/* Profit Target */}
+                    <div className="space-y-2">
+                        <Label htmlFor="profit_target" className="text-white text-xs">
+                            Profit Target ($)
+                        </Label>
+                        <Input
+                            id="profit_target"
+                            type="number"
+                            step="0.01"
+                            {...register("profit_target")}
+                            className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
+                            placeholder="0.00"
+                        />
+                    </div>
                 </div>
             </div>
 
