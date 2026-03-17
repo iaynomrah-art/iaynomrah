@@ -3,8 +3,10 @@ export interface Credential {
   created_at: string;
   password: string | null;
   username: string | null;
-  platform: string | null;
-  platform_id: string | null;
+  platform?: string;
+  platform_id?: string;
+  server?: string;
+  name?: string;
 
   // Joined fields
   package?: Array<{

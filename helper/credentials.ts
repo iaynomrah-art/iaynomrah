@@ -157,6 +157,7 @@ export async function credentialsTable(): Promise<Credential[]> {
       password,
       platform,
       platform_id,
+      server,
       package:package(
         id,
         funder_id,

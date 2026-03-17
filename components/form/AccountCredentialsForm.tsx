@@ -26,6 +26,7 @@ const credentialSchema = z.object({
     password: z.string().min(1, "Password is required"),
     platform: z.string().optional(),
     platform_id: z.string().optional(),
+    server: z.string().optional(),
     account_id: z.string().min(1, "User is required"),
 })
 
@@ -56,6 +57,7 @@ export const AccountCredentialsForm = ({
         register,
         handleSubmit,
         control,
+        watch,
         formState: { errors },
     } = useForm<CredentialFormValues>({
         resolver: zodResolver(credentialSchema),
@@ -64,6 +66,7 @@ export const AccountCredentialsForm = ({
             password: initialData?.password || "",
             platform: initialData?.platform ?? "",
             platform_id: initialData?.platform_id ?? "",
+            server: (initialData as any)?.server ?? "",
             account_id: initialData?.package?.[0]?.account_id || "",
         },
     })
@@ -162,6 +165,19 @@ export const AccountCredentialsForm = ({
                     />
                 </div>
             </div>
+
+            {/* SERVER (Only for Trade Locker) */}
+            {watch("platform")?.toLowerCase().includes("trade locker") && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <Label htmlFor="server" className="text-white text-sm font-medium uppercase tracking-wider">SERVER (Trade Locker)</Label>
+                    <Input
+                        id="server"
+                        {...register("server")}
+                        className="bg-[#0d0d0d] border-[#1a1a1a] text-white placeholder:text-gray-500 h-11 focus:border-blue-500 transition-all shadow-inner"
+                        placeholder="e.g. HEROFX"
+                    />
+                </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
                 {/* USERNAME */}
