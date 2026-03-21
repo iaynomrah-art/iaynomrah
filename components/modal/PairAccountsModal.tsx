@@ -73,12 +73,17 @@ export const PairAccountsModal = ({
 
         const initialPairs = selectedAccounts.map((account, index) => {
             const currentEquity = account.live_equity || 0
-            const slTicks = 50
-            const tpTicks = 100
-            const orderAmount = 0.1
-
+            
             const type = (selectedAccounts.length === 2 && index === 1) ? 'sell' as const : 'buy' as const
             const isBuy = type === 'buy'
+
+            const baseSlTicks = 50
+            const baseTpTicks = 100
+            
+            const slTicks = isBuy ? baseSlTicks : Number((baseSlTicks * 1.02).toFixed(2))
+            const tpTicks = isBuy ? baseTpTicks : Number((baseTpTicks * 0.98).toFixed(2))
+            
+            const orderAmount = 0.1
 
             // Default risk 1% based on starting equity
             const lProfit = currentEquity * 0.01
@@ -115,9 +120,32 @@ export const PairAccountsModal = ({
 
             let updatedPairs = [...prev]
             let newPair = { ...updatedPairs[index], [field]: value }
-            const startEquity = newPair.starting_equity || 0
-            let isBuy = newPair.trade_type === 'buy'
+            
+            // Helper to recalculate price/profits
+            const recalculateMetrics = (acc: Pair) => {
+                const isBuyAcc = acc.trade_type === 'buy'
+                const startEq = acc.starting_equity || 0
+                
+                acc.loss_price = isBuyAcc ? basePrice - (acc.sl_ticks * multiplier) : basePrice + (acc.sl_ticks * multiplier)
+                acc.win_price = isBuyAcc ? basePrice + (acc.tp_ticks * multiplier) : basePrice - (acc.tp_ticks * multiplier)
+                
+                acc.loss_profit = startEq * 0.01
+                acc.win_profit = acc.loss_profit * (acc.tp_ticks / acc.sl_ticks)
+                acc.loss_balance = startEq - acc.loss_profit
+                acc.win_balance = startEq + acc.win_profit
+                return acc
+            }
 
+            // Sync reciprocal fields for the changed pair
+            if (field === 'loss_price') {
+                newPair.sl_ticks = Math.abs((value - basePrice) / multiplier)
+            } else if (field === 'win_price') {
+                newPair.tp_ticks = Math.abs((value - basePrice) / multiplier)
+            } else if (field === 'symbol') {
+                updatedPairs = updatedPairs.map(p => ({ ...p, symbol: value.toUpperCase() }))
+                newPair = { ...updatedPairs[index] }
+            }
+            
             // Inverse logic for 2 accounts when trade_type changes
             if (field === 'trade_type' && prev.length === 2) {
                 const otherIndex = index === 0 ? 1 : 0
@@ -127,44 +155,50 @@ export const PairAccountsModal = ({
                     ...updatedPairs[otherIndex],
                     trade_type: otherType,
                 }
-                const otherIsBuy = otherType === 'buy'
-                updatedPairs[otherIndex].loss_price = otherIsBuy
-                    ? basePrice - (updatedPairs[otherIndex].sl_ticks * multiplier)
-                    : basePrice + (updatedPairs[otherIndex].sl_ticks * multiplier)
-                updatedPairs[otherIndex].win_price = otherIsBuy
-                    ? basePrice + (updatedPairs[otherIndex].tp_ticks * multiplier)
-                    : basePrice - (updatedPairs[otherIndex].tp_ticks * multiplier)
             }
 
-            // Sync reciprocal fields and recalculate profits
-            if (field === 'sl_ticks') {
-                newPair.loss_price = isBuy ? basePrice - (value * multiplier) : basePrice + (value * multiplier)
-            } else if (field === 'tp_ticks') {
-                newPair.win_price = isBuy ? basePrice + (value * multiplier) : basePrice - (value * multiplier)
-            } else if (field === 'loss_price') {
-                newPair.sl_ticks = Math.abs((value - basePrice) / multiplier)
-            } else if (field === 'win_price') {
-                newPair.tp_ticks = Math.abs((value - basePrice) / multiplier)
-            } else if (field === 'starting_equity') {
-                newPair.loss_balance = value - newPair.loss_profit
-                newPair.win_balance = value + newPair.win_profit
-            } else if (field === 'trade_type') {
-                isBuy = value === 'buy'
-                newPair.loss_price = isBuy ? basePrice - (newPair.sl_ticks * multiplier) : basePrice + (newPair.sl_ticks * multiplier)
-                newPair.win_price = isBuy ? basePrice + (newPair.tp_ticks * multiplier) : basePrice - (newPair.tp_ticks * multiplier)
-            } else if (field === 'symbol') {
-                updatedPairs = updatedPairs.map(p => ({ ...p, symbol: value.toUpperCase() }))
-                newPair = { ...updatedPairs[index] }
+            // Apply base recalculation to the changed pair first
+            updatedPairs[index] = recalculateMetrics(newPair)
+
+            // Now apply the related TP/SL logic if there are 2 accounts
+            if (updatedPairs.length === 2 && (field === 'tp_ticks' || field === 'sl_ticks' || field === 'trade_type' || field === 'win_price' || field === 'loss_price')) {
+                const primaryIndex = index
+                const secondaryIndex = primaryIndex === 0 ? 1 : 0
+                
+                const primaryPair = updatedPairs[primaryIndex]
+                let secondaryPair = { ...updatedPairs[secondaryIndex] }
+
+                if (primaryPair.trade_type === 'buy') {
+                    // We just updated BUY, so calculate SELL based on BUY
+                    if (field === 'tp_ticks' || field === 'win_price' || field === 'trade_type') {
+                        secondaryPair.tp_ticks = Number((primaryPair.tp_ticks * 0.98).toFixed(2))
+                    }
+                    if (field === 'sl_ticks' || field === 'loss_price' || field === 'trade_type') {
+                        secondaryPair.sl_ticks = Number((primaryPair.sl_ticks * 1.02).toFixed(2))
+                    }
+                } else {
+                    // We just updated SELL, so calculate BUY based on SELL
+                    if (field === 'tp_ticks' || field === 'win_price') {
+                        secondaryPair.tp_ticks = Number((primaryPair.tp_ticks / 0.98).toFixed(2))
+                    }
+                    if (field === 'sl_ticks' || field === 'loss_price') {
+                        secondaryPair.sl_ticks = Number((primaryPair.sl_ticks / 1.02).toFixed(2))
+                    }
+                    if (field === 'trade_type') {
+                        // User swapped the trade type. To keep BUY as base securely, recalculate this SELL pair from the new BUY pair
+                        primaryPair.tp_ticks = Number((secondaryPair.tp_ticks * 0.98).toFixed(2))
+                        primaryPair.sl_ticks = Number((secondaryPair.sl_ticks * 1.02).toFixed(2))
+                        updatedPairs[primaryIndex] = recalculateMetrics(primaryPair)
+                    }
+                }
+                
+                updatedPairs[secondaryIndex] = recalculateMetrics(secondaryPair)
+            } else if (updatedPairs.length === 2 && field !== 'symbol') {
+               // Fallback: make sure the other pair is also recalculated if we updated something global like starting equity, order amount, etc
+               const otherIndex = index === 0 ? 1 : 0
+               updatedPairs[otherIndex] = recalculateMetrics(updatedPairs[otherIndex])
             }
 
-            // Recalculate estimated profits based on start equity and ticks/order amount
-            // This is a simplified formula, might need contract size adjustment based on symbol
-            newPair.loss_profit = startEquity * 0.01 // Keeping 1% risk as baseline for UI feedback
-            newPair.win_profit = newPair.loss_profit * (newPair.tp_ticks / newPair.sl_ticks)
-            newPair.loss_balance = startEquity - newPair.loss_profit
-            newPair.win_balance = startEquity + newPair.win_profit
-
-            updatedPairs[index] = newPair
             return updatedPairs
         })
     }
@@ -228,6 +262,17 @@ export const PairAccountsModal = ({
             }
 
             // 3. Prepare minimal data for Edge Function
+            const formatStopLoss = (slTicks: number, platform?: string | null) => {
+                // cTrader only accepts negative value in sl of target profit
+                return platform?.toLowerCase() === 'ctrader' ? -Math.abs(slTicks) : slTicks;
+            }
+
+            const getPlatform = (acc: Pair) => {
+                const creds = acc.credentials as any;
+                const pkgCreds = (acc.package_ref as any)?.credential || (acc.package_ref as any)?.credentials;
+                return creds?.platform || pkgCreds?.platform;
+            }
+
             const payload = {
                 primary_account_id: String(primary.id),
                 secondary_account_id: String(secondary.id),
@@ -235,7 +280,7 @@ export const PairAccountsModal = ({
                 primary: {
                     symbol: String(primary.symbol || "XAUUSD"),
                     order_amount: primary.order_amount,
-                    stop_loss: primary.sl_ticks,
+                    stop_loss: formatStopLoss(primary.sl_ticks, getPlatform(primary)),
                     take_profit: primary.tp_ticks,
                     order_type: primary.trade_type,
                     accounts_id: primary.accounts_id
@@ -243,7 +288,7 @@ export const PairAccountsModal = ({
                 secondary: {
                     symbol: String(secondary.symbol || "XAUUSD"),
                     order_amount: secondary.order_amount,
-                    stop_loss: secondary.sl_ticks,
+                    stop_loss: formatStopLoss(secondary.sl_ticks, getPlatform(secondary)),
                     take_profit: secondary.tp_ticks,
                     order_type: secondary.trade_type,
                     accounts_id: secondary.accounts_id
