@@ -31,6 +31,7 @@ interface PackageFormProps {
     onCancel?: () => void
 }
 
+// Package form accepts metric percentages and stores computed dollar values.
 export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: PackageFormProps) => {
     const router = useRouter()
     const [isPending, setIsPending] = React.useState(false)
@@ -52,9 +53,38 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
         },
     })
 
+<<<<<<< Updated upstream
     const onSubmit = async (data: PackageFormValues) => {
         setIsPending(true)
         try {
+=======
+    const balance = watch("balance")
+    const dailyLossPercent = watch("max_daily_loss_percent")
+    const totalLossPercent = watch("max_total_loss_percent")
+    const profitTargetPercent = watch("profit_target_percent")
+
+    // Live preview: convert percentages to dollar values based on current balance.
+    React.useEffect(() => {
+        const balanceValue = parseFloat(balance) || 0
+        
+        setCalculatedValues({
+            max_daily_loss: balanceValue * (parseFloat(dailyLossPercent) || 0) / 100,
+            max_total_loss: balanceValue * (parseFloat(totalLossPercent) || 0) / 100,
+            profit_target: balanceValue * (parseFloat(profitTargetPercent) || 0) / 100,
+        })
+    }, [balance, dailyLossPercent, totalLossPercent, profitTargetPercent])
+
+    const onSubmit = async (data: PackageFormValues) => {
+        setIsPending(true)
+        try {
+            const balanceValue = parseFloat(data.balance)
+            
+            // Persist dollar amounts to match current database schema columns.
+            const dailyLossPercent = data.max_daily_loss_percent ? parseFloat(data.max_daily_loss_percent) : 0
+            const totalLossPercent = data.max_total_loss_percent ? parseFloat(data.max_total_loss_percent) : 0
+            const profitTargetPercent = data.profit_target_percent ? parseFloat(data.profit_target_percent) : 0
+            
+>>>>>>> Stashed changes
             const payload = {
                 name: data.name,
                 balance: parseFloat(data.balance),
