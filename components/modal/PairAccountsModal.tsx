@@ -67,13 +67,67 @@ export const PairAccountsModal = ({
     const [isLoading, setIsLoading] = React.useState(false)
     const multiplier = 0.01 // Default tick multiplier
 
+    const assignTradeTypesByStartingBalance = (inputPairs: Pair[]) => {
+        if (inputPairs.length !== 2) return inputPairs
+
+        const [first, second] = inputPairs
+        const firstBalance = Number(first.starting_balance || 0)
+        const secondBalance = Number(second.starting_balance || 0)
+
+        if (firstBalance <= secondBalance) {
+            return [
+                { ...first, trade_type: 'buy' },
+                { ...second, trade_type: 'sell' },
+            ]
+        }
+
+        return [
+            { ...first, trade_type: 'sell' },
+            { ...second, trade_type: 'buy' },
+        ]
+    }
+
+    const recalculateMetrics = (acc: Pair) => {
+        const isBuyAcc = acc.trade_type === 'buy'
+        const startEq = acc.starting_equity || 0
+
+        acc.loss_price = isBuyAcc ? basePrice - (acc.sl_ticks * multiplier) : basePrice + (acc.sl_ticks * multiplier)
+        acc.win_price = isBuyAcc ? basePrice + (acc.tp_ticks * multiplier) : basePrice - (acc.tp_ticks * multiplier)
+
+        acc.loss_profit = startEq * 0.01
+        acc.win_profit = acc.loss_profit * (acc.tp_ticks / acc.sl_ticks)
+        acc.loss_balance = startEq - acc.loss_profit
+        acc.win_balance = startEq + acc.win_profit
+        return acc
+    }
+
+    const syncSellTpSlFromBuy = (inputPairs: Pair[]) => {
+        if (inputPairs.length !== 2) return inputPairs
+
+        const buyIndex = inputPairs.findIndex((p) => p.trade_type === 'buy')
+        const sellIndex = inputPairs.findIndex((p) => p.trade_type === 'sell')
+        if (buyIndex === -1 || sellIndex === -1) return inputPairs
+
+        const updated = [...inputPairs]
+        const buyPair = { ...updated[buyIndex] }
+        const sellPair = { ...updated[sellIndex] }
+
+        // Sell account always follows Buy TP/SL with a 2% offset.
+        sellPair.tp_ticks = Number((buyPair.tp_ticks * 0.98).toFixed(2))
+        sellPair.sl_ticks = Number((buyPair.sl_ticks * 1.02).toFixed(2))
+
+        updated[buyIndex] = recalculateMetrics(buyPair)
+        updated[sellIndex] = recalculateMetrics(sellPair)
+        return updated
+    }
+
     // Initialize/Sync pairs when selectedAccounts changes
     React.useEffect(() => {
         if (!isOpen) return
 
         const initialPairs = selectedAccounts.map((account, index) => {
             const currentEquity = account.live_equity || 0
-            
+
             const type = (selectedAccounts.length === 2 && index === 1) ? 'sell' as const : 'buy' as const
             const isBuy = type === 'buy'
 
@@ -110,7 +164,9 @@ export const PairAccountsModal = ({
                 win_balance: currentEquity + wProfit,
             } as Pair
         })
-        setPairs(initialPairs)
+
+        const pairsByBalance = assignTradeTypesByStartingBalance(initialPairs)
+        setPairs(syncSellTpSlFromBuy(pairsByBalance))
     }, [selectedAccounts, isOpen, basePrice])
 
     const updatePair = (id: string, field: keyof Pair, value: any) => {
@@ -121,21 +177,6 @@ export const PairAccountsModal = ({
             let updatedPairs = [...prev]
             let newPair = { ...updatedPairs[index], [field]: value }
             
-            // Helper to recalculate price/profits
-            const recalculateMetrics = (acc: Pair) => {
-                const isBuyAcc = acc.trade_type === 'buy'
-                const startEq = acc.starting_equity || 0
-                
-                acc.loss_price = isBuyAcc ? basePrice - (acc.sl_ticks * multiplier) : basePrice + (acc.sl_ticks * multiplier)
-                acc.win_price = isBuyAcc ? basePrice + (acc.tp_ticks * multiplier) : basePrice - (acc.tp_ticks * multiplier)
-                
-                acc.loss_profit = startEq * 0.01
-                acc.win_profit = acc.loss_profit * (acc.tp_ticks / acc.sl_ticks)
-                acc.loss_balance = startEq - acc.loss_profit
-                acc.win_balance = startEq + acc.win_profit
-                return acc
-            }
-
             // Sync reciprocal fields for the changed pair
             if (field === 'loss_price') {
                 newPair.sl_ticks = Math.abs((value - basePrice) / multiplier)
@@ -160,43 +201,8 @@ export const PairAccountsModal = ({
             // Apply base recalculation to the changed pair first
             updatedPairs[index] = recalculateMetrics(newPair)
 
-            // Now apply the related TP/SL logic if there are 2 accounts
-            if (updatedPairs.length === 2 && (field === 'tp_ticks' || field === 'sl_ticks' || field === 'trade_type' || field === 'win_price' || field === 'loss_price')) {
-                const primaryIndex = index
-                const secondaryIndex = primaryIndex === 0 ? 1 : 0
-                
-                const primaryPair = updatedPairs[primaryIndex]
-                let secondaryPair = { ...updatedPairs[secondaryIndex] }
-
-                if (primaryPair.trade_type === 'buy') {
-                    // We just updated BUY, so calculate SELL based on BUY
-                    if (field === 'tp_ticks' || field === 'win_price' || field === 'trade_type') {
-                        secondaryPair.tp_ticks = Number((primaryPair.tp_ticks * 0.98).toFixed(2))
-                    }
-                    if (field === 'sl_ticks' || field === 'loss_price' || field === 'trade_type') {
-                        secondaryPair.sl_ticks = Number((primaryPair.sl_ticks * 1.02).toFixed(2))
-                    }
-                } else {
-                    // We just updated SELL, so calculate BUY based on SELL
-                    if (field === 'tp_ticks' || field === 'win_price') {
-                        secondaryPair.tp_ticks = Number((primaryPair.tp_ticks / 0.98).toFixed(2))
-                    }
-                    if (field === 'sl_ticks' || field === 'loss_price') {
-                        secondaryPair.sl_ticks = Number((primaryPair.sl_ticks / 1.02).toFixed(2))
-                    }
-                    if (field === 'trade_type') {
-                        // User swapped the trade type. To keep BUY as base securely, recalculate this SELL pair from the new BUY pair
-                        primaryPair.tp_ticks = Number((secondaryPair.tp_ticks * 0.98).toFixed(2))
-                        primaryPair.sl_ticks = Number((secondaryPair.sl_ticks * 1.02).toFixed(2))
-                        updatedPairs[primaryIndex] = recalculateMetrics(primaryPair)
-                    }
-                }
-                
-                updatedPairs[secondaryIndex] = recalculateMetrics(secondaryPair)
-            } else if (updatedPairs.length === 2 && field !== 'symbol') {
-               // Fallback: make sure the other pair is also recalculated if we updated something global like starting equity, order amount, etc
-               const otherIndex = index === 0 ? 1 : 0
-               updatedPairs[otherIndex] = recalculateMetrics(updatedPairs[otherIndex])
+            if (updatedPairs.length === 2) {
+                return syncSellTpSlFromBuy(updatedPairs)
             }
 
             return updatedPairs
@@ -405,7 +411,7 @@ export const PairAccountsModal = ({
                                     </div>
 
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
-                                        <span className="text-[#4788ff] text-[13px] font-medium">TP (Ticks)</span>
+                                        <span className="text-[#4788ff] text-[13px] font-medium">TP (Profit)</span>
                                         <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
                                             <input
                                                 type="number"
@@ -417,7 +423,7 @@ export const PairAccountsModal = ({
                                     </div>
 
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
-                                        <span className="text-[#4788ff] text-[13px] font-medium">SL (Ticks)</span>
+                                        <span className="text-[#4788ff] text-[13px] font-medium">SL (Loss)</span>
                                         <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
                                             <input
                                                 type="number"
