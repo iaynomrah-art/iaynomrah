@@ -17,6 +17,9 @@ export interface Package {
   account_id: string | null;
   credential?: Credential;
   account?: Account;
+  profit_target?: number | null;
+  max_daily_loss?: number | null;
+  max_total_loss?: number | null;
 }
 
 export type CreatePackage = Omit<Package, "id" | "created_at" | "funder" | "credential" | "account">;

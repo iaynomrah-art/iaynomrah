@@ -10,7 +10,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { TradingAccount } from "@/types/trading_accounts"
-import { ArrowUp, ArrowDown, ArrowUpDown, CheckSquare, Square } from "lucide-react"
+import { ArrowUp, ArrowDown, ArrowUpDown, CheckSquare, Square, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -174,7 +174,11 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                                 <TableCell className="py-6 px-6">
                                     <div className="flex items-center justify-center">
                                         {selectedIds.includes(account.id) ? (
-                                            <CheckSquare className="h-4 w-4 text-blue-500 animate-in zoom-in-75 duration-200" />
+                                            selectedIds[0] === account.id ? (
+                                                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 animate-in zoom-in-75 duration-200" />
+                                            ) : (
+                                                <CheckSquare className="h-4 w-4 text-blue-500 animate-in zoom-in-75 duration-200" />
+                                            )
                                         ) : (
                                             <Square className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
                                         )}

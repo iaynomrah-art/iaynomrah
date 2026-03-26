@@ -67,80 +67,116 @@ export const PairAccountsModal = ({
     const [isLoading, setIsLoading] = React.useState(false)
     const multiplier = 0.01 // Default tick multiplier
 
-    const assignTradeTypesByStartingBalance = (inputPairs: Pair[]) => {
-        if (inputPairs.length !== 2) return inputPairs
+    // Helper to calculate the safe daily limit
+    const getAccountSafeLimit = (acc: TradingAccount | Pair) => {
+        const initialBalance = acc.package_ref?.balance || 1;
+        const ptDollar = acc.package_ref?.max_daily_loss || acc.package_ref?.profit_target || 0;
+        const ptPercent = ptDollar / initialBalance;
+        const dailyEq = acc.daily_starting_equity || acc.package_ref?.balance || 0;
 
-        const [first, second] = inputPairs
-        const firstBalance = Number(first.starting_balance || 0)
-        const secondBalance = Number(second.starting_balance || 0)
+        // Dynamic remaining allowance based on live equity
+        const floor = dailyEq * (1 - ptPercent);
+        const liveEquity = acc.live_equity || acc.package_ref?.balance || 0;
 
-        if (firstBalance <= secondBalance) {
-            return [
-                { ...first, trade_type: 'buy' },
-                { ...second, trade_type: 'sell' },
-            ]
-        }
+        const allowance = Math.max(0, liveEquity - floor);
+        return Number((allowance * 0.96).toFixed(2));
+    };
 
-        return [
-            { ...first, trade_type: 'sell' },
-            { ...second, trade_type: 'buy' },
-        ]
-    }
+    const recalculateMetrics = (pair: Pair): Pair => {
+        const lProfit = pair.starting_balance * 0.01;
+        const wProfit = pair.sl_ticks > 0 ? lProfit * (pair.tp_ticks / pair.sl_ticks) : 0;
+        const isBuy = pair.trade_type === 'buy';
 
-    const recalculateMetrics = (acc: Pair) => {
-        const isBuyAcc = acc.trade_type === 'buy'
-        const startEq = acc.starting_equity || 0
+        return {
+            ...pair,
+            loss_profit: lProfit,
+            win_profit: wProfit,
+            loss_price: isBuy ? basePrice - (pair.sl_ticks * multiplier) : basePrice + (pair.sl_ticks * multiplier),
+            win_price: isBuy ? basePrice + (pair.tp_ticks * multiplier) : basePrice - (pair.tp_ticks * multiplier),
+            loss_balance: pair.starting_equity - lProfit,
+            win_balance: pair.starting_equity + wProfit,
+        };
+    };
 
-        acc.loss_price = isBuyAcc ? basePrice - (acc.sl_ticks * multiplier) : basePrice + (acc.sl_ticks * multiplier)
-        acc.win_price = isBuyAcc ? basePrice + (acc.tp_ticks * multiplier) : basePrice - (acc.tp_ticks * multiplier)
+    const assignTradeTypesByStartingBalance = (p: Pair[]): Pair[] => {
+        if (p.length !== 2) return p;
+        const sorted = [...p].sort((a,b) => b.starting_balance - a.starting_balance);
+        return p.map(acc => ({
+             ...acc,
+             trade_type: acc.id === sorted[0].id ? 'buy' : 'sell'
+        }));
+    };
 
-        acc.loss_profit = startEq * 0.01
-        acc.win_profit = acc.loss_profit * (acc.tp_ticks / acc.sl_ticks)
-        acc.loss_balance = startEq - acc.loss_profit
-        acc.win_balance = startEq + acc.win_profit
-        return acc
-    }
+    const syncSellTpSlFromBuy = (p: Pair[]): Pair[] => {
+        if (p.length !== 2) return p;
+        const buyIndex = p.findIndex(x => x.trade_type === 'buy');
+        const sellIndex = p.findIndex(x => x.trade_type === 'sell');
+        if (buyIndex === -1 || sellIndex === -1) return p;
 
-    const syncSellTpSlFromBuy = (inputPairs: Pair[]) => {
-        if (inputPairs.length !== 2) return inputPairs
+        const newP = [...p];
+        const buy = newP[buyIndex];
+        const sell = { ...newP[sellIndex] };
 
-        const buyIndex = inputPairs.findIndex((p) => p.trade_type === 'buy')
-        const sellIndex = inputPairs.findIndex((p) => p.trade_type === 'sell')
-        if (buyIndex === -1 || sellIndex === -1) return inputPairs
+        sell.tp_ticks = Number((buy.tp_ticks * 0.98).toFixed(2));
+        sell.sl_ticks = Number((buy.sl_ticks * 1.02).toFixed(2));
 
-        const updated = [...inputPairs]
-        const buyPair = { ...updated[buyIndex] }
-        const sellPair = { ...updated[sellIndex] }
-
-        // Sell account always follows Buy TP/SL with a 2% offset.
-        sellPair.tp_ticks = Number((buyPair.tp_ticks * 0.98).toFixed(2))
-        sellPair.sl_ticks = Number((buyPair.sl_ticks * 1.02).toFixed(2))
-
-        updated[buyIndex] = recalculateMetrics(buyPair)
-        updated[sellIndex] = recalculateMetrics(sellPair)
-        return updated
-    }
+        newP[sellIndex] = recalculateMetrics(sell);
+        return newP;
+    };
 
     // Initialize/Sync pairs when selectedAccounts changes
     React.useEffect(() => {
         if (!isOpen) return
 
-        const initialPairs = selectedAccounts.map((account, index) => {
-            const currentEquity = account.live_equity || 0
+        let primarySL = 0, primaryTP = 0, secondarySL = 0, secondaryTP = 0;
 
+        if (selectedAccounts.length === 2) {
+            const primaryAcc = selectedAccounts[0];
+            const secondaryAcc = selectedAccounts[1];
+
+            const primarySafeLimit = getAccountSafeLimit(primaryAcc);
+            const secondarySafeLimit = getAccountSafeLimit(secondaryAcc);
+
+            const constraintA = primarySafeLimit;
+            const constraintB = Number((secondarySafeLimit / 1.02).toFixed(2));
+
+            const finalPrimarySL = Math.min(constraintA, constraintB);
+
+            primarySL = finalPrimarySL;
+            primaryTP = finalPrimarySL;
+            secondarySL = Number((finalPrimarySL * 1.02).toFixed(2));
+            secondaryTP = Number((finalPrimarySL * 0.98).toFixed(2));
+        }
+
+        const initialPairs = selectedAccounts.map((account, index) => {
             const type = (selectedAccounts.length === 2 && index === 1) ? 'sell' as const : 'buy' as const
             const isBuy = type === 'buy'
+            const isPrimary = index === 0
 
-            const baseSlTicks = 50
-            const baseTpTicks = 100
-            
-            const slTicks = isBuy ? baseSlTicks : Number((baseSlTicks * 1.02).toFixed(2))
-            const tpTicks = isBuy ? baseTpTicks : Number((baseTpTicks * 0.98).toFixed(2))
-            
+            const currentEquity = account.live_equity || account.package_ref?.balance || 0
+            const dailyStartingEquity = account.daily_starting_equity || account.package_ref?.balance || 0
+
+            let slTicks = 0;
+            let tpTicks = 0;
+
+            if (selectedAccounts.length === 2) {
+                if (isPrimary) {
+                    slTicks = primarySL;
+                    tpTicks = primaryTP;
+                } else {
+                    slTicks = secondarySL;
+                    tpTicks = secondaryTP;
+                }
+            } else {
+                const baseValue = getAccountSafeLimit(account);
+                slTicks = isPrimary ? baseValue : Number((baseValue * 1.02).toFixed(2));
+                tpTicks = isPrimary ? baseValue : Number((baseValue * 0.98).toFixed(2));
+            }
+
             const orderAmount = 0.1
 
-            // Default risk 1% based on starting equity
-            const lProfit = currentEquity * 0.01
+            // Default risk 1% based on starting equity snapshot
+            const lProfit = dailyStartingEquity * 0.01
             const wProfit = lProfit * (tpTicks / slTicks)
 
             return {
@@ -149,7 +185,7 @@ export const PairAccountsModal = ({
                 order_amount: orderAmount,
                 sl_ticks: slTicks,
                 tp_ticks: tpTicks,
-                starting_balance: account.package_ref?.balance || 0,
+                starting_balance: dailyStartingEquity,
                 starting_equity: currentEquity,
                 latest_equity: currentEquity,
                 daily_pnl: account.daily_pnl || 0,
@@ -176,7 +212,7 @@ export const PairAccountsModal = ({
 
             let updatedPairs = [...prev]
             let newPair = { ...updatedPairs[index], [field]: value }
-            
+
             // Sync reciprocal fields for the changed pair
             if (field === 'loss_price') {
                 newPair.sl_ticks = Math.abs((value - basePrice) / multiplier)
@@ -186,7 +222,7 @@ export const PairAccountsModal = ({
                 updatedPairs = updatedPairs.map(p => ({ ...p, symbol: value.toUpperCase() }))
                 newPair = { ...updatedPairs[index] }
             }
-            
+
             // Inverse logic for 2 accounts when trade_type changes
             if (field === 'trade_type' && prev.length === 2) {
                 const otherIndex = index === 0 ? 1 : 0
@@ -201,8 +237,73 @@ export const PairAccountsModal = ({
             // Apply base recalculation to the changed pair first
             updatedPairs[index] = recalculateMetrics(newPair)
 
-            if (updatedPairs.length === 2) {
-                return syncSellTpSlFromBuy(updatedPairs)
+            // Now apply the related TP/SL logic if there are 2 accounts
+            if (updatedPairs.length === 2 && (field === 'tp_ticks' || field === 'sl_ticks' || field === 'trade_type' || field === 'win_price' || field === 'loss_price')) {
+                const editedIndex = index
+                const otherIndex = editedIndex === 0 ? 1 : 0
+
+                let editedPair = updatedPairs[editedIndex]
+                let otherPair = { ...updatedPairs[otherIndex] }
+
+                const primarySafeLimit = getAccountSafeLimit(editedIndex === 0 ? editedPair : otherPair);
+                const secondarySafeLimit = getAccountSafeLimit(editedIndex === 1 ? editedPair : otherPair);
+
+                if (editedIndex === 0) {
+                    // We edited the Primary account (Index 0). Secondary (Index 1) gets the worse odds.
+                    if (field === 'tp_ticks' || field === 'win_price' || field === 'trade_type') {
+                        let potentialTP = editedPair.tp_ticks;
+                        if (potentialTP > primarySafeLimit) {
+                            potentialTP = primarySafeLimit;
+                            editedPair.tp_ticks = potentialTP;
+                        }
+                        otherPair.tp_ticks = Number((potentialTP * 0.98).toFixed(2))
+                    }
+                    if (field === 'sl_ticks' || field === 'loss_price' || field === 'trade_type') {
+                        let potentialSL = editedPair.sl_ticks;
+                        if (potentialSL > primarySafeLimit) {
+                            potentialSL = primarySafeLimit;
+                        }
+                        let theoreticalSecondarySL = Number((potentialSL * 1.02).toFixed(2));
+                        if (theoreticalSecondarySL > secondarySafeLimit) {
+                            theoreticalSecondarySL = secondarySafeLimit;
+                            potentialSL = Number((secondarySafeLimit / 1.02).toFixed(2));
+                        }
+                        editedPair.sl_ticks = potentialSL;
+                        otherPair.sl_ticks = theoreticalSecondarySL;
+                    }
+                } else {
+                    // We edited the Secondary account (Index 1). Primary (Index 0) gets the better odds.
+                    if (field === 'tp_ticks' || field === 'win_price' || field === 'trade_type') {
+                        let potentialTP = editedPair.tp_ticks;
+                        let theoreticalPrimaryTP = Number((potentialTP / 0.98).toFixed(2));
+                        if (theoreticalPrimaryTP > primarySafeLimit) {
+                            theoreticalPrimaryTP = primarySafeLimit;
+                            potentialTP = Number((primarySafeLimit * 0.98).toFixed(2));
+                        }
+                        editedPair.tp_ticks = potentialTP;
+                        otherPair.tp_ticks = theoreticalPrimaryTP;
+                    }
+                    if (field === 'sl_ticks' || field === 'loss_price' || field === 'trade_type') {
+                        let potentialSL = editedPair.sl_ticks;
+                        if (potentialSL > secondarySafeLimit) {
+                            potentialSL = secondarySafeLimit;
+                        }
+                        let theoreticalPrimarySL = Number((potentialSL / 1.02).toFixed(2));
+                        if (theoreticalPrimarySL > primarySafeLimit) {
+                            theoreticalPrimarySL = primarySafeLimit;
+                            potentialSL = Number((primarySafeLimit * 1.02).toFixed(2));
+                        }
+                        editedPair.sl_ticks = potentialSL;
+                        otherPair.sl_ticks = theoreticalPrimarySL;
+                    }
+                }
+
+                updatedPairs[editedIndex] = recalculateMetrics(editedPair)
+                updatedPairs[otherIndex] = recalculateMetrics(otherPair)
+            } else if (updatedPairs.length === 2 && field !== 'symbol') {
+                // Fallback: make sure the other pair is also recalculated if we updated something global like starting equity, order amount, etc
+                const otherIndex = index === 0 ? 1 : 0
+                updatedPairs[otherIndex] = recalculateMetrics(updatedPairs[otherIndex])
             }
 
             return updatedPairs
@@ -411,7 +512,7 @@ export const PairAccountsModal = ({
                                     </div>
 
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
-                                        <span className="text-[#4788ff] text-[13px] font-medium">TP (Profit)</span>
+                                        <span className="text-[#4788ff] text-[13px] font-medium">TP</span>
                                         <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
                                             <input
                                                 type="number"
@@ -423,7 +524,7 @@ export const PairAccountsModal = ({
                                     </div>
 
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
-                                        <span className="text-[#4788ff] text-[13px] font-medium">SL (Loss)</span>
+                                        <span className="text-[#4788ff] text-[13px] font-medium">SL</span>
                                         <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
                                             <input
                                                 type="number"

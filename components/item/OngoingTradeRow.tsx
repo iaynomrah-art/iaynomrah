@@ -88,7 +88,7 @@ const AccountColumn = ({
                 </div>
 
                 <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
-                    <span className="text-[#4788ff] text-[13px] font-medium">TP (Ticks)</span>
+                    <span className="text-[#4788ff] text-[13px] font-medium">TP</span>
                     <Input
                         type="number"
                         value={isPrimary ? params.primary_take_profit : params.secondary_take_profit}
@@ -102,7 +102,7 @@ const AccountColumn = ({
                 </div>
 
                 <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
-                    <span className="text-[#4788ff] text-[13px] font-medium">SL (Ticks)</span>
+                    <span className="text-[#4788ff] text-[13px] font-medium">SL</span>
                     <Input
                         type="number"
                         value={isPrimary ? params.primary_stop_loss : params.secondary_stop_loss}
