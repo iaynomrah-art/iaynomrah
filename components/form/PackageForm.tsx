@@ -23,6 +23,7 @@ const packageSchema = z.object({
     max_daily_loss_percent: z.string().optional(),
     max_total_loss_percent: z.string().optional(),
     profit_target_percent: z.string().optional(),
+    daily_profit_target_percent: z.string().optional(),
 })
 
 type PackageFormValues = z.infer<typeof packageSchema>
@@ -42,6 +43,7 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
         max_daily_loss: 0,
         max_total_loss: 0,
         profit_target: 0,
+        daily_profit_target: 0,
     })
 
     const isUpdate = !!initialData
@@ -76,13 +78,17 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
             profit_target_percent:
                 initialData?.profit_target_percent?.toString() ||
                 getDefaultPercentageValue(initialData?.profit_target, initialBalance),
+            daily_profit_target_percent:
+                initialData?.daily_profit_target_percent?.toString() ||
+                getDefaultPercentageValue(initialData?.daily_profit_target, initialBalance),
         },
     })
 
     const balance = watch("balance")
-    const dailyLossPercent = watch("max_daily_loss_percent")
-    const totalLossPercent = watch("max_total_loss_percent")
-    const profitTargetPercent = watch("profit_target_percent")
+    const dailyLossPercent = watch("max_daily_loss_percent") || "0"
+    const totalLossPercent = watch("max_total_loss_percent") || "0"
+    const profitTargetPercent = watch("profit_target_percent") || "0"
+    const dailyProfitTargetPercent = watch("daily_profit_target_percent") || "0"
 
     // Live preview: convert percentages to dollar values based on current balance.
     React.useEffect(() => {
@@ -92,8 +98,9 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
             max_daily_loss: (balanceValue * (parseFloat(dailyLossPercent) || 0)) / 100,
             max_total_loss: (balanceValue * (parseFloat(totalLossPercent) || 0)) / 100,
             profit_target: (balanceValue * (parseFloat(profitTargetPercent) || 0)) / 100,
+            daily_profit_target: (balanceValue * (parseFloat(dailyProfitTargetPercent) || 0)) / 100,
         })
-    }, [balance, dailyLossPercent, totalLossPercent, profitTargetPercent])
+    }, [balance, dailyLossPercent, totalLossPercent, profitTargetPercent, dailyProfitTargetPercent])
 
     const onSubmit = async (data: PackageFormValues) => {
         setIsPending(true)
@@ -102,6 +109,7 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
             const submitDailyLossPercent = data.max_daily_loss_percent ? parseFloat(data.max_daily_loss_percent) : 0
             const submitTotalLossPercent = data.max_total_loss_percent ? parseFloat(data.max_total_loss_percent) : 0
             const submitProfitTargetPercent = data.profit_target_percent ? parseFloat(data.profit_target_percent) : 0
+            const submitDailyProfitTargetPercent = data.daily_profit_target_percent ? parseFloat(data.daily_profit_target_percent) : 0
 
             const payload = {
                 name: data.name,
@@ -112,6 +120,7 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
                 max_daily_loss: submitDailyLossPercent > 0 ? (balanceValue * submitDailyLossPercent) / 100 : null,
                 max_total_loss: submitTotalLossPercent > 0 ? (balanceValue * submitTotalLossPercent) / 100 : null,
                 profit_target: submitProfitTargetPercent > 0 ? (balanceValue * submitProfitTargetPercent) / 100 : null,
+                daily_profit_target: submitDailyProfitTargetPercent > 0 ? (balanceValue * submitDailyProfitTargetPercent) / 100 : null,
             }
 
             if (isUpdate) {
@@ -238,7 +247,7 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
             {/* Risk metrics are entered as percentages and previewed in dollars. */}
             <div className="space-y-4 pt-4 border-t border-gray-800">
                 <h3 className="text-sm font-medium text-gray-400">Risk & Profit Metrics</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 md:gap-x-6 gap-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="max_daily_loss_percent" className="text-white text-xs">
                             Max Daily Loss (%)
@@ -278,8 +287,27 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
                     </div>
 
                     <div className="space-y-2">
+                        <Label htmlFor="daily_profit_target_percent" className="text-white text-xs">
+                            Daily Profit TGT (%)
+                        </Label>
+                        <Input
+                            id="daily_profit_target_percent"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            {...register("daily_profit_target_percent")}
+                            className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
+                            placeholder="e.g. 5"
+                        />
+                        <p className="text-xs text-gray-400">
+                            = ${calculatedValues.daily_profit_target.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
                         <Label htmlFor="profit_target_percent" className="text-white text-xs">
-                            Profit Target (%)
+                            Max Profit TGT (%)
                         </Label>
                         <Input
                             id="profit_target_percent"

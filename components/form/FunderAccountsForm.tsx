@@ -19,7 +19,7 @@ import { Funder } from "@/types/funder"
 const funderAccountSchema = z.object({
     funder_id: z.string().min(1, "Funder is required"),
     package_id: z.string().min(1, "Package is required"),
-    acount_id: z.string().min(1, "User is required"),
+    user: z.string().min(1, "User is required"),
 })
 
 type FunderAccountFormValues = z.infer<typeof funderAccountSchema>
@@ -59,7 +59,7 @@ export const FunderAccountsForm = ({
         defaultValues: {
             funder_id: initialData?.package?.funder_id || "",
             package_id: initialData?.package_id || "",
-            acount_id: initialData?.package?.account_id || initialData?.accounts?.id || "",
+            user: initialData?.user || initialData?.package?.account_id || initialData?.accounts?.id || "",
         },
     })
 
@@ -77,7 +77,7 @@ export const FunderAccountsForm = ({
                 setValue("funder_id", pkg.funder_id?.toString() || "");
                 // Auto-sync User when Package changes
                 if (pkg.account_id) {
-                    setValue("acount_id", pkg.account_id.toString());
+                    setValue("user", pkg.account_id.toString());
                 }
             }
         }
@@ -86,10 +86,9 @@ export const FunderAccountsForm = ({
     const onSubmit = async (data: FunderAccountFormValues) => {
         setIsPending(true)
         try {
-            // Prepare payload with correct types and keys
             const payload = {
                 package_id: data.package_id,
-                acount_id: data.acount_id,
+                user: data.user,
                 status: initialData?.status ?? "idle",
             }
 
@@ -144,11 +143,11 @@ export const FunderAccountsForm = ({
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 {/* USER */}
                 <div className="space-y-2">
-                    <Label htmlFor="acount_id" className="text-white text-sm font-medium">USER</Label>
+                    <Label htmlFor="user" className="text-white text-sm font-medium">USER</Label>
                     <div className="relative">
                         <select
-                            id="acount_id"
-                            {...register("acount_id")}
+                            id="user"
+                            {...register("user")}
                             className="flex h-11 w-full rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] text-white px-4 py-2 text-sm appearance-none focus:border-blue-500 transition-all outline-none ring-0 shadow-inner"
                         >
                             <option value="">-- Select User --</option>
@@ -160,7 +159,7 @@ export const FunderAccountsForm = ({
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                     </div>
-                    {errors.acount_id && <p className="text-xs text-red-500 mt-1">{errors.acount_id.message}</p>}
+                    {errors.user && <p className="text-xs text-red-500 mt-1">{errors.user.message}</p>}
                 </div>
 
                 {/* PACKAGE - MOVED UP and Logic Changed */}
