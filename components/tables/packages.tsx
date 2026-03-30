@@ -167,7 +167,7 @@ export const PackagesTableSkeleton = () => {
                             <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
                             </TableCell>
-                            <TableCell className="py-4">
+                             <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
