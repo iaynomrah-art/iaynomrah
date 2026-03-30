@@ -7,6 +7,7 @@ import { PackagesTable, PackagesTableSkeleton } from '@/components/tables/packag
 import { PackageModal } from '@/components/modal/PackageModal'
 import { getFunders } from '@/helper/funders'
 
+// Packages management page: lists packages and opens add/update modal.
 const PackagesPage = () => {
     const [packages, setPackages] = useState<any[]>([])
     const [funders, setFunders] = useState<any[]>([])
@@ -53,6 +54,7 @@ const PackagesPage = () => {
     const handleModalSuccess = () => {
         setIsModalOpen(false)
         setSelectedPackage(null)
+        // Re-fetch silently so table updates after create/update without showing skeleton.
         fetchData(true) // Refresh silently
     }
 

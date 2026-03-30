@@ -10,7 +10,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { TradingAccount } from "@/types/trading_accounts"
-import { ArrowUp, ArrowDown, ArrowUpDown, CheckSquare, Square } from "lucide-react"
+import { ArrowUp, ArrowDown, ArrowUpDown, CheckSquare, Square, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -144,6 +144,7 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                         <SortableHeader label="STATUS" sortKey="status" />
                         <SortableHeader label="L-EQUITY" sortKey="live_equity" className="text-right" />
                         <SortableHeader label="DAILY P&L" sortKey="daily_pnl" className="text-right" />
+                        <SortableHeader label="TOTAL P&L" sortKey="total_pnl" className="text-right" />
                         <SortableHeader label="RDD" sortKey="rdd" className="text-right" />
                         <SortableHeader label="HIGHEST PROFIT" sortKey="highest_profit" className="text-right" />
                         <SortableHeader label="CONSIS" sortKey="consistency" className="text-right" />
@@ -154,7 +155,7 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                 <TableBody>
                     {sortedData.length === 0 ? (
                         <TableRow className="border-[#1a1a1a]">
-                            <TableCell colSpan={10} className="h-32 text-center text-muted-foreground py-10">
+                            <TableCell colSpan={11} className="h-32 text-center text-muted-foreground py-10">
                                 <div className="flex flex-col items-center justify-center gap-2">
                                     <p className="text-sm font-medium">No trading accounts found</p>
                                     <p className="text-xs opacity-50">Check back later or adjust your filters</p>
@@ -174,7 +175,11 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                                 <TableCell className="py-6 px-6">
                                     <div className="flex items-center justify-center">
                                         {selectedIds.includes(account.id) ? (
-                                            <CheckSquare className="h-4 w-4 text-blue-500 animate-in zoom-in-75 duration-200" />
+                                            selectedIds[0] === account.id ? (
+                                                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 animate-in zoom-in-75 duration-200" />
+                                            ) : (
+                                                <CheckSquare className="h-4 w-4 text-blue-500 animate-in zoom-in-75 duration-200" />
+                                            )
                                         ) : (
                                             <Square className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
                                         )}
@@ -243,6 +248,12 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                                     (account.daily_pnl ?? 0) > 0 ? 'text-green-500' : (account.daily_pnl ?? 0) < 0 ? 'text-red-500' : 'text-white'
                                 )} suppressHydrationWarning>
                                     {(account.daily_pnl ?? 0) !== 0 ? ((account.daily_pnl ?? 0) > 0 ? "+" : "") + formatCurrency(account.daily_pnl ?? null) : "$0.00"}
+                                </TableCell>
+                                <TableCell className={cn(
+                                    "py-6 text-right text-xs font-bold",
+                                    (account.total_pnl ?? 0) > 0 ? 'text-green-500' : (account.total_pnl ?? 0) < 0 ? 'text-red-500' : 'text-white'
+                                )} suppressHydrationWarning>
+                                    {(account.total_pnl ?? 0) !== 0 ? ((account.total_pnl ?? 0) > 0 ? "+" : "") + formatCurrency(account.total_pnl ?? null) : "$0.00"}
                                 </TableCell>
                                 <TableCell className="text-white py-6 text-right text-xs" suppressHydrationWarning>
                                     {formatCurrency(account.rdd ?? null)}

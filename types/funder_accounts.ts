@@ -20,6 +20,7 @@ export interface FunderAccount {
   created_at: string;
   package_id: string | null;
   status: AccountStatus;
+  user: string | null;
 
   // Joined fields
   // The Package is now the primary data carrier for a FunderAccount connection

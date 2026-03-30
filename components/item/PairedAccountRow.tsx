@@ -59,12 +59,12 @@ const AccountColumn = ({
                     color="text-[#4788ff] font-bold"
                 />
                 <Row
-                    label="TP (Ticks)"
+                    label="TP"
                     value={isPrimary ? pair.primary_take_profit : pair.secondary_take_profit}
                     color="text-[#4788ff] font-bold"
                 />
                 <Row
-                    label="SL (Ticks)"
+                    label="SL"
                     value={isPrimary ? pair.primary_stop_loss : pair.secondary_stop_loss}
                     color="text-[#4788ff] font-bold"
                 />

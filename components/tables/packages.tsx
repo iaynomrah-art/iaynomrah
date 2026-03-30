@@ -15,7 +15,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DeletePackageModal } from "@/components/modal/Delete/DeletePackage"
 import { deletePackage } from "@/helper/package"
 import { toast } from "sonner"
-import Link from "next/link"
 
 interface Package {
     id: string
@@ -72,7 +71,8 @@ export const PackagesTable = ({ data, onEdit }: PackagesTableProps) => {
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">INSTRUMENT</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">DAILY LOSS</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">TOTAL LOSS</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">PROFIT TGT</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">DAILY PROFIT TGT</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">MAX PROFIT TARGET</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -95,6 +95,7 @@ export const PackagesTable = ({ data, onEdit }: PackagesTableProps) => {
                                 <TableCell className="text-white py-4 text-sm">{item.symbol || "-"}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">${item.max_daily_loss || "0"}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">${item.max_total_loss || "0"}</TableCell>
+                                <TableCell className="text-white py-4 text-sm">${item.daily_profit_target || "0"}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">${item.profit_target || "0"}</TableCell>
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
@@ -146,7 +147,8 @@ export const PackagesTableSkeleton = () => {
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">INSTRUMENT</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">DAILY LOSS</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">TOTAL LOSS</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PROFIT TGT</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">DAILY PROFIT TGT</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">MAX PROFIT TARGET</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>

@@ -20,9 +20,10 @@ const packageSchema = z.object({
     phase: z.string().min(1, "Phase is required"),
     symbol: z.string().min(1, "symbol is required"),
     funder_id: z.string().min(1, "Funder is required"),
-    max_daily_loss: z.string().optional(),
-    max_total_loss: z.string().optional(),
-    profit_target: z.string().optional(),
+    max_daily_loss_percent: z.string().optional(),
+    max_total_loss_percent: z.string().optional(),
+    profit_target_percent: z.string().optional(),
+    daily_profit_target_percent: z.string().optional(),
 })
 
 type PackageFormValues = z.infer<typeof packageSchema>
@@ -34,16 +35,32 @@ interface PackageFormProps {
     onCancel?: () => void
 }
 
+// Package form accepts metric percentages and stores computed dollar values.
 export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: PackageFormProps) => {
     const router = useRouter()
     const [isPending, setIsPending] = React.useState(false)
+    const [calculatedValues, setCalculatedValues] = React.useState({
+        max_daily_loss: 0,
+        max_total_loss: 0,
+        profit_target: 0,
+        daily_profit_target: 0,
+    })
 
     const isUpdate = !!initialData
+
+    // Calculate percentages from existing dollar amounts when editing old records.
+    const getDefaultPercentageValue = (dollarAmount: number, balance: number) => {
+        if (!dollarAmount || !balance || balance === 0) return ""
+        return ((dollarAmount / balance) * 100).toFixed(2)
+    }
+
+    const initialBalance = initialData?.balance || 0
 
     const {
         register,
         handleSubmit,
         formState: { errors },
+        watch,
     } = useForm<PackageFormValues>({
         resolver: zodResolver(packageSchema),
         defaultValues: {
@@ -52,24 +69,58 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
             phase: initialData?.phase?.toLowerCase() || "",
             symbol: initialData?.symbol || "",
             funder_id: initialData?.funder_id?.toString() || "",
-            max_daily_loss: initialData?.max_daily_loss?.toString() || "",
-            max_total_loss: initialData?.max_total_loss?.toString() || "",
-            profit_target: initialData?.profit_target?.toString() || "",
+            max_daily_loss_percent:
+                initialData?.max_daily_loss_percent?.toString() ||
+                getDefaultPercentageValue(initialData?.max_daily_loss, initialBalance),
+            max_total_loss_percent:
+                initialData?.max_total_loss_percent?.toString() ||
+                getDefaultPercentageValue(initialData?.max_total_loss, initialBalance),
+            profit_target_percent:
+                initialData?.profit_target_percent?.toString() ||
+                getDefaultPercentageValue(initialData?.profit_target, initialBalance),
+            daily_profit_target_percent:
+                initialData?.daily_profit_target_percent?.toString() ||
+                getDefaultPercentageValue(initialData?.daily_profit_target, initialBalance),
         },
     })
+
+    const balance = watch("balance")
+    const dailyLossPercent = watch("max_daily_loss_percent") || "0"
+    const totalLossPercent = watch("max_total_loss_percent") || "0"
+    const profitTargetPercent = watch("profit_target_percent") || "0"
+    const dailyProfitTargetPercent = watch("daily_profit_target_percent") || "0"
+
+    // Live preview: convert percentages to dollar values based on current balance.
+    React.useEffect(() => {
+        const balanceValue = parseFloat(balance) || 0
+
+        setCalculatedValues({
+            max_daily_loss: (balanceValue * (parseFloat(dailyLossPercent) || 0)) / 100,
+            max_total_loss: (balanceValue * (parseFloat(totalLossPercent) || 0)) / 100,
+            profit_target: (balanceValue * (parseFloat(profitTargetPercent) || 0)) / 100,
+            daily_profit_target: (balanceValue * (parseFloat(dailyProfitTargetPercent) || 0)) / 100,
+        })
+    }, [balance, dailyLossPercent, totalLossPercent, profitTargetPercent, dailyProfitTargetPercent])
 
     const onSubmit = async (data: PackageFormValues) => {
         setIsPending(true)
         try {
+            const balanceValue = parseFloat(data.balance)
+            const submitDailyLossPercent = data.max_daily_loss_percent ? parseFloat(data.max_daily_loss_percent) : 0
+            const submitTotalLossPercent = data.max_total_loss_percent ? parseFloat(data.max_total_loss_percent) : 0
+            const submitProfitTargetPercent = data.profit_target_percent ? parseFloat(data.profit_target_percent) : 0
+            const submitDailyProfitTargetPercent = data.daily_profit_target_percent ? parseFloat(data.daily_profit_target_percent) : 0
+
             const payload = {
                 name: data.name,
-                balance: parseFloat(data.balance),
+                balance: balanceValue,
                 phase: data.phase,
                 symbol: data.symbol,
                 funder_id: data.funder_id,
-                max_daily_loss: data.max_daily_loss ? parseFloat(data.max_daily_loss) : null,
-                max_total_loss: data.max_total_loss ? parseFloat(data.max_total_loss) : null,
-                profit_target: data.profit_target ? parseFloat(data.profit_target) : null,
+                max_daily_loss: submitDailyLossPercent > 0 ? (balanceValue * submitDailyLossPercent) / 100 : null,
+                max_total_loss: submitTotalLossPercent > 0 ? (balanceValue * submitTotalLossPercent) / 100 : null,
+                profit_target: submitProfitTargetPercent > 0 ? (balanceValue * submitProfitTargetPercent) / 100 : null,
+                daily_profit_target: submitDailyProfitTargetPercent > 0 ? (balanceValue * submitDailyProfitTargetPercent) / 100 : null,
             }
 
             if (isUpdate) {
@@ -194,53 +245,84 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
                 </div>
             </div>
 
-            {/* Metrics Section */}
+            {/* Risk metrics are entered as percentages and previewed in dollars. */}
             <div className="space-y-4 pt-4 border-t border-gray-800">
                 <h3 className="text-sm font-medium text-gray-400">Risk & Profit Metrics</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Max Daily Loss */}
+                <div className="grid grid-cols-1 md:grid-cols-2 md:gap-x-6 gap-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="max_daily_loss" className="text-white text-xs">
-                            Max Daily Loss ($)
+                        <Label htmlFor="max_daily_loss_percent" className="text-white text-xs">
+                            Max Daily Loss (%)
                         </Label>
                         <Input
-                            id="max_daily_loss"
+                            id="max_daily_loss_percent"
                             type="number"
                             step="0.01"
-                            {...register("max_daily_loss")}
+                            min="0"
+                            max="100"
+                            {...register("max_daily_loss_percent")}
                             className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
-                            placeholder="0.00"
+                            placeholder="e.g. 5"
                         />
+                        <p className="text-xs text-gray-400">
+                            = ${calculatedValues.max_daily_loss.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
                     </div>
 
-                    {/* Max Total Loss */}
                     <div className="space-y-2">
-                        <Label htmlFor="max_total_loss" className="text-white text-xs">
-                            Max Total Loss ($)
+                        <Label htmlFor="max_total_loss_percent" className="text-white text-xs">
+                            Max Total Loss (%)
                         </Label>
                         <Input
-                            id="max_total_loss"
+                            id="max_total_loss_percent"
                             type="number"
                             step="0.01"
-                            {...register("max_total_loss")}
+                            min="0"
+                            max="100"
+                            {...register("max_total_loss_percent")}
                             className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
-                            placeholder="0.00"
+                            placeholder="e.g. 10"
                         />
+                        <p className="text-xs text-gray-400">
+                            = ${calculatedValues.max_total_loss.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
                     </div>
 
-                    {/* Profit Target */}
                     <div className="space-y-2">
-                        <Label htmlFor="profit_target" className="text-white text-xs">
-                            Profit Target ($)
+                        <Label htmlFor="daily_profit_target_percent" className="text-white text-xs">
+                            Daily Profit TGT (%)
                         </Label>
                         <Input
-                            id="profit_target"
+                            id="daily_profit_target_percent"
                             type="number"
                             step="0.01"
-                            {...register("profit_target")}
+                            min="0"
+                            max="100"
+                            {...register("daily_profit_target_percent")}
                             className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
-                            placeholder="0.00"
+                            placeholder="e.g. 5"
                         />
+                        <p className="text-xs text-gray-400">
+                            = ${calculatedValues.daily_profit_target.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="profit_target_percent" className="text-white text-xs">
+                            Max Profit TGT (%)
+                        </Label>
+                        <Input
+                            id="profit_target_percent"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            {...register("profit_target_percent")}
+                            className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
+                            placeholder="e.g. 10"
+                        />
+                        <p className="text-xs text-gray-400">
+                            = ${calculatedValues.profit_target.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
                     </div>
                 </div>
             </div>
