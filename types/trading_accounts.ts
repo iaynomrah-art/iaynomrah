@@ -26,6 +26,7 @@ export interface TradingAccount {
   status: TradeStatus; // Matches trading_account_status
   live_equity?: number;
   daily_pnl?: number;
+  total_pnl?: number;
   daily_starting_equity?: number | null;
   rdd?: number;
   highest_profit?: number;

@@ -65,26 +65,39 @@ export const PairAccountsModal = ({
     const [basePrice, setBasePrice] = React.useState<number>(2000)
     const [pairs, setPairs] = React.useState<Pair[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
+    const [isSuggesting, setIsSuggesting] = React.useState(false)
     const multiplier = 0.01 // Default tick multiplier
 
-    // Helper to calculate the safe daily limit
+    // Helper to calculate the safe daily limit and total loss limit
     const getAccountSafeLimit = (acc: TradingAccount | Pair) => {
         const initialBalance = acc.package_ref?.balance || 1;
-        const ptDollar = acc.package_ref?.max_daily_loss || acc.package_ref?.profit_target || 0;
-        const ptPercent = ptDollar / initialBalance;
-        const dailyEq = acc.daily_starting_equity || acc.package_ref?.balance || 0;
-
-        // Dynamic remaining allowance based on live equity
-        const floor = dailyEq * (1 - ptPercent);
         const liveEquity = acc.live_equity || acc.package_ref?.balance || 0;
 
-        const allowance = Math.max(0, liveEquity - floor);
+        // --- Daily Loss Logic ---
+        const dailyLossDollar = acc.package_ref?.max_daily_loss || acc.package_ref?.profit_target || 0;
+        const dailyLossPercent = dailyLossDollar / initialBalance;
+        const dailyEq = acc.daily_starting_equity || acc.package_ref?.balance || 0;
+        const dailyFloor = dailyEq * (1 - dailyLossPercent);
+        const dailyAllowance = Math.max(0, liveEquity - dailyFloor);
+
+        // --- Total Loss Logic ---
+        const totalLossDollar = acc.package_ref?.max_total_loss || 0;
+        let totalAllowance = dailyAllowance; // fallback to daily if total not set
+        if (totalLossDollar > 0) {
+            const totalLossPercent = totalLossDollar / initialBalance;
+            const totalFloor = initialBalance * (1 - totalLossPercent);
+            totalAllowance = Math.max(0, liveEquity - totalFloor);
+        }
+
+        // --- Lowest left to lose ---
+        const allowance = Math.min(dailyAllowance, totalAllowance);
+
         return Number((allowance * 0.96).toFixed(2));
     };
 
     const recalculateMetrics = (pair: Pair): Pair => {
-        const lProfit = pair.starting_balance * 0.01;
-        const wProfit = pair.sl_ticks > 0 ? lProfit * (pair.tp_ticks / pair.sl_ticks) : 0;
+        const lProfit = pair.sl_ticks;
+        const wProfit = pair.tp_ticks;
         const isBuy = pair.trade_type === 'buy';
 
         return {
@@ -175,9 +188,9 @@ export const PairAccountsModal = ({
 
             const orderAmount = 0.1
 
-            // Default risk 1% based on starting equity snapshot
-            const lProfit = dailyStartingEquity * 0.01
-            const wProfit = lProfit * (tpTicks / slTicks)
+            // Risk is strictly defined by the dynamically allocated ticks (dollar amount)
+            const lProfit = slTicks
+            const wProfit = tpTicks
 
             return {
                 ...account,
@@ -308,6 +321,36 @@ export const PairAccountsModal = ({
 
             return updatedPairs
         })
+    }
+
+    const handleSuggestDirection = async () => {
+        if (pairs.length < 2) return
+        
+        try {
+            setIsSuggesting(true)
+            const symbol = pairs[0].symbol || 'XAUUSD'
+            
+            const res = await fetch(`/api/signal?symbol=${symbol}`)
+            const data = await res.json()
+            
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to fetch suggestion')
+            }
+            
+            if (data.suggestion === 'neutral') {
+                toast.info(`Market is neutral for ${symbol}. Trend: ${data.summary}`)
+                return
+            }
+            
+            toast.success(`AI Suggestion: ${data.summary}. Applying ${data.suggestion.toUpperCase()} to Primary.`)
+            updatePair(pairs[0].id, 'trade_type', data.suggestion)
+            
+        } catch (error: any) {
+            console.error(error)
+            toast.error(error.message || 'Error fetching market direction')
+        } finally {
+            setIsSuggesting(false)
+        }
     }
 
     const handleConfirm = async () => {
@@ -482,6 +525,8 @@ export const PairAccountsModal = ({
 
                                     <Row label="Latest Equity" value={`$${account.latest_equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
                                     <Row label="Daily P&L" value={`$${account.daily_pnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={account.daily_pnl >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
+                                    <Row label="Total Loss" value={`$${account.loss_profit.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color="text-[#f6465d]" />
+                                    <Row label="Total Profit" value={`$${account.win_profit.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color="text-[#2ebc66]" />
                                     <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
                                     <Row label="Unit" value={account.accounts?.units?.unit_name || "None"} color="text-blue-400 font-mono text-[11px]" />
 
@@ -559,17 +604,31 @@ export const PairAccountsModal = ({
 
                 {/* Footer */}
                 <DialogFooter className="px-5 py-4 bg-[#1e2329] border-t border-[#2b3139] flex items-center justify-between sm:justify-between w-full">
-                    <Button
-                        variant="ghost"
-                        onClick={onClose}
-                        className="bg-[#2a2e33] hover:bg-[#3a3e43] text-[#848e9c] h-[38px] px-8 rounded-[4px] font-bold text-[13px] border border-[#3a3e43]"
-                    >
-                        Cancel
-                    </Button>
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="ghost"
+                            onClick={onClose}
+                            className="bg-[#2a2e33] hover:bg-[#3a3e43] text-[#848e9c] h-[38px] px-8 rounded-[4px] font-bold text-[13px] border border-[#3a3e43]"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={handleSuggestDirection}
+                            disabled={isSuggesting || isLoading}
+                            className="bg-[#1e2329] hover:bg-[#2a2e33] text-[#f0b90b] border-[#f0b90b]/50 hover:border-[#f0b90b] h-[38px] px-5 rounded-[4px] font-bold text-[13px] flex items-center gap-2 transition-colors"
+                        >
+                            {isSuggesting ? (
+                                <div className="w-4 h-4 border-2 border-[#f0b90b]/20 border-t-[#f0b90b] rounded-full animate-spin" />
+                            ) : (
+                                <span>✨ Auto-Suggest Direction</span>
+                            )}
+                        </Button>
+                    </div>
 
                     <Button
                         onClick={handleConfirm}
-                        disabled={isLoading}
+                        disabled={isLoading || isSuggesting}
                         className="bg-[#2f66d4] hover:bg-[#3b7ef6] text-white h-[38px] px-5 rounded-[4px] font-bold text-[13px] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px]"
                     >
                         {isLoading ? (
