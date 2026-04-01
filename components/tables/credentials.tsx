@@ -17,28 +17,8 @@ import { DeleteCredentialModal } from "@/components/modal/Delete/DeleteCredentia
 import { deleteCredential } from "@/helper/credentials"
 import Link from "next/link"
 import { EditCredentialDialog } from "@/components/modal/Edit/EditCredentialDialog"
+import { Credential } from "@/types/credentials"
 
-interface Credential {
-    id: string
-    created_at: string
-    password?: string
-    username?: string
-    name?: string
-    package?: Array<{
-        id: string
-        account?: {
-            first_name: string
-            last_name: string
-        } | null
-        funders?: {
-            name: string
-            allias: string
-            allias_color: string
-            text_color: string
-        } | null
-    }> | null
-    [key: string]: any
-}
 
 interface CredentialsTableProps {
     data: Credential[]
@@ -88,16 +68,18 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">USER</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">USER</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PLATFORM</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PLATFORM ID</TableHead>
+                        <TableHead className="w-[20%] text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
+                        <TableHead className="w-[20%] text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {data.length === 0 ? (
                         <TableRow className="border-[#1a1a1a]">
-                            <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                            <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                                 No credentials found.
                             </TableCell>
                         </TableRow>
@@ -105,10 +87,23 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
                         data.map((credential) => (
                             <TableRow key={credential.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
                                 <TableCell className="text-white py-4 font-medium text-sm">
-                                    {credential.package?.[0]?.account ?
-                                        `${credential.package[0].account.first_name} ${credential.package[0].account.last_name}` :
-                                        "-"}
+                                    {((): string => {
+                                        const pkg = credential.package?.[0];
+                                        if (!pkg) return "-";
+                                        const accounts = pkg.accounts;
+                                        const acc = Array.isArray(accounts) ? accounts[0] : accounts;
+                                        if (!acc) return "-";
+                                        return `${acc.first_name || ""} ${acc.last_name || ""}`.trim() || "-";
+                                    })()}
                                 </TableCell>
+                                <TableCell className="text-white py-4 text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <span className="px-2 py-0.5 rounded bg-[#1a1a1a] text-xs font-medium text-blue-400 border border-blue-500/20">
+                                            {credential.platform || "N/A"}
+                                        </span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-white py-4 text-sm font-mono">{credential.platform_id || "-"}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">{credential.username || "-"}</TableCell>
                                 <TableCell className="text-white py-4 font-mono text-sm">
                                     <div className="flex items-center gap-2 group">
@@ -136,7 +131,7 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-red-500 transition-colors"
-                                            onClick={() => handleDeleteClick(credential.id, credential.name || "this credential")}
+                                            onClick={() => handleDeleteClick(credential.id, (credential as any).name || credential.username || "this credential")}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -165,23 +160,31 @@ export const CredentialsTableSkeleton = () => {
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">USER</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">USER</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PLATFORM</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PLATFORM ID</TableHead>
+                        <TableHead className="w-[20%] text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USERNAME</TableHead>
+                        <TableHead className="w-[20%] text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">PASSWORD</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {[1, 2, 3, 4, 5].map((i) => (
                         <TableRow key={i} className="border-[#1a1a1a] hover:bg-transparent">
                             <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[150px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[120px] bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
+                                <Skeleton className="h-5 w-[80px] rounded bg-[#1a1a1a]" />
+                            </TableCell>
+                            <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[100px] bg-[#1a1a1a]" />
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <Skeleton className="h-4 w-[100px] bg-[#1a1a1a]" />
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
                                 <div className="flex items-center gap-2">

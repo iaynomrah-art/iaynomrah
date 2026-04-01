@@ -61,7 +61,7 @@ export const PairAccountsModal = ({
     onClose,
     selectedAccounts,
     onConfirm
-}: PairAccountsModalProps) => {
+}: PairAccountsModalProps): React.JSX.Element | null => {
     const [basePrice, setBasePrice] = React.useState<number>(2000)
     const [pairs, setPairs] = React.useState<Pair[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
@@ -139,7 +139,20 @@ export const PairAccountsModal = ({
 
     // Initialize/Sync pairs when selectedAccounts changes
     React.useEffect(() => {
-        if (!isOpen) return
+        if (!isOpen || selectedAccounts.length < 2) return
+
+        // Shared calculation for the pair
+        const acc1 = selectedAccounts[0]
+        const acc2 = selectedAccounts[1]
+        
+        const getAccMetrics = (acc: TradingAccount) => {
+            const pkg = acc.package_ref
+            const target = acc.remaining_target_profit || pkg?.profit_target || 1000
+            const dailyLimit = pkg?.max_daily_loss || 5000
+            const incurredLoss = acc.daily_pnl || 0
+            const remainingDailyLoss = Math.max(0, dailyLimit + incurredLoss)
+            return { target, remainingDailyLoss }
+        }
 
         let primarySL = 0, primaryTP = 0, secondarySL = 0, secondaryTP = 0;
 
@@ -195,7 +208,7 @@ export const PairAccountsModal = ({
             return {
                 ...account,
                 trade_type: type,
-                order_amount: orderAmount,
+                order_amount: sharedOrderAmount,
                 sl_ticks: slTicks,
                 tp_ticks: tpTicks,
                 starting_balance: dailyStartingEquity,
@@ -203,7 +216,7 @@ export const PairAccountsModal = ({
                 latest_equity: currentEquity,
                 daily_pnl: account.daily_pnl || 0,
                 rdd: account.rdd || 0,
-                symbol: account.package_ref?.symbol || account.package || "XAUUSD",
+                symbol: pkg?.symbol || account.package || "XAUUSD",
 
                 loss_profit: lProfit,
                 win_profit: wProfit,
@@ -445,12 +458,10 @@ export const PairAccountsModal = ({
                 }
             }
 
-            // 4. Call Edge Function
-            // Note: Using NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY as shown in the curl command
-            // If NEXT_PRIVATE_SUPABASE_ANON_KEY is needed and exposed, it can be substituted here.
+            // 4. Call Edge Function (Fire and forget the long part)
             const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-            const response = await fetch('https://cisszbamrleoxcnyeoku.supabase.co/functions/v1/pairing-trading-accounts', {
+            fetch('https://cisszbamrleoxcnyeoku.supabase.co/functions/v1/pairing-trading-accounts', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${supabaseKey}`,
@@ -458,15 +469,20 @@ export const PairAccountsModal = ({
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload)
+            }).then(async (response) => {
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: "Request failed" }));
+                    toast.error(`Background Error: ${errorData.message || response.statusText}`);
+                }
+            }).catch(error => {
+                console.error("Background pairing fetch error:", error);
             });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
-                throw new Error(errorData.message || `Edge Function Error: ${response.statusText}`);
-            }
-
-            toast.success("Pairing initiated successfully")
+            // 5. Immediately give feedback and close
+            toast.success("Pairing request sent to unit")
             onConfirm(pairs)
+            onClose()
+
         } catch (error: any) {
             console.error("Pairing error:", error)
             toast.error(error.message || "Failed to initiate pairing")
@@ -529,6 +545,8 @@ export const PairAccountsModal = ({
                                     <Row label="Total Profit" value={`$${account.win_profit.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color="text-[#2ebc66]" />
                                     <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
                                     <Row label="Unit" value={account.accounts?.units?.unit_name || "None"} color="text-blue-400 font-mono text-[11px]" />
+                                    <Row label="Est. Loss" value={`-$${account.loss_profit.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color="text-[#f6465d]" />
+                                    <Row label="Est. Profit" value={`+$${account.win_profit.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color="text-[#2ebc66]" />
 
                                     {/* Actionable Fields */}
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">

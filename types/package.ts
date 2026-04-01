@@ -9,6 +9,9 @@ export interface Package {
   balance: number | null;
   phase: PackagePhase | null;
   symbol: string | null;
+  max_daily_loss: number | null;
+  max_total_loss: number | null;
+  profit_target: number | null;
   funder_id: string | null;
   funder?: Funder;
   funders?: Funder;

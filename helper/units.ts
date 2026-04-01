@@ -34,14 +34,14 @@ export async function getUnitsWithCounts() {
     .select(
       `
             unit_id, 
-            funder_accounts:funder_account(
-                status,
-                package:package_id (
-                    funders:funder_id (
-                        allias,
-                        allias_color,
-                        text_color
-                    )
+            packages:package(
+                funder_accounts:funder_account(
+                    status
+                ),
+                funders:funder_id(
+                    allias,
+                    allias_color,
+                    text_color
                 )
             )
         `,
@@ -65,26 +65,28 @@ export async function getUnitsWithCounts() {
     > = {};
 
     relatedAccounts.forEach((acc) => {
-      (acc.funder_accounts || []).forEach((fa: any) => {
-        // Only count "active" status funder accounts if desired,
-        // but usually the count is for total accounts assigned to this unit
-        if (
-          fa.status === "idle" ||
-          fa.status === "trading" ||
-          fa.status === "paired"
-        ) {
-          const funder = fa.package?.funders;
-          if (funder && funder.allias) {
-            if (!funderMap[funder.allias]) {
-              funderMap[funder.allias] = {
-                count: 0,
-                allias_color: funder.allias_color || "#1c64f2",
-                text_color: funder.text_color || "white",
-              };
+      (acc.packages || []).forEach((pkg: any) => {
+        (pkg.funder_accounts || []).forEach((fa: any) => {
+          // Only count "active" status funder accounts if desired,
+          // but usually the count is for total accounts assigned to this unit
+          if (
+            fa.status === "idle" ||
+            fa.status === "trading" ||
+            fa.status === "paired"
+          ) {
+            const funder = pkg.funders;
+            if (funder && funder.allias) {
+              if (!funderMap[funder.allias]) {
+                funderMap[funder.allias] = {
+                  count: 0,
+                  allias_color: funder.allias_color || "#1c64f2",
+                  text_color: funder.text_color || "white",
+                };
+              }
+              funderMap[funder.allias].count++;
             }
-            funderMap[funder.allias].count++;
           }
-        }
+        });
       });
     });
 

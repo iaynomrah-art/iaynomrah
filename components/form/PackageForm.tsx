@@ -191,7 +191,8 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
                 {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
             </div>
 
-            <div className="space-y-6">
+            {/* Grid for Balance, Phase, Symbol */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Balance */}
                 <div className="space-y-2">
                     <Label htmlFor="balance" className="text-white">
