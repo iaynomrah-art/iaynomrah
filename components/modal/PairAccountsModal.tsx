@@ -208,7 +208,7 @@ export const PairAccountsModal = ({
             return {
                 ...account,
                 trade_type: type,
-                order_amount: sharedOrderAmount,
+                order_amount: orderAmount,
                 sl_ticks: slTicks,
                 tp_ticks: tpTicks,
                 starting_balance: dailyStartingEquity,
@@ -216,7 +216,7 @@ export const PairAccountsModal = ({
                 latest_equity: currentEquity,
                 daily_pnl: account.daily_pnl || 0,
                 rdd: account.rdd || 0,
-                symbol: pkg?.symbol || account.package || "XAUUSD",
+                symbol: account.package_ref?.symbol || account.package || "XAUUSD",
 
                 loss_profit: lProfit,
                 win_profit: wProfit,
