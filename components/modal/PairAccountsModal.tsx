@@ -24,6 +24,7 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Row from "@/components/ui/row"
+import { LoginConfirmationModal } from "@/components/modal/LoginConfirmationModal"
 import PlayIcon from "@/components/ui/playicon"
 
 import { TradeStatus } from "@/types/paired"
@@ -66,6 +67,8 @@ export const PairAccountsModal = ({
     const [pairs, setPairs] = React.useState<Pair[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
     const [isSuggesting, setIsSuggesting] = React.useState(false)
+    const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false)
+    const autoSuggestAttempted = React.useRef(false)
     const multiplier = 0.01 // Default tick multiplier
 
     const getAccountSafeLimit = (acc: TradingAccount | Pair) => {
@@ -345,10 +348,21 @@ export const PairAccountsModal = ({
         })
     }
 
-    const handleSuggestDirection = async () => {
+    const handleSuggestDirection = async (isAuto = false) => {
         if (pairs.length < 2) return
         
         try {
+            if (isAuto) {
+                const lastCalled = localStorage.getItem('ai_signal_last_called')
+                if (lastCalled) {
+                    const elapsed = Date.now() - parseInt(lastCalled)
+                    // 30 minutes in ms = 30 * 60 * 1000 = 1800000
+                    if (elapsed < 1800000) {
+                        return // Skip auto suggestion, cooldown active
+                    }
+                }
+            }
+
             setIsSuggesting(true)
             const symbol = pairs[0].symbol || 'XAUUSD'
             
@@ -360,78 +374,104 @@ export const PairAccountsModal = ({
             }
             
             if (data.suggestion === 'neutral') {
-                toast.info(`Market is neutral for ${symbol}. Trend: ${data.summary}`)
+                if (!isAuto) toast.info(`Market is neutral for ${symbol}. Trend: ${data.summary}`)
                 return
             }
             
             toast.success(`AI Suggestion: ${data.summary}. Applying ${data.suggestion.toUpperCase()} to Primary.`)
             updatePair(pairs[0].id, 'trade_type', data.suggestion)
+
+            // Apply direct target and stop values to position the device
+            if (data.target) {
+                setTimeout(() => {
+                    updatePair(pairs[0].id, 'win_price', Number(data.target))
+                }, 50)
+            }
+            if (data.stop) {
+                setTimeout(() => {
+                    updatePair(pairs[0].id, 'loss_price', Number(data.stop))
+                }, 100)
+            }
+
+            localStorage.setItem('ai_signal_last_called', Date.now().toString())
             
         } catch (error: any) {
             console.error(error)
-            toast.error(error.message || 'Error fetching market direction')
+            if (!isAuto) toast.error(error.message || 'Error fetching market direction')
         } finally {
             setIsSuggesting(false)
         }
     }
 
-    const handleConfirm = async () => {
+    React.useEffect(() => {
+        if (!isOpen) { 
+            autoSuggestAttempted.current = false 
+        } else if (isOpen && pairs.length === 2 && !autoSuggestAttempted.current) {
+            autoSuggestAttempted.current = true
+            handleSuggestDirection(true)
+        }
+    }, [isOpen, pairs.length])
+
+    const handleConfirmButton = () => {
+        if (pairs.length < 2) {
+            toast.error("At least two accounts are required for pairing")
+            return
+        }
+
+        const primary = pairs[0]
+        const secondary = pairs[1]
+
+        // 1. Validation: Same Funder Warning
+        const funderId1 = primary.package_ref?.funder_id
+        const funderId2 = secondary.package_ref?.funder_id
+
+        if (funderId1 && funderId2 && funderId1 === funderId2) {
+            const proceed = window.confirm(
+                `Warning: Both accounts belong to the same funder (${primary.package_ref?.funders?.name || 'Same Funder'}). \n\nMultiple accounts from the same funder might violate their rules. Do you want to proceed?`
+            )
+            if (!proceed) return
+        }
+
+        // 2. Validation: Live paired with Not Live
+        const phase1 = primary.package_ref?.phase?.toLowerCase()
+        const phase2 = secondary.package_ref?.phase?.toLowerCase()
+        const isLive1 = phase1 === 'live'
+        const isLive2 = phase2 === 'live'
+
+        if (isLive1 !== isLive2) {
+            const proceed = window.confirm(
+                `Notice: You are pairing a ${isLive1 ? 'Live' : 'Phase'} account with a ${isLive2 ? 'Live' : 'Phase'} account. \n\nDo you want to proceed?`
+            )
+            if (!proceed) return
+        }
+
+        // 3. Validation: Unit Health
+        const unit1 = primary.accounts?.units
+        const unit2 = secondary.accounts?.units
+
+        if (!unit1?.api_base_url || unit1?.status !== 'enabled') {
+            toast.error(`Unit unavailable.`)
+            return
+        }
+
+        if (!unit2?.api_base_url || unit2?.status !== 'enabled') {
+            toast.error(`Unit unavailable.`)
+            return
+        }
+
+        // ALL validations passed, pop up the Auth Modal
+        setIsAuthModalOpen(true)
+    }
+
+    const executePairing = async () => {
+        // Close auth modal
+        setIsAuthModalOpen(false)
+        
         try {
             setIsLoading(true)
 
-            if (pairs.length < 2) {
-                toast.error("At least two accounts are required for pairing")
-                return
-            }
-
             const primary = pairs[0]
             const secondary = pairs[1]
-
-            // 1. Validation: Same Funder Warning
-            const funderId1 = primary.package_ref?.funder_id
-            const funderId2 = secondary.package_ref?.funder_id
-
-            if (funderId1 && funderId2 && funderId1 === funderId2) {
-                const proceed = window.confirm(
-                    `Warning: Both accounts belong to the same funder (${primary.package_ref?.funders?.name || 'Same Funder'}). \n\nMultiple accounts from the same funder might violate their rules. Do you want to proceed?`
-                )
-                if (!proceed) {
-                    setIsLoading(false)
-                    return
-                }
-            }
-
-            // 2. Validation: Live paired with Not Live
-            const phase1 = primary.package_ref?.phase?.toLowerCase()
-            const phase2 = secondary.package_ref?.phase?.toLowerCase()
-            const isLive1 = phase1 === 'live'
-            const isLive2 = phase2 === 'live'
-
-            if (isLive1 !== isLive2) {
-                const proceed = window.confirm(
-                    `Notice: You are pairing a ${isLive1 ? 'Live' : 'Phase'} account with a ${isLive2 ? 'Live' : 'Phase'} account. \n\nDo you want to proceed?`
-                )
-                if (!proceed) {
-                    setIsLoading(false)
-                    return
-                }
-            }
-
-            // 3. Validation: Unit Health
-            const unit1 = primary.accounts?.units
-            const unit2 = secondary.accounts?.units
-
-            if (!unit1?.api_base_url || unit1?.status !== 'enabled') {
-                toast.error(`Unit unavailable.`)
-                setIsLoading(false)
-                return
-            }
-
-            if (!unit2?.api_base_url || unit2?.status !== 'enabled') {
-                toast.error(`Unit unavailable.`)
-                setIsLoading(false)
-                return
-            }
 
             // 3. Prepare minimal data for Edge Function
             const formatStopLoss = (slTicks: number, platform?: string | null) => {
@@ -641,7 +681,7 @@ export const PairAccountsModal = ({
                         </Button>
                         <Button
                             variant="outline"
-                            onClick={handleSuggestDirection}
+                            onClick={() => handleSuggestDirection(false)}
                             disabled={isSuggesting || isLoading}
                             className="bg-[#1e2329] hover:bg-[#2a2e33] text-[#f0b90b] border-[#f0b90b]/50 hover:border-[#f0b90b] h-[38px] px-5 rounded-[4px] font-bold text-[13px] flex items-center gap-2 transition-colors"
                         >
@@ -654,7 +694,7 @@ export const PairAccountsModal = ({
                     </div>
 
                     <Button
-                        onClick={handleConfirm}
+                        onClick={handleConfirmButton}
                         disabled={isLoading || isSuggesting}
                         className="bg-[#2f66d4] hover:bg-[#3b7ef6] text-white h-[38px] px-5 rounded-[4px] font-bold text-[13px] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px]"
                     >
@@ -679,6 +719,13 @@ export const PairAccountsModal = ({
                     .custom-scrollbar::-webkit-scrollbar-thumb { background: #3a3e43; border-radius: 10px; }
                 `}</style>
             </DialogContent>
+
+            {/* Login / Auth Confirmation Modal */}
+            <LoginConfirmationModal 
+                isOpen={isAuthModalOpen}
+                onClose={() => setIsAuthModalOpen(false)}
+                onConfirm={executePairing}
+            />
         </Dialog>
     )
 }

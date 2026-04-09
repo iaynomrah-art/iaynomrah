@@ -1,5 +1,6 @@
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { DashboardSidebar } from '@/components/layout/DashboardSidebar'
+import { TradeNotificationListener } from '@/components/ui/TradeNotificationListener'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 
 const layout = ({ children }: { children: React.ReactNode }) => {
@@ -9,6 +10,7 @@ const layout = ({ children }: { children: React.ReactNode }) => {
         <DashboardSidebar />
         <SidebarInset className="bg-[#050505] flex flex-col min-h-screen">
           <DashboardHeader />
+          <TradeNotificationListener />
           <main className="flex-1 overflow-y-auto overflow-x-hidden">
             {children}
           </main>

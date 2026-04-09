@@ -9,15 +9,15 @@ export async function GET(request: Request) {
     }
 
     try {
-        // Call the local Python API
-        // If symbol is passed, we append it, though the local python app might handle it internally
-        const url = `http://localhost:8000/api/signal?symbol=${symbol}`;
+        // Call the external Python API
+        // We append the symbol and specific timeframe
+        const url = `http://187.77.153.2/api/signal?symbol=${symbol}&timeframe=1h`;
         const res = await fetch(url);
         
         if (!res.ok) {
-            // Wait, if it failed with the symbol, let's try calling it without the symbol as fallback
+            // Wait, if it failed with the symbol, let's try calling it with just GOLD fallback
             if (res.status === 404 || res.status === 400 || res.status === 422) {
-                const fallbackUrl = `http://localhost:8000/api/signal`;
+                const fallbackUrl = `http://187.77.153.2/api/signal?symbol=GOLD&timeframe=1h`;
                 const fallbackRes = await fetch(fallbackUrl);
                 if (!fallbackRes.ok) {
                     const errorText = await fallbackRes.text();
@@ -38,20 +38,22 @@ export async function GET(request: Request) {
 }
 
 function transformResponse(data: any) {
-    const verdict = data.final_ai_verdict?.toUpperCase() || 'NEUTRAL';
+    const action = data.action?.toUpperCase() || data.final_ai_verdict?.toUpperCase() || 'NEUTRAL';
     let suggestion: 'buy' | 'sell' | 'neutral' = 'neutral';
 
-    if (verdict.includes('BUY')) {
+    if (action.includes('BUY')) {
         suggestion = 'buy';
-    } else if (verdict.includes('SELL')) {
+    } else if (action.includes('SELL')) {
         suggestion = 'sell';
     }
 
-    const summary = data.ai_reasoning || data.technical_basis || verdict;
+    const summary = data.action || data.ai_reasoning || data.technical_basis || action;
 
     return NextResponse.json({ 
         suggestion, 
-        summary, 
+        summary,
+        target: data.target,
+        stop: data.stop,
         data 
     });
 }
