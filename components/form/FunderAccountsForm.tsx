@@ -130,7 +130,13 @@ export const FunderAccountsForm = ({
     const getPackageDisplayName = (pkg: Package) => {
         const funder = funders.find(f => f.id === pkg.funder_id);
         const funderName = funder ? funder.name : "Unknown Funder";
-        return `${funderName} - ${pkg.name}`;
+        const account = (pkg as any).account;
+        const userName = account
+            ? `${account.first_name || ""} ${account.last_name || ""}`.trim() || account.email
+            : null;
+        return userName
+            ? `${funderName} - ${pkg.name} (${userName})`
+            : `${funderName} - ${pkg.name}`;
     }
 
     return (

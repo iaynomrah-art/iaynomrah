@@ -6,11 +6,13 @@ import { SearchBarHeader } from '@/components/ui/search-bar-header'
 import { PackagesTable, PackagesTableSkeleton } from '@/components/tables/packages'
 import { PackageModal } from '@/components/modal/PackageModal'
 import { getFunders } from '@/helper/funders'
+import { getCredentials } from '@/helper/credentials'
 
 // Packages management page: lists packages and opens add/update modal.
 const PackagesPage = () => {
     const [packages, setPackages] = useState<any[]>([])
     const [funders, setFunders] = useState<any[]>([])
+    const [credentials, setCredentials] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -19,12 +21,14 @@ const PackagesPage = () => {
     const fetchData = async (silent = false) => {
         if (!silent) setIsLoading(true)
         try {
-            const [packagesData, fundersData] = await Promise.all([
+            const [packagesData, fundersData, credentialsData] = await Promise.all([
                 getPackages(),
-                getFunders()
+                getFunders(),
+                getCredentials()
             ])
             setPackages(packagesData)
             setFunders(fundersData)
+            setCredentials(credentialsData)
         } catch (error) {
             console.error("Failed to fetch data:", error)
         } finally {
@@ -106,6 +110,7 @@ const PackagesPage = () => {
                 onSuccess={handleModalSuccess}
                 initialData={selectedPackage}
                 funders={funders}
+                credentials={credentials}
             />
         </div>
     )

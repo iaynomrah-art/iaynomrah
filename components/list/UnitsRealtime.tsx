@@ -8,7 +8,7 @@ import { UnitStatus } from "@/types/units";
 import { ArchiveUnitModal } from "@/components/modal/ArchieveUniit";
 import { toast } from "sonner";
 
-import { getUnitsWithCounts, updateUnitStatus, archiveUnit, checkUnitHealth, getUnits } from "@/helper/units";
+import { getUnitsWithCounts, updateUnitStatus, archiveUnit, getUnits } from "@/helper/units";
 import { getFranchises } from "@/helper/franchise";
 import { Franchise } from "@/types/franchise";
 import { UnitModal } from "../modal/Update/UnitModal";

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { getUnitsWithCounts, updateUnitStatus, archiveUnit, checkUnitHealth } from '@/helper/units'
+import { getUnitsWithCounts, updateUnitStatus, archiveUnit } from '@/helper/units'
+import { broadcastToUnit } from '@/helper/realtime'
 import { UnitsSearch } from '@/components/search/UnitsSearch'
 import { Button } from '@/components/ui/button'
 import { Plus, RefreshCw } from 'lucide-react'
@@ -42,9 +43,22 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
             let failedCount = 0;
 
             const results = await Promise.all(unitsToCheck.map(async (unit) => {
-                if (!unit.api_base_url) return null;
+                let isHealthy = false;
+                if (unit.guid) {
+                    try {
+                        const response = await broadcastToUnit({
+                            unitId: unit.guid,
+                            event: 'ping',
+                            timeoutMs: 5000
+                        });
+                        if (response && response.status === 'online') {
+                            isHealthy = true;
+                        }
+                    } catch (e) {
+                        isHealthy = false;
+                    }
+                }
 
-                const isHealthy = await checkUnitHealth(unit.api_base_url);
                 const newStatus = isHealthy ? "enabled" : "not connected" as any;
 
                 // Only update if status changed
@@ -87,8 +101,8 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
             setUnits(data as any);
             toast.success("Units refreshed");
             // Run health check after refresh
-            const unitsWithApi = data.filter((u: any) => u.api_base_url && !u.archived);
-            handleHealthCheck(unitsWithApi);
+            const unitsForCheck = data.filter((u: any) => u.guid && !u.archived);
+            handleHealthCheck(unitsForCheck);
         } catch (error) {
             toast.error("Failed to refresh units");
         } finally {
@@ -98,9 +112,9 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
 
     // Run health check on mount (every visit)
     useEffect(() => {
-        const unitsWithApi = units.filter((u: any) => u.api_base_url && !u.archived);
-        if (unitsWithApi.length > 0) {
-            handleHealthCheck(unitsWithApi);
+        const unitsForCheck = units.filter((u: any) => u.guid && !u.archived);
+        if (unitsForCheck.length > 0) {
+            handleHealthCheck(unitsForCheck);
         }
     }, []); // Empty dependency array runs once on mount
 

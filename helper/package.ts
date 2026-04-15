@@ -7,7 +7,7 @@ export async function getPackages() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("package")
-    .select("*, funders(*)")
+    .select("*, funders(*), credential:credentials(id, platform, username, platform_id), account:accounts(id, first_name, last_name, email)")
     .order("created_at", { ascending: false });
 
   if (error) {

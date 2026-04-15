@@ -48,11 +48,11 @@ export async function createFunderAccount(formData: any) {
     throw new Error(funderAccountError.message);
   }
 
-  // Fetch package details to populate trading account
+  // Fetch package details to populate trading account and auto-link credential
   if (formData.package_id) {
     const { data: packageData, error: packageError } = await supabase
       .from("package")
-      .select("*, funders(*)")
+      .select("*, funders(*), credential:credentials(id, platform, username)")
       .eq("id", formData.package_id)
       .single();
 
@@ -63,12 +63,11 @@ export async function createFunderAccount(formData: any) {
         .insert([
           {
             funder_account_id: funderAccountData.id,
-            package: packageData.name, // Derived from package
-            funder: packageData.funders?.name || packageData.funders?.allias, // Derived from funder
+            package: packageData.name,
+            funder: packageData.funders?.name || packageData.funders?.allias,
             account_status: "idle",
             live_equity: packageData.balance || 0,
             challenge_type: packageData.phase,
-            // Add other default values as needed
           },
         ]);
 
@@ -77,7 +76,15 @@ export async function createFunderAccount(formData: any) {
           "Error creating associated trading account:",
           tradingAccountError,
         );
-        // Note: we might want to delete the funder account if this fails, or just log it
+      }
+
+      // Auto-link the credential from the package back to the funder_account record
+      // so trade automation always has a direct reference without extra joins
+      if (packageData.credential_id) {
+        await supabase
+          .from("funder_account")
+          .update({ credential_id: packageData.credential_id })
+          .eq("id", funderAccountData.id);
       }
     }
   }

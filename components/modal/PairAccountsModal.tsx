@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { TradingAccount } from "@/types/trading_accounts"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { broadcastToUnit } from "@/helper/realtime"
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -449,13 +450,13 @@ export const PairAccountsModal = ({
         const unit1 = primary.accounts?.units
         const unit2 = secondary.accounts?.units
 
-        if (!unit1?.api_base_url || unit1?.status !== 'enabled') {
-            toast.error(`Unit unavailable.`)
+        if (!unit1?.guid || unit1?.status !== 'enabled') {
+            toast.error(`Unit missing or offline.`)
             return
         }
 
-        if (!unit2?.api_base_url || unit2?.status !== 'enabled') {
-            toast.error(`Unit unavailable.`)
+        if (!unit2?.guid || unit2?.status !== 'enabled') {
+            toast.error(`Unit missing or offline.`)
             return
         }
 
@@ -473,7 +474,16 @@ export const PairAccountsModal = ({
             const primary = pairs[0]
             const secondary = pairs[1]
 
-            // 3. Prepare minimal data for Edge Function
+            const unit1 = primary.accounts?.units
+            const unit2 = secondary.accounts?.units
+
+            if (!unit1?.guid || !unit2?.guid) {
+                throw new Error("One or both units are missing a Unit GUID. Cannot connect to trading PCs.")
+            }
+
+            const unit1Id = unit1.guid
+            const unit2Id = unit2.guid
+
             const formatStopLoss = (slTicks: number, platform?: string | null) => {
                 // cTrader only accepts negative value in sl of target profit
                 return platform?.toLowerCase() === 'ctrader' ? -Math.abs(slTicks) : slTicks;
@@ -485,56 +495,144 @@ export const PairAccountsModal = ({
                 return creds?.platform || pkgCreds?.platform;
             }
 
-            const payload = {
-                primary_account_id: String(primary.id),
-                secondary_account_id: String(secondary.id),
+            const createRealtimePayload = (acc: Pair, operation: string) => {
+                const creds = acc.credentials as any;
+                const pkgCreds = (acc.package_ref as any)?.credential || (acc.package_ref as any)?.credentials;
+                const platform = getPlatform(acc);
 
-                primary: {
-                    symbol: String(primary.symbol || "XAUUSD"),
-                    order_amount: primary.order_amount,
-                    stop_loss: formatStopLoss(primary.sl_ticks, getPlatform(primary)),
-                    take_profit: primary.tp_ticks,
-                    order_type: primary.trade_type,
-                    accounts_id: primary.accounts_id
-                },
-                secondary: {
-                    symbol: String(secondary.symbol || "XAUUSD"),
-                    order_amount: secondary.order_amount,
-                    stop_loss: formatStopLoss(secondary.sl_ticks, getPlatform(secondary)),
-                    take_profit: secondary.tp_ticks,
-                    order_type: secondary.trade_type,
-                    accounts_id: secondary.accounts_id
+                return {
+                    event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : 'run_tradelocker',
+                    payload: {
+                        username: creds?.username || pkgCreds?.username || "",
+                        password: creds?.password || pkgCreds?.password || "",
+                        server: creds?.server || pkgCreds?.server || "",
+                        purchase_type: acc.trade_type,
+                        order_amount: acc.order_amount,
+                        take_profit: acc.tp_ticks,
+                        stop_loss: formatStopLoss(acc.sl_ticks, platform),
+                        account_id: creds?.account_id || acc.accounts_id,
+                        db_account_id: acc.accounts_id,
+                        symbol: String(acc.symbol || "XAUUSD"),
+                        operation: operation
+                    }
                 }
             }
 
-            // 4. Call Edge Function (Fire and forget the long part)
-            const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+            // --- PRE-FLIGHT CHECK ---
+            toast.loading("Pinging trading machines...", { id: 'pair-trade' })
+            try {
+                await Promise.all([
+                    broadcastToUnit({ unitId: unit1Id, event: 'ping', timeoutMs: 5000 }),
+                    broadcastToUnit({ unitId: unit2Id, event: 'ping', timeoutMs: 5000 })
+                ])
+            } catch (e: any) {
+                throw new Error(`Pre-flight connection failed: ${e.message}. Ensure local servers are running.`)
+            }
 
-            fetch('https://cisszbamrleoxcnyeoku.supabase.co/functions/v1/pairing-trading-accounts', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${supabaseKey}`,
-                    'apikey': `${supabaseKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            }).then(async (response) => {
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ message: "Request failed" }));
-                    toast.error(`Background Error: ${errorData.message || response.statusText}`);
+            // --- PHASE 1: STAGE (INPUT ONLY) ---
+            toast.loading("Phase 1: Preparing trades on both devices...", { id: 'pair-trade' })
+            let p1Res, p2Res;
+            try {
+                const p1Data = createRealtimePayload(primary, 'input-order');
+                const p2Data = createRealtimePayload(secondary, 'input-order');
+
+                [p1Res, p2Res] = await Promise.all([
+                    broadcastToUnit({ unitId: unit1Id, event: p1Data.event, payload: p1Data.payload, timeoutMs: 12000 }),
+                    broadcastToUnit({ unitId: unit2Id, event: p2Data.event, payload: p2Data.payload, timeoutMs: 12000 })
+                ])
+
+                const p1Result = p1Res?.result || {};
+                const p2Result = p2Res?.result || {};
+
+                if (p1Result?.success === false || p1Result?.status === 'failed' || p1Result?.status === 'error') {
+                    throw new Error(`Primary machine staging failed: ${p1Result?.reason || p1Result?.message || 'Likely failed TP/SL validation.'}`)
                 }
-            }).catch(error => {
-                console.error("Background pairing fetch error:", error);
-            });
+                if (p2Result?.success === false || p2Result?.status === 'failed' || p2Result?.status === 'error') {
+                    throw new Error(`Secondary machine staging failed: ${p2Result?.reason || p2Result?.message || 'Likely failed TP/SL validation.'}`)
+                }
+            } catch (e: any) {
+                toast.dismiss('pair-trade')
+                throw new Error(`Execution aborted during staging: ${e.message}. No money is at risk.`)
+            }
 
-            // 5. Immediately give feedback and close
-            toast.success("Pairing request sent to unit")
-            onConfirm(pairs)
+            // --- PHASE 2: EXECUTE ---
+            toast.loading("Phase 2: Executing staged trades concurrently...", { id: 'pair-trade' })
+            
+            const exec1Data = createRealtimePayload(primary, 'place-and-terminate');
+            const exec2Data = createRealtimePayload(secondary, 'place-and-terminate');
+
+            const results = await Promise.allSettled([
+                broadcastToUnit({ unitId: unit1Id, event: exec1Data.event, payload: exec1Data.payload, timeoutMs: 15000 }),
+                broadcastToUnit({ unitId: unit2Id, event: exec2Data.event, payload: exec2Data.payload, timeoutMs: 15000 })
+            ])
+
+            const primaryResData = results[0].status === 'fulfilled' ? results[0].value?.result : null;
+            const secondaryResData = results[1].status === 'fulfilled' ? results[1].value?.result : null;
+
+            const primarySuccess = primaryResData !== null && primaryResData?.success !== false && primaryResData?.status !== 'failed' && primaryResData?.status !== 'error';
+            const secondarySuccess = secondaryResData !== null && secondaryResData?.success !== false && secondaryResData?.status !== 'failed' && secondaryResData?.status !== 'error';
+
+            if (primarySuccess && secondarySuccess) {
+                toast.success("Hedge positions successfully opened on both accounts!", { id: 'pair-trade', duration: 5000 })
+                onConfirm(pairs)
+                onClose()
+                return;
+            }
+
+            // --- EMERGENCY KILL SWITCH ---
+            toast.error("Critical mismatch detected! One trade failed to execute. Initiating Kill-Switch...", { id: 'pair-trade', duration: 10000 })
+            
+            let survivingUnitId = null;
+            let survivingData = null;
+            let failedUnitName = '';
+            
+            if (primarySuccess && !secondarySuccess) {
+                survivingUnitId = unit1Id;
+                survivingData = createRealtimePayload(primary, 'close-position');
+                failedUnitName = unit2.unit_name || 'Secondary Unit';
+            } else if (secondarySuccess && !primarySuccess) {
+                survivingUnitId = unit2Id;
+                survivingData = createRealtimePayload(secondary, 'close-position');
+                failedUnitName = unit1.unit_name || 'Primary Unit';
+            }
+
+            if (survivingUnitId && survivingData) {
+                toast.loading(`Cancelling surviving trade... (${failedUnitName} failed to execute)`, { id: 'kill-switch' })
+                
+                let killSuccess = false;
+                // Kill-Switch Retry Loop (3 attempts) ensures we punch through browser boot-up lag
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        const killR = await broadcastToUnit({ unitId: survivingUnitId, event: survivingData.event, payload: survivingData.payload, timeoutMs: 10000 });
+                        const killRes = killR?.result;
+                        if (killRes?.success !== false && killRes?.status !== 'failed' && killRes?.status !== 'error') {
+                            killSuccess = true;
+                            break;
+                        }
+                    } catch (e) {
+                        console.error(`Kill switch attempt ${attempt} failed.`);
+                    }
+                    if (!killSuccess && attempt < 3) await new Promise(r => setTimeout(r, 1500)); // sleep before retry
+                }
+
+                if (killSuccess) {
+                    toast.success("Emergency Kill-Switch successful. Directional risk avoided.", { id: 'kill-switch', duration: 10000 })
+                } else {
+                    toast.dismiss('kill-switch')
+                    alert(`CRITICAL WARNING: The background kill-switch failed multiple times.\n\n${failedUnitName} failed to enter the trade, meaning you have ONE active directional trade open on the other account! \n\nYou MUST manually close it immediately to avoid market exposure.`);
+                }
+            } else {
+                toast.error("Both trades failed to execute. No positions were opened.", { duration: 6000 })
+            }
+
             onClose()
 
         } catch (error: any) {
             console.error("Pairing error:", error)
-            toast.error(error.message || "Failed to initiate pairing")
+            toast.error(error.message || "Failed to initiate pairing. Ensure local scripts are active.", { 
+                id: 'pair-trade', 
+                duration: 8000 
+            })
         } finally {
             setIsLoading(false)
         }

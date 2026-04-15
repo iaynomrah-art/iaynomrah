@@ -2,7 +2,7 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { PackageForm } from "@/components/form/PackageForm"
-import { Funder } from "@/types/funder" // Assuming Funder type is here
+import { Funder } from "@/types/funder"
 
 interface PackageModalProps {
     isOpen: boolean
@@ -10,9 +10,10 @@ interface PackageModalProps {
     onSuccess: () => void
     initialData?: any | null
     funders: Funder[]
+    credentials?: any[]
 }
 
-export function PackageModal({ isOpen, onClose, onSuccess, initialData, funders }: PackageModalProps) {
+export function PackageModal({ isOpen, onClose, onSuccess, initialData, funders, credentials = [] }: PackageModalProps) {
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="bg-[#0a0a0a] border-[#1a1a1a] text-white max-w-md max-h-[90vh] overflow-y-auto">
@@ -24,6 +25,7 @@ export function PackageModal({ isOpen, onClose, onSuccess, initialData, funders 
                         key={initialData?.id || 'new'}
                         initialData={initialData}
                         funders={funders}
+                        credentials={credentials}
                         onSuccess={onSuccess}
                         onCancel={onClose}
                     />

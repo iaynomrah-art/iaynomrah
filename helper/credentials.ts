@@ -65,26 +65,20 @@ export async function createCredential(formData: any) {
     throw new Error(credError.message);
   }
 
-  // Handle Package link – the package table is the bridge between credential, account, and funder
-  if (account_id || funder_id) {
-    const { error: pkgError } = await supabase
+  // Auto-link this credential to all packages that belong to the selected account
+  if (account_id) {
+    const { error: linkError } = await supabase
       .from("package")
-      .insert([
-        {
-          credential_id: credential.id,
-          account_id: account_id || null,
-          funder_id: funder_id || null,
-          name: credentialData.name || "Auto-linked Package",
-        },
-      ]);
+      .update({ credential_id: credential.id })
+      .eq("account_id", account_id);
 
-    if (pkgError) {
-      console.error("Error creating associated package:", pkgError);
-      // We don't throw here to avoid failing the whole process if package creation fails
+    if (linkError) {
+      console.error("Error auto-linking credential to packages:", linkError);
     }
   }
 
   revalidatePath("/dashboard/trading-accounts/credentials");
+  revalidatePath("/dashboard/funders/packages");
   return credential;
 }
 
@@ -104,33 +98,20 @@ export async function updateCredential(id: string, formData: any) {
     throw new Error(credError.message);
   }
 
-  // Handle Package link – the package table is the bridge between credential, account, and funder
-  if (account_id || funder_id) {
-    // Check if an existing package points to this credential
-    const { data: existingPkg } = await supabase
+  // Auto-link this credential to all packages that belong to the selected account
+  if (account_id) {
+    const { error: linkError } = await supabase
       .from("package")
-      .select("id")
-      .eq("credential_id", id)
-      .maybeSingle();
+      .update({ credential_id: id })
+      .eq("account_id", account_id);
 
-    if (existingPkg) {
-      await supabase
-        .from("package")
-        .update({ account_id, funder_id })
-        .eq("id", existingPkg.id);
-    } else {
-      await supabase.from("package").insert([
-        {
-          credential_id: id,
-          account_id,
-          funder_id,
-          name: credentialData.name || "Auto-linked Package",
-        },
-      ]);
+    if (linkError) {
+      console.error("Error auto-linking credential to packages on update:", linkError);
     }
   }
 
   revalidatePath("/dashboard/trading-accounts/credentials");
+  revalidatePath("/dashboard/funders/packages");
   return credential;
 }
 

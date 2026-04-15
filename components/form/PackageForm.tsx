@@ -12,6 +12,7 @@ import { createPackage, updatePackage } from "@/helper/package"
 import { useRouter } from "next/navigation"
 import { Funder } from "@/types/funder"
 import { toast } from "sonner"
+import { ChevronDown as ChDown } from "lucide-react"
 import Swal from "sweetalert2"
 
 const packageSchema = z.object({
@@ -20,6 +21,7 @@ const packageSchema = z.object({
     phase: z.string().min(1, "Phase is required"),
     symbol: z.string().min(1, "symbol is required"),
     funder_id: z.string().min(1, "Funder is required"),
+    credential_id: z.string().optional(),
     max_daily_loss_percent: z.string().optional(),
     max_total_loss_percent: z.string().optional(),
     profit_target_percent: z.string().optional(),
@@ -31,12 +33,13 @@ type PackageFormValues = z.infer<typeof packageSchema>
 interface PackageFormProps {
     initialData?: any | null
     funders: Funder[]
+    credentials?: any[]
     onSuccess?: () => void
     onCancel?: () => void
 }
 
 // Package form accepts metric percentages and stores computed dollar values.
-export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: PackageFormProps) => {
+export const PackageForm = ({ initialData, funders, credentials = [], onSuccess, onCancel }: PackageFormProps) => {
     const router = useRouter()
     const [isPending, setIsPending] = React.useState(false)
     const [calculatedValues, setCalculatedValues] = React.useState({
@@ -69,6 +72,7 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
             phase: initialData?.phase?.toLowerCase() || "",
             symbol: initialData?.symbol || "",
             funder_id: initialData?.funder_id?.toString() || "",
+            credential_id: initialData?.credential_id?.toString() || "",
             max_daily_loss_percent:
                 initialData?.max_daily_loss_percent?.toString() ||
                 getDefaultPercentageValue(initialData?.max_daily_loss, initialBalance),
@@ -117,6 +121,7 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
                 phase: data.phase,
                 symbol: data.symbol,
                 funder_id: data.funder_id,
+                credential_id: data.credential_id || null,
                 max_daily_loss: submitDailyLossPercent > 0 ? (balanceValue * submitDailyLossPercent) / 100 : null,
                 max_total_loss: submitTotalLossPercent > 0 ? (balanceValue * submitTotalLossPercent) / 100 : null,
                 profit_target: submitProfitTargetPercent > 0 ? (balanceValue * submitProfitTargetPercent) / 100 : null,
@@ -175,6 +180,29 @@ export const PackageForm = ({ initialData, funders, onSuccess, onCancel }: Packa
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
                 {errors.funder_id && <p className="text-xs text-red-500">{errors.funder_id.message}</p>}
+            </div>
+
+            {/* Credential Selection */}
+            <div className="space-y-2">
+                <Label htmlFor="credential_id" className="text-white">
+                    Account Credential <span className="text-gray-500 font-normal text-xs">(Platform + Login)</span>
+                </Label>
+                <div className="relative">
+                    <select
+                        id="credential_id"
+                        {...register("credential_id")}
+                        className="flex h-10 w-full rounded-md border border-gray-700 bg-gray-800 text-white px-3 py-1 text-sm appearance-none focus:border-blue-500 transition-colors"
+                    >
+                        <option value="">-- Select Credential --</option>
+                        {credentials.map((cred) => (
+                            <option key={cred.id} value={cred.id}>
+                                {cred.platform} — {cred.username} ({cred.platform_id})
+                            </option>
+                        ))}
+                    </select>
+                    <ChDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+                <p className="text-xs text-gray-500">Links the trading login used on this package. This determines which platform automation runs.</p>
             </div>
 
             {/* Package Name */}
