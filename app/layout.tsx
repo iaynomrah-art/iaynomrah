@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
   title: "Harmony",
   description: "AI driven trading",
+  
 };
 
 const geistSans = Geist({

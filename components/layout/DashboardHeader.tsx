@@ -38,7 +38,7 @@ export function DashboardHeader() {
       supabase.auth.signOut(),
       clearAdditionalAuthCookie(),
     ]);
-    router.push("/auth/login");
+    router.push("/");
   };
 
   return (
