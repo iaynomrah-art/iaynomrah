@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { getUnitsWithCounts, updateUnitStatus, archiveUnit } from '@/helper/units'
-import { broadcastToUnit } from '@/helper/realtime'
 import { UnitsSearch } from '@/components/search/UnitsSearch'
 import { Button } from '@/components/ui/button'
 import { Plus, RefreshCw } from 'lucide-react'
@@ -29,70 +28,9 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
     const [isArchiving, setIsArchiving] = useState(false);
     const [isFranchiseModalOpen, setIsFranchiseModalOpen] = useState(false);
 
-    // Use a ref to prevent multiple simultaneous health checks
-    const isCheckingHealth = useRef(false);
 
-    const handleHealthCheck = useCallback(async (unitsToCheck: any[]) => {
-        if (isCheckingHealth.current || unitsToCheck.length === 0) return;
 
-        isCheckingHealth.current = true;
-        const checkToast = toast.loading(`Checking health for ${unitsToCheck.length} units...`);
 
-        try {
-            let healthyCount = 0;
-            let failedCount = 0;
-
-            const results = await Promise.all(unitsToCheck.map(async (unit) => {
-                let isHealthy = false;
-                if (unit.guid) {
-                    try {
-                        const response = await broadcastToUnit({
-                            unitId: unit.guid,
-                            event: 'ping',
-                            timeoutMs: 5000
-                        });
-                        if (response && response.status === 'online') {
-                            isHealthy = true;
-                        }
-                    } catch (e) {
-                        isHealthy = false;
-                    }
-                }
-
-                const newStatus = isHealthy ? "enabled" : "not connected" as any;
-
-                // Only update if status changed
-                if (unit.status !== newStatus) {
-                    await updateUnitStatus(unit.id, newStatus);
-                    if (isHealthy) healthyCount++;
-                    else failedCount++;
-                    return { id: unit.id, status: newStatus };
-                }
-
-                if (isHealthy) healthyCount++;
-                else failedCount++;
-                return null;
-            }));
-
-            const updates = results.filter(r => r !== null);
-            if (updates.length > 0) {
-                setUnits((prev: any) => prev.map((u: any) => {
-                    const result = updates.find(r => r!.id === u.id);
-                    return result ? { ...u, status: result.status } : u;
-                }));
-            }
-
-            toast.success(`Health check complete: ${healthyCount} healthy, ${failedCount} failed`, {
-                id: checkToast,
-            });
-        } catch (err) {
-            toast.error("Failed to complete health check", {
-                id: checkToast,
-            });
-        } finally {
-            isCheckingHealth.current = false;
-        }
-    }, []);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -100,9 +38,7 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
             const data = await getUnitsWithCounts();
             setUnits(data as any);
             toast.success("Units refreshed");
-            // Run health check after refresh
-            const unitsForCheck = data.filter((u: any) => u.guid && !u.archived);
-            handleHealthCheck(unitsForCheck);
+
         } catch (error) {
             toast.error("Failed to refresh units");
         } finally {
@@ -110,13 +46,7 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
         }
     };
 
-    // Run health check on mount (every visit)
-    useEffect(() => {
-        const unitsForCheck = units.filter((u: any) => u.guid && !u.archived);
-        if (unitsForCheck.length > 0) {
-            handleHealthCheck(unitsForCheck);
-        }
-    }, []); // Empty dependency array runs once on mount
+
 
     const handleEdit = (unit: Unit) => {
         setUnitToEdit(unit);

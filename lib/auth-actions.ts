@@ -55,52 +55,5 @@ export async function clearAdditionalAuthCookie() {
   return { success: true };
 }
 
-export async function checkUnitStatus(apiBaseUrl: string) {
-  try {
-    const { default: axios } = await import("axios");
-    
-    // Ensure URL is valid and remove trailing slash
-    const baseUrl = apiBaseUrl.replace(/\/$/, "");
-    const url = `${baseUrl}/api/v1/health/`;
-    
-    
-    const response = await axios.get(url, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-      timeout: 10000, // 10 seconds timeout
-    });
 
-    return { 
-      success: true, 
-      status: response.status, 
-      data: response.data 
-    };
-  } catch (error: any) {
-    console.error("Error checking unit status:", error.message);
-    
-    if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      return { 
-        success: false, 
-        status: error.response.status, 
-        message: `API responded with error: ${error.response.status} ${error.response.statusText}`,
-        detail: error.response.data
-      };
-    } else if (error.request) {
-      // The request was made but no response was received
-      return { 
-        success: false, 
-        message: "No response received from unit API. Please check the URL and ensure the unit is online." 
-      };
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      return { 
-        success: false, 
-        message: error.message || "Failed to connect to unit API" 
-      };
-    }
-  }
-}
 

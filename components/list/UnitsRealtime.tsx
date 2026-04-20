@@ -52,23 +52,7 @@ export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: exter
 
     useEffect(() => {
         const init = async () => {
-            const data = await fetchLatestData();
-
-            // Onload health check
-            /* data.forEach(async (unit) => {
-                if (unit.api_base_url && !unit.archived) {
-                    const isHealthy = await checkUnitHealth(unit.api_base_url);
-                    const newStatus: UnitStatus = isHealthy ? "enabled" : "not connected";
-
-                    if (unit.status !== newStatus) {
-                        try {
-                            await updateUnitStatus(unit.id, newStatus);
-                        } catch (error) {
-                            console.error(`Status update failed for unit ${unit.unit_name}`);
-                        }
-                    }
-                }
-            }); */
+            await fetchLatestData();
         };
 
         init();
