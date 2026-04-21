@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { clearAdditionalAuthCookie } from "@/lib/auth-actions";
 import { cn } from "@/lib/utils";
-import { User, LogOut, Settings, Bell, Globe } from "lucide-react";
+import { User, LogOut, Settings, Bell, Globe, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function DashboardHeader() {
@@ -57,12 +57,18 @@ export function DashboardHeader() {
       <div className="flex items-center gap-2 lg:gap-4">
         {/* Actions Group */}
         <div className="flex items-center gap-1 border-r border-[#1a1a1a] pr-2 lg:pr-4 mr-1 lg:mr-2">
-          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-[#1a1a1a] h-9 w-9">
-            <Bell className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-[#1a1a1a] h-9 w-9">
-            <Settings className="w-4 h-4" />
-          </Button>
+
+          <a
+            href="https://drive.google.com/drive/folders/1fOK6h8u1E-_bx49QI3FGrMw4GA5VJYIg?usp=sharing"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Download Installer"
+          >
+            <Button variant="ghost" className="text-gray-400 hover:text-green-400 hover:bg-[#1a1a1a] h-9 px-3 gap-2">
+              <Download className="w-4 h-4" />
+              <p className="text-sm font-medium">Download Installer</p>
+            </Button>
+          </a>
         </div>
 
         {/* User Menu */}

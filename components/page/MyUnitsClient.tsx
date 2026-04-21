@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { getUnitsWithCounts, updateUnitStatus, archiveUnit } from '@/helper/units'
+import { createClient } from '@/lib/supabase/client'
 import { UnitsSearch } from '@/components/search/UnitsSearch'
 import { Button } from '@/components/ui/button'
 import { Plus, RefreshCw } from 'lucide-react'
@@ -12,6 +13,14 @@ import { ArchiveUnitModal } from "@/components/modal/ArchieveUniit"
 import { FranchiseModal } from "@/components/modal/FranchiseModal"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { Building2 } from 'lucide-react'
 
 interface MyUnitsClientProps {
     initialUnits: any[];
@@ -27,6 +36,19 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
     const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
     const [isFranchiseModalOpen, setIsFranchiseModalOpen] = useState(false);
+    const [role, setRole] = useState<string | null>(null);
+    const [selectedFranchise, setSelectedFranchise] = useState<string>("all");
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                setRole(user.app_metadata?.role || null);
+            }
+        };
+        fetchUser();
+    }, []);
 
 
 
@@ -89,6 +111,12 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
         }
     }
 
+    // Get unique franchises for the filter
+    const uniqueFranchises = Array.from(new Set(units
+        .map(u => u.franchise?.name)
+        .filter(Boolean)))
+        .sort() as string[];
+
     const filteredUnits = units.filter((unit: any) => {
         const query = searchQuery.toLowerCase();
         const matchesSearch = (
@@ -96,7 +124,8 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
             unit.franchise?.name?.toLowerCase().includes(query) ||
             unit.franchise?.code?.toLowerCase().includes(query)
         );
-        return !unit.archived && matchesSearch;
+        const matchesFranchise = selectedFranchise === "all" || unit.franchise?.name === selectedFranchise;
+        return !unit.archived && matchesSearch && matchesFranchise;
     });
 
     return (
@@ -117,31 +146,52 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        <Select value={selectedFranchise} onValueChange={setSelectedFranchise}>
+                            <SelectTrigger className="w-[180px] h-10 bg-[#0d0d0d] border-gray-800 text-gray-300 focus:ring-blue-500/20">
+                                <div className="flex items-center gap-2">
+                                    <Building2 className="h-4 w-4 text-gray-500" />
+                                    <SelectValue placeholder="All Franchises" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent className="bg-[#0d0d0d] border-gray-800 text-gray-300">
+                                <SelectItem value="all">All Franchises</SelectItem>
+                                {uniqueFranchises.map((f) => (
+                                    <SelectItem key={f} value={f}>
+                                        {f}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
                         <UnitsSearch
                             value={searchQuery}
                             onChange={setSearchQuery}
                         />
 
-                        <Button
-                            onClick={() => setIsFranchiseModalOpen(true)}
-                            className="h-10 bg-[#16a34a] hover:bg-[#15803d] text-white font-medium px-4 gap-2 shadow-lg shadow-green-900/10 transition-all active:scale-95"
-                        >
-                            <Plus className="h-4 w-4" />
-                            <span className="hidden sm:inline">Franchise</span>
-                            <span className="sm:hidden">Franchise</span>
-                        </Button>
+                        {role === 'super-admin' && (
+                            <Button
+                                onClick={() => setIsFranchiseModalOpen(true)}
+                                className="h-10 bg-[#16a34a] hover:bg-[#15803d] text-white font-medium px-4 gap-2 shadow-lg shadow-green-900/10 transition-all active:scale-95"
+                            >
+                                <Plus className="h-4 w-4" />
+                                <span className="hidden sm:inline">Franchise</span>
+                                <span className="sm:hidden">Franchise</span>
+                            </Button>
+                        )}
 
-                        <Button
-                            onClick={() => {
-                                setUnitToEdit(null);
-                                setIsUnitModalOpen(true);
-                            }}
-                            className="h-10 bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 gap-2 shadow-lg shadow-blue-900/10 transition-all active:scale-95"
-                        >
-                            <Plus className="h-4 w-4" />
-                            <span className="hidden sm:inline">Add Unit</span>
-                            <span className="sm:hidden">Add</span>
-                        </Button>
+                        {role === 'super-admin' && (
+                            <Button
+                                onClick={() => {
+                                    setUnitToEdit(null);
+                                    setIsUnitModalOpen(true);
+                                }}
+                                className="h-10 bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 gap-2 shadow-lg shadow-blue-900/10 transition-all active:scale-95"
+                            >
+                                <Plus className="h-4 w-4" />
+                                <span className="hidden sm:inline">Add Unit</span>
+                                <span className="sm:hidden">Add</span>
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -152,6 +202,7 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
                     onEdit={handleEdit}
                     onArchive={handleArchive}
                     onStatusChange={handleStatusChange}
+                    role={role}
                 />
             </div>
 

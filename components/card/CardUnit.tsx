@@ -44,6 +44,7 @@ export interface UnitCardProps {
     onStatusChange?: (id: string, status: UnitStatus) => void;
     onArchive?: (id: string, name: string) => void;
     onEdit?: (id: string) => void;
+    role: string | null;
 }
 
 export function UnitCard({
@@ -60,7 +61,8 @@ export function UnitCard({
     tags = [],
     onStatusChange,
     onArchive,
-    onEdit
+    onEdit,
+    role
 }: UnitCardProps) {
     const getStatusConfig = (status: UnitStatus) => {
         switch (status) {
@@ -190,27 +192,29 @@ export function UnitCard({
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Edit Unit"
-                            className="text-white hover:bg-gray-700"
-                            onClick={() => onEdit?.(id)}
-                        >
-                            <Pencil className="h-4 w-4" />
-                        </Button>
+                    {role === 'super-admin' && (
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Edit Unit"
+                                className="text-white hover:bg-gray-700"
+                                onClick={() => onEdit?.(id)}
+                            >
+                                <Pencil className="h-4 w-4" />
+                            </Button>
 
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Archive Unit"
-                            className="text-white hover:bg-gray-700"
-                            onClick={() => onArchive?.(id, code)}
-                        >
-                            <Archive className="h-4 w-4" />
-                        </Button>
-                    </div>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Archive Unit"
+                                className="text-white hover:bg-gray-700"
+                                onClick={() => onArchive?.(id, code)}
+                            >
+                                <Archive className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

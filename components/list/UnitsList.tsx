@@ -16,9 +16,10 @@ interface UnitsListProps {
     onEdit?: (unit: Unit) => void;
     onArchive?: (id: string, name: string) => void;
     onStatusChange?: (id: string, status: any) => void;
+    role: string | null;
 }
 
-const UnitsList = ({ units, onEdit, onArchive, onStatusChange }: UnitsListProps) => {
+const UnitsList = ({ units, onEdit, onArchive, onStatusChange, role }: UnitsListProps) => {
     if (!units || units.length === 0) {
         return (
             <div className="flex h-[400px] flex-col items-center justify-center rounded-lg border border-dashed border-gray-800 bg-gray-950/50 p-8 text-center animate-in fade-in-50">
@@ -70,6 +71,7 @@ const UnitsList = ({ units, onEdit, onArchive, onStatusChange }: UnitsListProps)
                     onEdit={() => onEdit?.(unit)}
                     onArchive={onArchive}
                     onStatusChange={onStatusChange}
+                    role={role}
                 />
             ))}
         </div>
