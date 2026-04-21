@@ -21,6 +21,8 @@ import { TradingAccount } from "@/types/trading_accounts"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { broadcastToUnit } from "@/helper/realtime"
+import { createPairedAccount, updatePairedAccount, deletePairedAccount } from "@/helper/paired_accounts"
+import { createClient } from "@/lib/supabase/client"
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -29,6 +31,7 @@ import { LoginConfirmationModal } from "@/components/modal/LoginConfirmationModa
 import PlayIcon from "@/components/ui/playicon"
 
 import { TradeStatus } from "@/types/paired"
+import Swal from "sweetalert2"
 
 type Pair = TradingAccount & {
     trade_type: 'buy' | 'sell'
@@ -91,7 +94,7 @@ export const PairAccountsModal = ({
         if (dailyLossDollar > 0 && initialBalance > 0) {
             dailyLossPercent = dailyLossDollar / initialBalance;
         }
-        
+
         const dailyFloor = dailyEq * (1 - dailyLossPercent);
         let dailyAllowance = liveEquity - dailyFloor;
 
@@ -131,10 +134,10 @@ export const PairAccountsModal = ({
 
     const assignTradeTypesByStartingBalance = (p: Pair[]): Pair[] => {
         if (p.length !== 2) return p;
-        const sorted = [...p].sort((a,b) => b.starting_balance - a.starting_balance);
+        const sorted = [...p].sort((a, b) => b.starting_balance - a.starting_balance);
         return p.map(acc => ({
-             ...acc,
-             trade_type: acc.id === sorted[0].id ? 'buy' : 'sell'
+            ...acc,
+            trade_type: acc.id === sorted[0].id ? 'buy' : 'sell'
         }));
     };
 
@@ -162,7 +165,7 @@ export const PairAccountsModal = ({
         // Shared calculation for the pair
         const acc1 = selectedAccounts[0]
         const acc2 = selectedAccounts[1]
-        
+
         const getAccMetrics = (acc: TradingAccount) => {
             const pkg = acc.package_ref
             const target = acc.remaining_target_profit || pkg?.profit_target || 1000
@@ -295,7 +298,7 @@ export const PairAccountsModal = ({
                 const constraintA = primarySafeLimit;
                 const constraintB = Number((secondarySafeLimit / 1.02).toFixed(2));
                 const maxPrimarySL = Math.min(constraintA, constraintB);
-                
+
                 const maxSecondarySL = Number((maxPrimarySL * 1.02).toFixed(2));
                 const maxSecondaryTP = Number((maxPrimarySL * 0.98).toFixed(2));
 
@@ -351,7 +354,7 @@ export const PairAccountsModal = ({
 
     const handleSuggestDirection = async (isAuto = false) => {
         if (pairs.length < 2) return
-        
+
         try {
             if (isAuto) {
                 const lastCalled = localStorage.getItem('ai_signal_last_called')
@@ -366,19 +369,19 @@ export const PairAccountsModal = ({
 
             setIsSuggesting(true)
             const symbol = pairs[0].symbol || 'XAUUSD'
-            
+
             const res = await fetch(`/api/signal?symbol=${symbol}`)
             const data = await res.json()
-            
+
             if (!res.ok) {
                 throw new Error(data.error || 'Failed to fetch suggestion')
             }
-            
+
             if (data.suggestion === 'neutral') {
                 if (!isAuto) toast.info(`Market is neutral for ${symbol}. Trend: ${data.summary}`)
                 return
             }
-            
+
             toast.success(`AI Suggestion: ${data.summary}. Applying ${data.suggestion.toUpperCase()} to Primary.`)
             updatePair(pairs[0].id, 'trade_type', data.suggestion)
 
@@ -395,7 +398,7 @@ export const PairAccountsModal = ({
             }
 
             localStorage.setItem('ai_signal_last_called', Date.now().toString())
-            
+
         } catch (error: any) {
             console.error(error)
             if (!isAuto) toast.error(error.message || 'Error fetching market direction')
@@ -405,8 +408,8 @@ export const PairAccountsModal = ({
     }
 
     React.useEffect(() => {
-        if (!isOpen) { 
-            autoSuggestAttempted.current = false 
+        if (!isOpen) {
+            autoSuggestAttempted.current = false
         } else if (isOpen && pairs.length === 2 && !autoSuggestAttempted.current) {
             autoSuggestAttempted.current = true
             handleSuggestDirection(true)
@@ -467,12 +470,12 @@ export const PairAccountsModal = ({
     const executePairing = async () => {
         // Close auth modal
         setIsAuthModalOpen(false)
-        
+        let savedPairId: string | null = null;
+        const primary = pairs[0]
+        const secondary = pairs[1]
+
         try {
             setIsLoading(true)
-
-            const primary = pairs[0]
-            const secondary = pairs[1]
 
             const unit1 = primary.accounts?.units
             const unit2 = secondary.accounts?.units
@@ -518,27 +521,63 @@ export const PairAccountsModal = ({
                 }
             }
 
+            // --- STEP 0: SAVE TO DB IMMEDIATELY (trade_status: initializing) ---
+            // This makes the pair visible in the Paired Accounts tab right away
+            toast.loading("Registering pair in database...", { id: 'pair-trade' })
+            try {
+                const pairedRecord = await createPairedAccount({
+                    primary_account_id: primary.id,
+                    secondary_account_id: secondary.id,
+                    symbol: primary.symbol || "XAUUSD",
+                    primary_order_amount: primary.order_amount,
+                    primary_order_type: primary.trade_type,
+                    primary_take_profit: primary.tp_ticks,
+                    primary_stop_loss: primary.sl_ticks,
+                    secondary_order_amount: secondary.order_amount,
+                    secondary_order_type: secondary.trade_type,
+                    secondary_take_profit: secondary.tp_ticks,
+                    secondary_stop_loss: secondary.sl_ticks,
+                    trade_status: 'initializing',
+                    is_active: true,
+                    notes: null,
+                    primary_automation_status: null,
+                    secondary_automation_status: null,
+                })
+                savedPairId = pairedRecord?.[0]?.id || null;
+
+                // Mark both trading accounts as 'paired'
+                const supabase = createClient();
+                await supabase
+                    .from('trading_accounts')
+                    .update({ account_status: 'paired' })
+                    .in('id', [primary.id, secondary.id])
+            } catch (e: any) {
+                console.error('Failed to save pair record:', e)
+                toast.error('Could not register pair in database. Aborting.', { id: 'pair-trade' })
+                return
+            }
+
             // --- PRE-FLIGHT CHECK ---
             toast.loading("Pinging trading machines...", { id: 'pair-trade' })
             try {
                 await Promise.all([
-                    broadcastToUnit({ unitId: unit1Id, event: 'ping', timeoutMs: 5000 }),
-                    broadcastToUnit({ unitId: unit2Id, event: 'ping', timeoutMs: 5000 })
+                    broadcastToUnit({ unitId: unit1Id, event: 'ping', timeoutMs: 10000 }),
+                    broadcastToUnit({ unitId: unit2Id, event: 'ping', timeoutMs: 10000 })
                 ])
             } catch (e: any) {
                 throw new Error(`Pre-flight connection failed: ${e.message}. Ensure local servers are running.`)
             }
 
-            // --- PHASE 1: STAGE (INPUT ONLY) ---
-            toast.loading("Phase 1: Preparing trades on both devices...", { id: 'pair-trade' })
+            // --- STAGE ORDERS (INPUT ONLY) ---
+            toast.loading("Preparing trades on both devices... (this may take a while)", { id: 'pair-trade' })
             let p1Res, p2Res;
             try {
                 const p1Data = createRealtimePayload(primary, 'input-order');
                 const p2Data = createRealtimePayload(secondary, 'input-order');
 
                 [p1Res, p2Res] = await Promise.all([
-                    broadcastToUnit({ unitId: unit1Id, event: p1Data.event, payload: p1Data.payload, timeoutMs: 12000 }),
-                    broadcastToUnit({ unitId: unit2Id, event: p2Data.event, payload: p2Data.payload, timeoutMs: 12000 })
+                    broadcastToUnit({ unitId: unit1Id, event: p1Data.event, payload: p1Data.payload, timeoutMs: 0 }),
+                    broadcastToUnit({ unitId: unit2Id, event: p2Data.event, payload: p2Data.payload, timeoutMs: 0 })
                 ])
 
                 const p1Result = p1Res?.result || {};
@@ -552,87 +591,52 @@ export const PairAccountsModal = ({
                 }
             } catch (e: any) {
                 toast.dismiss('pair-trade')
-                throw new Error(`Execution aborted during staging: ${e.message}. No money is at risk.`)
+                throw new Error(`Execution aborted during staging: ${e.message}.`)
             }
 
-            // --- PHASE 2: EXECUTE ---
-            toast.loading("Phase 2: Executing staged trades concurrently...", { id: 'pair-trade' })
-            
-            const exec1Data = createRealtimePayload(primary, 'place-and-terminate');
-            const exec2Data = createRealtimePayload(secondary, 'place-and-terminate');
-
-            const results = await Promise.allSettled([
-                broadcastToUnit({ unitId: unit1Id, event: exec1Data.event, payload: exec1Data.payload, timeoutMs: 15000 }),
-                broadcastToUnit({ unitId: unit2Id, event: exec2Data.event, payload: exec2Data.payload, timeoutMs: 15000 })
-            ])
-
-            const primaryResData = results[0].status === 'fulfilled' ? results[0].value?.result : null;
-            const secondaryResData = results[1].status === 'fulfilled' ? results[1].value?.result : null;
-
-            const primarySuccess = primaryResData !== null && primaryResData?.success !== false && primaryResData?.status !== 'failed' && primaryResData?.status !== 'error';
-            const secondarySuccess = secondaryResData !== null && secondaryResData?.success !== false && secondaryResData?.status !== 'failed' && secondaryResData?.status !== 'error';
-
-            if (primarySuccess && secondarySuccess) {
-                toast.success("Hedge positions successfully opened on both accounts!", { id: 'pair-trade', duration: 5000 })
-                onConfirm(pairs)
-                onClose()
-                return;
-            }
-
-            // --- EMERGENCY KILL SWITCH ---
-            toast.error("Critical mismatch detected! One trade failed to execute. Initiating Kill-Switch...", { id: 'pair-trade', duration: 10000 })
-            
-            let survivingUnitId = null;
-            let survivingData = null;
-            let failedUnitName = '';
-            
-            if (primarySuccess && !secondarySuccess) {
-                survivingUnitId = unit1Id;
-                survivingData = createRealtimePayload(primary, 'close-position');
-                failedUnitName = unit2.unit_name || 'Secondary Unit';
-            } else if (secondarySuccess && !primarySuccess) {
-                survivingUnitId = unit2Id;
-                survivingData = createRealtimePayload(secondary, 'close-position');
-                failedUnitName = unit1.unit_name || 'Primary Unit';
-            }
-
-            if (survivingUnitId && survivingData) {
-                toast.loading(`Cancelling surviving trade... (${failedUnitName} failed to execute)`, { id: 'kill-switch' })
-                
-                let killSuccess = false;
-                // Kill-Switch Retry Loop (3 attempts) ensures we punch through browser boot-up lag
-                for (let attempt = 1; attempt <= 3; attempt++) {
-                    try {
-                        const killR = await broadcastToUnit({ unitId: survivingUnitId, event: survivingData.event, payload: survivingData.payload, timeoutMs: 10000 });
-                        const killRes = killR?.result;
-                        if (killRes?.success !== false && killRes?.status !== 'failed' && killRes?.status !== 'error') {
-                            killSuccess = true;
-                            break;
-                        }
-                    } catch (e) {
-                        console.error(`Kill switch attempt ${attempt} failed.`);
-                    }
-                    if (!killSuccess && attempt < 3) await new Promise(r => setTimeout(r, 1500)); // sleep before retry
+            // --- SUCCESS ---
+            // Both devices staged the trade successfully. Update the DB to 'paired'
+            if (savedPairId) {
+                try {
+                    await updatePairedAccount(savedPairId, { trade_status: 'paired' })
+                } catch (e) {
+                    console.error('Failed to update pair status to paired:', e)
                 }
-
-                if (killSuccess) {
-                    toast.success("Emergency Kill-Switch successful. Directional risk avoided.", { id: 'kill-switch', duration: 10000 })
-                } else {
-                    toast.dismiss('kill-switch')
-                    alert(`CRITICAL WARNING: The background kill-switch failed multiple times.\n\n${failedUnitName} failed to enter the trade, meaning you have ONE active directional trade open on the other account! \n\nYou MUST manually close it immediately to avoid market exposure.`);
-                }
-            } else {
-                toast.error("Both trades failed to execute. No positions were opened.", { duration: 6000 })
             }
-
+            toast.success("Accounts successfully paired and staged! You can now start trading.", { id: 'pair-trade', duration: 5000 })
+            onConfirm(pairs)
             onClose()
 
         } catch (error: any) {
             console.error("Pairing error:", error)
-            toast.error(error.message || "Failed to initiate pairing. Ensure local scripts are active.", { 
-                id: 'pair-trade', 
-                duration: 8000 
-            })
+            toast.dismiss('pair-trade')
+
+            // Cleanup on failure
+            if (savedPairId) {
+                try { await deletePairedAccount(savedPairId) } catch (e) { }
+                const supabase = createClient();
+                try {
+                    await supabase.from('trading_accounts').update({ account_status: 'idle' }).in('id', [primary.id, secondary.id])
+                } catch (e) { }
+            }
+
+            // Show "Try Again" Modal (Requirement: failed = remove the record in the database, add a modal to with option to try again)
+            Swal.fire({
+                title: 'Pairing Failed',
+                text: error.message || "Failed to initiate pairing. Ensure local scripts are active.",
+                icon: 'error',
+                showCancelButton: true,
+                confirmButtonText: 'Try Again',
+                cancelButtonText: 'Close',
+                background: '#1e2329',
+                color: '#ffffff',
+                confirmButtonColor: '#f0b90b',
+                cancelButtonColor: '#2b3139',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    executePairing(); // RECURSIVE RETRY
+                }
+            });
         } finally {
             setIsLoading(false)
         }
@@ -819,7 +823,7 @@ export const PairAccountsModal = ({
             </DialogContent>
 
             {/* Login / Auth Confirmation Modal */}
-            <LoginConfirmationModal 
+            <LoginConfirmationModal
                 isOpen={isAuthModalOpen}
                 onClose={() => setIsAuthModalOpen(false)}
                 onConfirm={executePairing}

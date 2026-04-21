@@ -26,6 +26,7 @@ import Row from "@/components/ui/row"
 import PlayIcon from "@/components/ui/playicon"
 
 import { updatePairedAccount } from "@/helper/paired_accounts"
+import { broadcastToUnit } from "@/helper/realtime"
 import { PairedTradingAccount } from "@/types/paired"
 
 const AccountSection = ({
@@ -207,7 +208,75 @@ export const EditPairedAccountModal = ({
         try {
             setIsLoading(true)
 
-            // 1. Update DB first
+            const unit1Id = pair.primary_account?.accounts?.units?.guid;
+            const unit2Id = pair.secondary_account?.accounts?.units?.guid;
+
+            if (!unit1Id || !unit2Id) {
+                throw new Error("One or both units are missing a Unit GUID. Cannot connect to trading PCs.")
+            }
+
+            const getPlatform = (acc: any) => {
+                const creds = acc.credentials;
+                const pkgCreds = acc.package_ref?.credential || acc.package_ref?.credentials;
+                return creds?.platform || pkgCreds?.platform;
+            }
+
+            const formatStopLoss = (slTicks: number, platform?: string | null) => {
+                return platform?.toLowerCase() === 'ctrader' ? -Math.abs(slTicks) : slTicks;
+            }
+
+            const createRealtimePayload = (acc: any, isPrimary: boolean, operation: string) => {
+                const creds = acc.credentials;
+                const pkgCreds = acc.package_ref?.credential || acc.package_ref?.credentials;
+                const platform = getPlatform(acc);
+
+                return {
+                    event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : 'run_tradelocker',
+                    payload: {
+                        username: creds?.username || pkgCreds?.username || "",
+                        password: creds?.password || pkgCreds?.password || "",
+                        server: creds?.server || pkgCreds?.server || "",
+                        purchase_type: isPrimary ? localParams.primary_order_type : localParams.secondary_order_type,
+                        order_amount: isPrimary ? localParams.primary_order_amount : localParams.secondary_order_amount,
+                        take_profit: isPrimary ? localParams.primary_take_profit : localParams.secondary_take_profit,
+                        stop_loss: formatStopLoss(isPrimary ? localParams.primary_stop_loss : localParams.secondary_stop_loss, platform),
+                        account_id: creds?.account_id || acc.accounts_id,
+                        db_account_id: acc.accounts_id,
+                        symbol: String(localParams.symbol || "XAUUSD"),
+                        operation: operation
+                    }
+                }
+            }
+
+            toast.loading("Pinging trading machines...", { id: 'edit-trade' })
+            await Promise.all([
+                broadcastToUnit({ unitId: unit1Id, event: 'ping', timeoutMs: 10000 }),
+                broadcastToUnit({ unitId: unit2Id, event: 'ping', timeoutMs: 10000 })
+            ])
+
+            toast.loading("Executing trades on both devices... (this may take up to 60 seconds)", { id: 'edit-trade' })
+
+            // 1. Prepare payload for real-time to place order
+            const p1Data = createRealtimePayload(pair.primary_account, true, 'auto-place-order');
+            const p2Data = createRealtimePayload(pair.secondary_account, false, 'auto-place-order');
+
+            // 2. Call Websockets and wait for order placement
+            const [p1Res, p2Res] = await Promise.all([
+                broadcastToUnit({ unitId: unit1Id, event: p1Data.event, payload: p1Data.payload, timeoutMs: 60000 }),
+                broadcastToUnit({ unitId: unit2Id, event: p2Data.event, payload: p2Data.payload, timeoutMs: 60000 })
+            ])
+
+            const p1Result = p1Res?.result || {};
+            const p2Result = p2Res?.result || {};
+            
+            if (p1Result?.success === false || p1Result?.status === 'failed' || p1Result?.status === 'error') {
+                throw new Error(`Primary machine execution failed: ${p1Result?.reason || p1Result?.message || 'Unknown error'}`)
+            }
+            if (p2Result?.success === false || p2Result?.status === 'failed' || p2Result?.status === 'error') {
+                throw new Error(`Secondary machine execution failed: ${p2Result?.reason || p2Result?.message || 'Unknown error'}`)
+            }
+
+            // 3. Set to ongoing mode with updated params
             await updatePairedAccount(pair.id, {
                 symbol: localParams.symbol,
                 primary_order_amount: localParams.primary_order_amount,
@@ -218,54 +287,24 @@ export const EditPairedAccountModal = ({
                 secondary_stop_loss: localParams.secondary_stop_loss,
                 secondary_take_profit: localParams.secondary_take_profit,
                 secondary_order_type: localParams.secondary_order_type as any,
+                trade_status: 'ongoing'
             })
 
-            // 2. Prepare payload for Edge Function
-            const payload = {
-                primary_account_id: String(pair.primary_account_id),
-                secondary_account_id: String(pair.secondary_account_id),
-                details: "edit-place-order",
-                primary: {
-                    symbol: String(localParams.symbol),
-                    order_amount: localParams.primary_order_amount,
-                    stop_loss: localParams.primary_stop_loss,
-                    take_profit: localParams.primary_take_profit,
-                    order_type: localParams.primary_order_type,
-                    accounts_id: pair.primary_account?.accounts_id
-                },
-                secondary: {
-                    symbol: String(localParams.symbol),
-                    order_amount: localParams.secondary_order_amount,
-                    stop_loss: localParams.secondary_stop_loss,
-                    take_profit: localParams.secondary_take_profit,
-                    order_type: localParams.secondary_order_type,
-                    accounts_id: pair.secondary_account?.accounts_id
-                }
-            }
+            // 4. Launch trade monitor asynchronously (fire and forget)
+            const p1Term = createRealtimePayload(pair.primary_account, true, 'trade-terminator');
+            const p2Term = createRealtimePayload(pair.secondary_account, false, 'trade-terminator');
+            broadcastToUnit({ unitId: unit1Id, event: p1Term.event, payload: p1Term.payload, timeoutMs: 0 })
+                .then(() => updatePairedAccount(pair.id, { trade_status: 'done' }))
+                .catch(console.error);
+            broadcastToUnit({ unitId: unit2Id, event: p2Term.event, payload: p2Term.payload, timeoutMs: 0 })
+                .then(() => updatePairedAccount(pair.id, { trade_status: 'done' }))
+                .catch(console.error);
 
-            // 3. Call Edge Function
-            const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-            const response = await fetch('https://cisszbamrleoxcnyeoku.supabase.co/functions/v1/pairing-trading-accounts', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${supabaseKey}`,
-                    'apikey': `${supabaseKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
-                toast.error(errorData.error || errorData.message || `Edge Function Error: ${response.statusText}`);
-                return;
-            }
-
-            toast.success("Trade parameters updated and session started")
+            toast.success("Trade parameters updated and session started", { id: 'edit-trade' })
             onConfirm()
         } catch (error: any) {
             console.error("Update error:", error)
-            toast.error(error.message || error.error || "Failed to update and start")
+            toast.error(error.message || error.error || "Failed to update and start", { id: 'edit-trade'})
         } finally {
             setIsLoading(false)
         }

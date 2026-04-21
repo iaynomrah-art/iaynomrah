@@ -1,5 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { broadcastToUnit } from "@/helper/realtime";
+
 import {
     Pencil,
     Archive,
@@ -9,7 +13,8 @@ import {
     WifiLow,
     Unplug,
     MonitorOff,
-    CircleOff
+    CircleOff,
+    Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -33,6 +38,7 @@ export interface UnitCardProps {
     id: string;
     code: string;           // MJ-9
     shortName: string;      // MJ
+    guid?: string | null;
     company?: string;       // View Plus
     status: UnitStatus;
     serial: string;         // 20D7CBBF
@@ -51,6 +57,7 @@ export function UnitCard({
     id,
     code,
     shortName,
+    guid,
     company,
     status,
     serial,
@@ -64,6 +71,68 @@ export function UnitCard({
     onEdit,
     role
 }: UnitCardProps) {
+    const [isPinging, setIsPinging] = useState(false);
+    const [isCheckingHealth, setIsCheckingHealth] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const checkHealth = async () => {
+            if (!guid) {
+                if (isMounted) setIsCheckingHealth(false);
+                return;
+            }
+            
+            try {
+                await broadcastToUnit({
+                    unitId: guid,
+                    event: 'ping',
+                    timeoutMs: 5000
+                });
+                if (isMounted) {
+                    setIsCheckingHealth(false);
+                    if (status !== 'enabled') {
+                        onStatusChange?.(id, 'enabled');
+                    }
+                }
+            } catch (error) {
+                if (isMounted) {
+                    setIsCheckingHealth(false);
+                    if (status !== 'not connected') {
+                        onStatusChange?.(id, 'not connected');
+                    }
+                }
+            }
+        };
+
+        checkHealth();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [guid]); // run once per guid
+
+    const handlePing = async () => {
+        if (!guid) {
+            toast.error("No remote connection. Please set up the unit first.");
+            return;
+        }
+        setIsPinging(true);
+        const toastId = toast.loading(`Pinging ${code}...`);
+        try {
+            await broadcastToUnit({
+                unitId: guid,
+                event: 'ping',
+                timeoutMs: 10000
+            });
+            toast.success("Pong! Unit is online and responding.", { id: toastId });
+        } catch (error: any) {
+            toast.error(error.message || "Failed to ping unit.", { id: toastId });
+        } finally {
+            setIsPinging(false);
+        }
+    };
+
     const getStatusConfig = (status: UnitStatus) => {
         switch (status) {
             case "enabled":
@@ -168,10 +237,20 @@ export function UnitCard({
                                 variant="ghost"
                                 size="sm"
                                 className="text-white hover:bg-gray-700 gap-2 px-2"
+                                disabled={isCheckingHealth}
                             >
-                                <StatusIcon className={cn("w-4 h-4", config.color)} />
-                                <span className="text-xs font-medium text-gray-400 capitalize">{status}</span>
-                                <ChevronDown className="w-3 h-3 text-gray-500" />
+                                {isCheckingHealth ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                                        <span className="text-xs font-medium text-gray-400 capitalize">Checking...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <StatusIcon className={cn("w-4 h-4", config.color)} />
+                                        <span className="text-xs font-medium text-gray-400 capitalize">{status}</span>
+                                        <ChevronDown className="w-3 h-3 text-gray-500" />
+                                    </>
+                                )}
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="bg-gray-800 border-gray-700 text-white">
@@ -194,6 +273,17 @@ export function UnitCard({
 
                     {role === 'super-admin' && (
                         <div className="flex items-center gap-2">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Health Check"
+                                className="text-white hover:bg-gray-700"
+                                onClick={handlePing}
+                                disabled={isPinging}
+                            >
+                                {isPinging ? <Loader2 className="h-4 w-4 animate-spin text-amber-500" /> : <Activity className="h-4 w-4" />}
+                            </Button>
+
                             <Button
                                 variant="ghost"
                                 size="icon"

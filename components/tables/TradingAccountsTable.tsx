@@ -145,17 +145,13 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                         <SortableHeader label="L-EQUITY" sortKey="live_equity" className="text-right" />
                         <SortableHeader label="DAILY P&L" sortKey="daily_pnl" className="text-right" />
                         <SortableHeader label="TOTAL P&L" sortKey="total_pnl" className="text-right" />
-                        <SortableHeader label="RDD" sortKey="rdd" className="text-right" />
                         <SortableHeader label="HIGHEST PROFIT" sortKey="highest_profit" className="text-right" />
-                        <SortableHeader label="CONSIS" sortKey="consistency" className="text-right" />
-                        <SortableHeader label="R.T-DAYS" sortKey="remaining_target_days" className="text-right" />
-                        <SortableHeader label="R.T-PROFIT" sortKey="remaining_target_profit" className="text-right" />
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {sortedData.length === 0 ? (
                         <TableRow className="border-[#1a1a1a]">
-                            <TableCell colSpan={11} className="h-32 text-center text-muted-foreground py-10">
+                            <TableCell colSpan={7} className="h-32 text-center text-muted-foreground py-10">
                                 <div className="flex flex-col items-center justify-center gap-2">
                                     <p className="text-sm font-medium">No trading accounts found</p>
                                     <p className="text-xs opacity-50">Check back later or adjust your filters</p>
@@ -255,20 +251,8 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                                 )} suppressHydrationWarning>
                                     {(account.total_pnl ?? 0) !== 0 ? ((account.total_pnl ?? 0) > 0 ? "+" : "") + formatCurrency(account.total_pnl ?? null) : "$0.00"}
                                 </TableCell>
-                                <TableCell className="text-white py-6 text-right text-xs" suppressHydrationWarning>
-                                    {formatCurrency(account.rdd ?? null)}
-                                </TableCell>
                                 <TableCell className="text-white py-6 text-right text-xs text-blue-400" suppressHydrationWarning>
                                     {formatCurrency(account.highest_profit ?? null)}
-                                </TableCell>
-                                <TableCell className="text-white py-6 text-right text-xs" suppressHydrationWarning>
-                                    {formatPercent(account.consistency ?? null)}
-                                </TableCell>
-                                <TableCell className="text-white py-6 text-right text-xs font-mono">
-                                    {account.remaining_target_days ?? "--"}
-                                </TableCell>
-                                <TableCell className="text-white py-6 text-right text-xs font-medium text-orange-400" suppressHydrationWarning>
-                                    {formatCurrency(account.remaining_target_profit ?? null)}
                                 </TableCell>
                             </TableRow>
                         ))

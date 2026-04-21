@@ -7,7 +7,8 @@ import Row from "@/components/ui/row"
 import { toast } from "sonner"
 import Swal from 'sweetalert2'
 import { EditPairedAccountModal } from "@/components/modal/EditPairedAccountModal"
-import { deletePairedAccount } from "@/helper/paired_accounts"
+import { deletePairedAccount, updatePairedAccount } from "@/helper/paired_accounts"
+import { broadcastToUnit } from "@/helper/realtime"
 
 const AccountColumn = ({
     account,
@@ -88,51 +89,92 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
         try {
             setIsStarting(true)
 
-            // 1. Prepare payload for Edge Function
-            const payload = {
-                primary_account_id: String(pair.primary_account_id),
-                secondary_account_id: String(pair.secondary_account_id),
-                details: "place-order",
-                primary: {
-                    symbol: String(pair.symbol),
-                    order_amount: pair.primary_order_amount,
-                    stop_loss: pair.primary_stop_loss,
-                    take_profit: pair.primary_take_profit,
-                    order_type: pair.primary_order_type,
-                    accounts_id: pair.primary_account?.accounts_id
-                },
-                secondary: {
-                    symbol: String(pair.symbol),
-                    order_amount: pair.secondary_order_amount,
-                    stop_loss: pair.secondary_stop_loss,
-                    take_profit: pair.secondary_take_profit,
-                    order_type: pair.secondary_order_type,
-                    accounts_id: pair.secondary_account?.accounts_id
+            const unit1Id = pair.primary_account?.accounts?.units?.guid;
+            const unit2Id = pair.secondary_account?.accounts?.units?.guid;
+
+            if (!unit1Id || !unit2Id) {
+                throw new Error("One or both units are missing a Unit GUID. Cannot connect to trading PCs.")
+            }
+
+            const getPlatform = (acc: any) => {
+                const creds = acc.credentials;
+                const pkgCreds = acc.package_ref?.credential || acc.package_ref?.credentials;
+                return creds?.platform || pkgCreds?.platform;
+            }
+
+            const formatStopLoss = (slTicks: number, platform?: string | null) => {
+                // cTrader only accepts negative value in sl of target profit
+                return platform?.toLowerCase() === 'ctrader' ? -Math.abs(slTicks) : slTicks;
+            }
+
+            const createRealtimePayload = (acc: any, isPrimary: boolean, operation: string) => {
+                const creds = acc.credentials;
+                const pkgCreds = acc.package_ref?.credential || acc.package_ref?.credentials;
+                const platform = getPlatform(acc);
+
+                return {
+                    event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : 'run_tradelocker',
+                    payload: {
+                        username: creds?.username || pkgCreds?.username || "",
+                        password: creds?.password || pkgCreds?.password || "",
+                        server: creds?.server || pkgCreds?.server || "",
+                        purchase_type: isPrimary ? pair.primary_order_type : pair.secondary_order_type,
+                        order_amount: isPrimary ? pair.primary_order_amount : pair.secondary_order_amount,
+                        take_profit: isPrimary ? pair.primary_take_profit : pair.secondary_take_profit,
+                        stop_loss: formatStopLoss(isPrimary ? pair.primary_stop_loss : pair.secondary_stop_loss, platform),
+                        account_id: creds?.account_id || acc.accounts_id,
+                        db_account_id: acc.accounts_id,
+                        symbol: String(pair.symbol || "XAUUSD"),
+                        operation: operation
+                    }
                 }
             }
 
-            // 2. Call Edge Function
-            const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-            const response = await fetch('https://cisszbamrleoxcnyeoku.supabase.co/functions/v1/pairing-trading-accounts', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${supabaseKey}`,
-                    'apikey': `${supabaseKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
+            toast.loading("Pinging trading machines...", { id: 'start-trade' })
+            await Promise.all([
+                broadcastToUnit({ unitId: unit1Id, event: 'ping', timeoutMs: 10000 }),
+                broadcastToUnit({ unitId: unit2Id, event: 'ping', timeoutMs: 10000 })
+            ])
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
-                toast.error(errorData.error || errorData.message || `Edge Function Error: ${response.statusText}`);
-                return;
+            toast.loading("Opening positions on both devices...", { id: 'start-trade' })
+
+            // 1. Prepare payload for realtime (place order only)
+            const p1Data = createRealtimePayload(pair.primary_account, true, 'place-order');
+            const p2Data = createRealtimePayload(pair.secondary_account, false, 'place-order');
+
+            // 2. Call websocket and wait for the order to be placed
+            const [p1Res, p2Res] = await Promise.all([
+                broadcastToUnit({ unitId: unit1Id, event: p1Data.event, payload: p1Data.payload, timeoutMs: 60000 }),
+                broadcastToUnit({ unitId: unit2Id, event: p2Data.event, payload: p2Data.payload, timeoutMs: 60000 })
+            ])
+
+            const p1Result = p1Res?.result || {};
+            const p2Result = p2Res?.result || {};
+
+            if (p1Result?.success === false || p1Result?.status === 'failed' || p1Result?.status === 'error') {
+                throw new Error(`Primary machine execution failed: ${p1Result?.reason || p1Result?.message || 'Unknown error'}`)
+            }
+            if (p2Result?.success === false || p2Result?.status === 'failed' || p2Result?.status === 'error') {
+                throw new Error(`Secondary machine execution failed: ${p2Result?.reason || p2Result?.message || 'Unknown error'}`)
             }
 
-            toast.success("Trading session started with existing parameters")
+            // 3. Trade placed successfully. Update UI to ongoing immediately.
+            await updatePairedAccount(pair.id, { trade_status: 'ongoing' });
+
+            // 4. Launch trade monitor asynchronously (fire and forget)
+            const p1Term = createRealtimePayload(pair.primary_account, true, 'trade-terminator');
+            const p2Term = createRealtimePayload(pair.secondary_account, false, 'trade-terminator');
+            broadcastToUnit({ unitId: unit1Id, event: p1Term.event, payload: p1Term.payload, timeoutMs: 0 })
+                .then(() => updatePairedAccount(pair.id, { trade_status: 'done' }))
+                .catch(console.error);
+            broadcastToUnit({ unitId: unit2Id, event: p2Term.event, payload: p2Term.payload, timeoutMs: 0 })
+                .then(() => updatePairedAccount(pair.id, { trade_status: 'done' }))
+                .catch(console.error);
+
+            toast.success("Trading session started with existing parameters", { id: 'start-trade' })
         } catch (error: any) {
             console.error("Start trading error:", error)
-            toast.error(error.message || error.error || "Failed to start trading")
+            toast.error(error.message || error.error || "Failed to start trading", { id: 'start-trade' })
         } finally {
             setIsStarting(false)
         }

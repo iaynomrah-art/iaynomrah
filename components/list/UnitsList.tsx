@@ -55,6 +55,7 @@ const UnitsList = ({ units, onEdit, onArchive, onStatusChange, role }: UnitsList
                     id={unit.id}
                     code={unit.unit_name}
                     shortName={unit.franchise?.code || "UN"}
+                    guid={unit.guid}
                     company={unit.franchise?.name || undefined}
                     status={unit.status || "disabled"}
                     serial={unit.unit_id.split("-")[0].toUpperCase()} // Using part of UUID as serial for display

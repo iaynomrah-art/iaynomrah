@@ -1,4 +1,4 @@
-export type TradeStatus = 'paired' | 'ongoing' | 'done' | 'initializing';
+export type TradeStatus = 'paired' | 'ongoing' | 'done' | 'initializing' | 'failed';
 
 export type PairedTradingAccount = {
   id: string;

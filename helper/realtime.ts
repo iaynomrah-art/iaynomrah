@@ -38,10 +38,13 @@ export const broadcastToUnit = async ({
     };
 
     // Fail gracefully if the listener python script is offline or lags out
-    const timeoutId = setTimeout(() => {
-      cleanup();
-      reject(new Error(`Timeout: No response from unit ${unitId} within ${timeoutMs / 1000}s on event '${event}'. The machine might be offline.`));
-    }, timeoutMs);
+    let timeoutId: any;
+    if (timeoutMs && timeoutMs > 0) {
+      timeoutId = setTimeout(() => {
+        cleanup();
+        reject(new Error(`Timeout: No response from unit ${unitId} within ${timeoutMs / 1000}s on event '${event}'. The machine might be offline.`));
+      }, timeoutMs);
+    }
 
     // Set up the listener for the reply BEFORE subscribing
     channel.on(
