@@ -18,9 +18,10 @@ import { Unit } from "@/types/units";
 interface UnitsRealtimeProps {
     initialData: any[];
     searchQuery?: string;
+    role?: string | null;
 }
 
-export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: externalSearchQuery }: UnitsRealtimeProps, ref) => {
+export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: externalSearchQuery, role }: UnitsRealtimeProps, ref) => {
     const [units, setUnits] = useState(initialData);
     const [franchises, setFranchises] = useState<Franchise[]>([]);
     const [searchQuery, setSearchQuery] = useState(externalSearchQuery || "");
@@ -146,6 +147,7 @@ export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: exter
                             onStatusChange={handleStatusChange}
                             onArchive={handleArchiveClick}
                             onEdit={handleEditClick}
+                            role={role ?? null}
                             tags={unit.funder_counts?.map((fc: any) => ({
                                 label: fc.allias,
                                 count: fc.count,
