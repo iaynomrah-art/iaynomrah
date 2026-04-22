@@ -139,6 +139,7 @@ export const UnitsRealtime = React.forwardRef(({ initialData, searchQuery: exter
                             id={unit.id}
                             code={unit.unit_name}
                             shortName={unit.franchise?.code || "UN"}
+                            guid={unit.unit_id}
                             company={unit.franchise?.name}
                             status={unit.status || "disabled"}
                             serial={unit.unit_id?.substring(0, 8).toUpperCase() || "N/A"}
