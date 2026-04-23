@@ -208,8 +208,8 @@ export const EditPairedAccountModal = ({
         try {
             setIsLoading(true)
 
-            const unit1Id = pair.primary_account?.accounts?.units?.guid;
-            const unit2Id = pair.secondary_account?.accounts?.units?.guid;
+            const unit1Id = pair.primary_account?.accounts?.units?.unit_id;
+            const unit2Id = pair.secondary_account?.accounts?.units?.unit_id;
 
             if (!unit1Id || !unit2Id) {
                 throw new Error("One or both units are missing a Unit GUID. Cannot connect to trading PCs.")

@@ -453,12 +453,12 @@ export const PairAccountsModal = ({
         const unit1 = primary.accounts?.units
         const unit2 = secondary.accounts?.units
 
-        if (!unit1?.guid || unit1?.status !== 'enabled') {
+        if (!unit1?.unit_id || unit1?.status !== 'enabled') {
             toast.error(`Unit missing or offline.`)
             return
         }
 
-        if (!unit2?.guid || unit2?.status !== 'enabled') {
+        if (!unit2?.unit_id || unit2?.status !== 'enabled') {
             toast.error(`Unit missing or offline.`)
             return
         }
@@ -480,12 +480,12 @@ export const PairAccountsModal = ({
             const unit1 = primary.accounts?.units
             const unit2 = secondary.accounts?.units
 
-            if (!unit1?.guid || !unit2?.guid) {
+            if (!unit1?.unit_id || !unit2?.unit_id) {
                 throw new Error("One or both units are missing a Unit GUID. Cannot connect to trading PCs.")
             }
 
-            const unit1Id = unit1.guid
-            const unit2Id = unit2.guid
+            const unit1Id = unit1.unit_id
+            const unit2Id = unit2.unit_id
 
             const formatStopLoss = (slTicks: number, platform?: string | null) => {
                 // cTrader only accepts negative value in sl of target profit
