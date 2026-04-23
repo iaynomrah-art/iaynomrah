@@ -91,7 +91,10 @@ export const FunderForm = ({ initialData, onSuccess, onCancel }: FunderFormProps
                     allias_color: data.allias_color || "#1c64f2",
                     text_color: data.text_color,
                 }
-                await updateFunder(initialData.id, payload)
+                const result = await updateFunder(initialData.id, payload)
+                if (!result.success) {
+                    throw new Error(result.error)
+                }
                 toast.success("Funder updated successfully")
             } else {
                 const payload: CreateFunder = {
@@ -101,7 +104,10 @@ export const FunderForm = ({ initialData, onSuccess, onCancel }: FunderFormProps
                     allias_color: data.allias_color || "#1c64f2",
                     text_color: data.text_color,
                 }
-                await createFunder(payload)
+                const result = await createFunder(payload)
+                if (!result.success) {
+                    throw new Error(result.error)
+                }
                 toast.success("Funder created successfully")
             }
 

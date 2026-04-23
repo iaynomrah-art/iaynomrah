@@ -67,7 +67,10 @@ export const FundersTable = ({ data, onEdit }: FundersTableProps) => {
 
         setIsDeleting(true);
         try {
-            await deleteFunder(selectedFunder.id);
+            const result = await deleteFunder(selectedFunder.id);
+            if (!result.success) {
+                throw new Error(result.error);
+            }
             toast.success("Funder deleted successfully");
             setIsDeleteModalOpen(false);
             setSelectedFunder(null);

@@ -41,11 +41,11 @@ export async function createFunder(formData: CreateFunder) {
         .select();
 
     if (error) {
-        throw new Error(error.message);
+        return { success: false, error: error.message };
     }
 
     revalidatePath("/dashboard/funders");
-    return data;
+    return { success: true, data };
 }
 
 export async function updateFunder(id: string, formData: UpdateFunder) {
@@ -57,11 +57,11 @@ export async function updateFunder(id: string, formData: UpdateFunder) {
     .select();
 
   if (error) {
-    throw new Error(error.message);
+    return { success: false, error: error.message };
   }
 
   revalidatePath("/dashboard/funders");
-  return data;
+  return { success: true, data };
 }
 
 export async function deleteFunder(id: string) {
@@ -72,9 +72,9 @@ export async function deleteFunder(id: string) {
     .eq("id", id);
 
   if (error) {
-    throw new Error(error.message);
+    return { success: false, error: error.message };
   }
     revalidatePath("/dashboard/funders");
-    return true;
+    return { success: true };
 }
 
