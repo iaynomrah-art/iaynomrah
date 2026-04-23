@@ -146,22 +146,24 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <Select value={selectedFranchise} onValueChange={setSelectedFranchise}>
-                            <SelectTrigger className="w-[180px] h-10 bg-[#0d0d0d] border-gray-800 text-gray-300 focus:ring-blue-500/20">
-                                <div className="flex items-center gap-2">
-                                    <Building2 className="h-4 w-4 text-gray-500" />
-                                    <SelectValue placeholder="All Franchises" />
-                                </div>
-                            </SelectTrigger>
-                            <SelectContent className="bg-[#0d0d0d] border-gray-800 text-gray-300">
-                                <SelectItem value="all">All Franchises</SelectItem>
-                                {uniqueFranchises.map((f) => (
-                                    <SelectItem key={f} value={f}>
-                                        {f}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        {role === 'super-admin' && (
+                            <Select value={selectedFranchise} onValueChange={setSelectedFranchise}>
+                                <SelectTrigger className="w-[180px] h-10 bg-[#0d0d0d] border-gray-800 text-gray-300 focus:ring-blue-500/20">
+                                    <div className="flex items-center gap-2">
+                                        <Building2 className="h-4 w-4 text-gray-500" />
+                                        <SelectValue placeholder="All Franchises" />
+                                    </div>
+                                </SelectTrigger>
+                                <SelectContent className="bg-[#0d0d0d] border-gray-800 text-gray-300">
+                                    <SelectItem value="all">All Franchises</SelectItem>
+                                    {uniqueFranchises.map((f) => (
+                                        <SelectItem key={f} value={f}>
+                                            {f}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
 
                         <UnitsSearch
                             value={searchQuery}

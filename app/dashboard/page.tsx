@@ -7,6 +7,8 @@ import { getUnits } from "@/helper/units";
 import { Users, Building2, Server, Activity, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+import { InviteUserButton } from "@/components/page/InviteUserButton";
+
 async function UserCheck() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -14,6 +16,8 @@ async function UserCheck() {
   if (error || !user) {
     redirect("/auth/login");
   }
+
+  const role = user.app_metadata?.role;
 
   const [funders, accounts, units] = await Promise.all([
     getFunders(),
@@ -30,10 +34,17 @@ async function UserCheck() {
 
   return (
     <div className="p-6 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-white mb-2">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back! Here's an overview of your trading platform.</p>
-        <p className="text-muted-foreground">Successfully authenticated as {user.email}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white mb-2">Dashboard</h1>
+          <p className="text-muted-foreground">Welcome back! Here's an overview of your trading platform.</p>
+          <p className="text-xs text-muted-foreground mt-1">Successfully authenticated as {user.email}</p>
+        </div>
+        {role === 'super-admin' && (
+          <div className="flex shrink-0">
+            <InviteUserButton />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
