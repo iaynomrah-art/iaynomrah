@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 export function DashboardHeader() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string>("admin_aitrade@disruptorai.com");
+  const [userId, setUserId ] = useState<string | null>(null)
 
   useEffect(() => {
     const getUserEmail = async () => {
@@ -27,6 +28,7 @@ export function DashboardHeader() {
       const { data } = await supabase.auth.getUser();
       if (data?.user?.email) {
         setUserEmail(data.user.email);
+        setUserId(data.user.id);
       }
     };
     getUserEmail();
@@ -93,14 +95,9 @@ export function DashboardHeader() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-[#1a1a1a]" />
 
-            <DropdownMenuItem className="flex items-center gap-3 px-3 py-3 text-sm text-gray-300 hover:text-white focus:bg-[#1a1a1a] rounded-lg transition-colors cursor-pointer group">
+            <DropdownMenuItem onClick={() => router.push(`/dashboard/account/${userId}`)} className="flex items-center gap-3 px-3 py-3 text-sm text-gray-300 hover:text-white focus:bg-[#1a1a1a] rounded-lg transition-colors cursor-pointer group">
               <User className="w-4 h-4 group-hover:text-blue-400" />
               <span className="font-medium">Account Profile</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem className="flex items-center gap-3 px-3 py-3 text-sm text-gray-300 hover:text-white focus:bg-[#1a1a1a] rounded-lg transition-colors cursor-pointer group">
-              <Settings className="w-4 h-4 group-hover:text-blue-400" />
-              <span className="font-medium">System Settings</span>
             </DropdownMenuItem>
 
             <DropdownMenuSeparator className="bg-[#1a1a1a]" />
