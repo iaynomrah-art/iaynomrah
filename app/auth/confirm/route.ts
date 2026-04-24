@@ -17,6 +17,10 @@ export async function GET(request: NextRequest) {
       token_hash,
     });
     if (!error) {
+      // If the verification type is invite or recovery, redirect to setup-password
+      if (type === "invite" || type === "recovery") {
+        redirect("/auth/setup-password");
+      }
       // redirect user to specified redirect URL or root of app
       redirect(next);
     } else {
