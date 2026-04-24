@@ -10,20 +10,90 @@ interface BroadcastOptions {
 
 /**
  * Singleton Supabase client for all realtime operations.
- * Using a module-level singleton ensures a single persistent WebSocket connection
- * is reused across all broadcastToUnit calls, eliminating per-call WS handshake overhead
- * that would otherwise consume the timeout budget before the ping is even sent.
  */
 let _realtimeClient: ReturnType<typeof createBrowserClient> | null = null;
 function getRealtimeClient() {
   if (!_realtimeClient) {
-    console.log("[RT] Creating singleton Supabase client");
     _realtimeClient = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
     );
   }
   return _realtimeClient;
+}
+
+// Transaction registry to handle responses multiplexed over the same channels
+const _pendingTransactions = new Map<string, { 
+  resolve: (val: any) => void; 
+  reject: (err: any) => void; 
+  timeoutId?: any;
+  expectedEvent: string; 
+}>();
+const _activeChannels = new Map<string, any>();
+
+/**
+ * Ensures a single channel is joined per unit, avoiding listener leaks 
+ * and channel destruction race conditions during React Strict Mode remounts.
+ */
+function getOrJoinUnitChannel(unitId: string) {
+  const channelName = `unit_${unitId}`;
+  if (_activeChannels.has(channelName)) {
+    return _activeChannels.get(channelName);
+  }
+
+  const supabase = getRealtimeClient();
+  const channel = supabase.channel(channelName);
+
+  // Set up a single universal listener for this channel
+  channel.on(
+    "broadcast",
+    { event: "*" }, // Listen to all broadcast events
+    (responsePayload: { event: string; payload: Record<string, any> }) => {
+      const data = responsePayload.payload || {};
+      const eventName = responsePayload.event; // The actual broadcast event string (e.g. 'pong', 'trade_result')
+      const txId = data.transaction_id || data.reply_to;
+      
+      if (txId && _pendingTransactions.has(txId)) {
+        const tx = _pendingTransactions.get(txId);
+        
+        const resultStatus = data.result?.status || data.status;
+        
+        // Ignore intermediate acknowledgment states that the Python machine uses 
+        // to signify it has begun a long-running process (like monitoring).
+        if (resultStatus === 'monitoring' || resultStatus === 'processing' || resultStatus === 'started') {
+            return;
+        }
+
+        // Ensure we only resolve if the event name matches what this transaction was waiting for
+        if (tx && tx.expectedEvent === eventName) {
+          if (tx.timeoutId) clearTimeout(tx.timeoutId);
+          tx.resolve(data);
+          _pendingTransactions.delete(txId);
+        }
+      }
+    }
+  );
+
+  // Fire off the subscription
+  channel.subscribe((status: string) => {
+    if (status === "CHANNEL_ERROR" || status === "CLOSED") {
+      // Evict the dead channel so the next call to getOrJoinUnitChannel
+      // creates a fresh connection rather than returning a broken one.
+      _activeChannels.delete(channelName);
+
+      if (status === "CHANNEL_ERROR") {
+        // Reject all pending transactions that were waiting on this channel
+        // so their promises don't hang silently until timeout.
+        for (const [txId, tx] of _pendingTransactions.entries()) {
+          tx.reject(new Error(`[Realtime] WebSocket channel error. The connection to unit was lost. Please retry.`));
+          _pendingTransactions.delete(txId);
+        }
+      }
+    }
+  });
+
+  _activeChannels.set(channelName, channel);
+  return channel;
 }
 
 /**
@@ -36,85 +106,75 @@ export const broadcastToUnit = async ({
   timeoutMs = 5000,
   expectedReplyEvent,
 }: BroadcastOptions): Promise<any> => {
-  const supabase = getRealtimeClient();
-  const channelName = `unit_${unitId}`;
-  
-  // Use native cryptographic random UUID for mapping asynchronous responses
   const transaction_id = crypto.randomUUID();
-  
-  // Predict expected reply event based on the outbound event if not explicitly provided
+  const channel = getOrJoinUnitChannel(unitId);
   const listenEvent = expectedReplyEvent || (event === "ping" ? "pong" : "trade_result");
 
-  console.log(`[RT] broadcastToUnit: channel=${channelName}, event=${event}, listenFor=${listenEvent}, tx=${transaction_id.slice(0,8)}...`);
-
   return new Promise((resolve, reject) => {
-    const startTime = Date.now();
-    // Reference the exact channel for this unit
-    const channel = supabase.channel(channelName);
+    let timeoutId: any;
 
     const cleanup = () => {
-      clearTimeout(timeoutId);
-      // Remove channel to prevent memory leaks in the browser
-      supabase.removeChannel(channel);
+      if (timeoutId) clearTimeout(timeoutId);
+      _pendingTransactions.delete(transaction_id);
     };
 
-    // Fail gracefully if the listener python script is offline or lags out
-    let timeoutId: any;
     if (timeoutMs && timeoutMs > 0) {
       timeoutId = setTimeout(() => {
-        console.warn(`[RT] ⏰ TIMEOUT after ${timeoutMs}ms for ${channelName} event=${event} tx=${transaction_id.slice(0,8)}`);
         cleanup();
         reject(new Error(`Timeout: No response from unit ${unitId} within ${timeoutMs / 1000}s on event '${event}'. The machine might be offline.`));
       }, timeoutMs);
     }
 
-    // Set up the listener for the reply BEFORE subscribing
-    channel.on(
-      "broadcast",
-      { event: listenEvent },
-      (responsePayload) => {
-        console.log(`[RT] 📩 Received broadcast event=${listenEvent}:`, JSON.stringify(responsePayload).slice(0, 300));
-        const data = responsePayload.payload || {};
-        // The python app replies with either 'transaction_id' (trades) or 'reply_to' (pings)
-        if (
-          data.transaction_id === transaction_id || 
-          data.reply_to === transaction_id
-        ) {
-          console.log(`[RT] ✅ MATCH! tx=${transaction_id.slice(0,8)} elapsed=${Date.now() - startTime}ms`);
-          cleanup();
-          resolve(data); // Returns the response payload containing {"guid", "result", etc.}
-        } else {
-          console.log(`[RT] ❌ No match: data.transaction_id=${data.transaction_id}, data.reply_to=${data.reply_to}, expected=${transaction_id.slice(0,8)}`);
-        }
-      }
-    );
-
-    // Subscribe to the channel and send the payload once fully connected
-    channel.subscribe((status) => {
-      console.log(`[RT] Channel ${channelName} status: ${status} (elapsed=${Date.now() - startTime}ms)`);
-      if (status === "SUBSCRIBED") {
-        console.log(`[RT] 📤 Sending ${event} on ${channelName} with tx=${transaction_id.slice(0,8)}`);
-        channel.send({
-          type: "broadcast",
-          event: event,
-          payload: {
-            ...payload,
-            transaction_id, // Important: Inject transaction ID so machine knows who to reply to
-          },
-        }).then(() => {
-          console.log(`[RT] 📤 Send confirmed for ${event} tx=${transaction_id.slice(0,8)}`);
-        }).catch((err) => {
-          console.error(`[RT] 💥 Send failed:`, err);
-          cleanup();
-          reject(new Error(`Failed to send broadcast over WebSocket: ${err.message}`));
-        });
-      } else if (status === "CHANNEL_ERROR") {
-        console.error(`[RT] 💥 CHANNEL_ERROR on ${channelName}`);
+    _pendingTransactions.set(transaction_id, {
+      resolve: (data) => {
         cleanup();
-        reject(new Error("Supabase Realtime channel error. Could not connect to WebSocket."));
-      } else if (status === "CLOSED") {
-           // Closed manually, do nothing
-      }
+        resolve(data);
+      },
+      reject: (err) => {
+        cleanup();
+        reject(err);
+      },
+      timeoutId,
+      expectedEvent: listenEvent, // Register the exact event to listen for
     });
+
+    const sendPayload = () => {
+      channel.send({
+        type: "broadcast",
+        event: event,
+        payload: {
+          ...payload,
+          transaction_id, // Important: Inject transaction ID so machine knows who to reply to
+        },
+      }).catch((err: any) => {
+        cleanup();
+        reject(new Error(`Failed to send broadcast over WebSocket: ${err.message}`));
+      });
+    };
+
+    // If already joined (or rapidly joining), we can just try sending immediately.
+    // Supabase JS channel.send handles buffering internally if it's still connecting,
+    // but checking state guarantees it safely goes out.
+    if (['joined', 'SUBSCRIBED'].includes(channel.state)) {
+      sendPayload();
+    } else {
+      // It's still connecting, we push a one-off listener or let it queue
+      // In newer Supabase JS, channel.send() while "joining" isn't fully queued,
+      // so we wait until joined. We poll state or listen.
+      
+      const checkStateInterval = setInterval(() => {
+        if (['joined', 'SUBSCRIBED'].includes(channel.state)) {
+          clearInterval(checkStateInterval);
+          sendPayload();
+        } else if (['closed', 'errored', 'CHANNEL_ERROR'].includes(channel.state)) {
+          clearInterval(checkStateInterval);
+          cleanup();
+          reject(new Error(`Channel failed to connect.`));
+        }
+      }, 50);
+
+      // Clean up the interval if the transaction times out first
+      setTimeout(() => clearInterval(checkStateInterval), timeoutMs || 5000);
+    }
   });
 };
