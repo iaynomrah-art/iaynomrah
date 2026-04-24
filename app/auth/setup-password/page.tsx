@@ -22,19 +22,54 @@ export default function SetupPasswordPage() {
     const supabase = createClient();
 
     useEffect(() => {
+        // Debug logging for URL and hash
+        if (process.env.NODE_ENV === 'development' || true) {
+            console.log("Current URL:", window.location.href);
+            console.log("Current Hash:", window.location.hash);
+        }
+
+        // Check for error parameters in the hash fragment (Supabase redirects errors there)
+        const hash = window.location.hash;
+        if (hash.includes("error=")) {
+            const params = new URLSearchParams(hash.substring(1));
+            const errorDescription = params.get("error_description") || params.get("error") || "Invalid or expired link";
+            toast.error(errorDescription.replace(/\+/g, " "));
+            setIsCheckingSession(false);
+            return;
+        }
+
+        // Use getSession but also listen for state changes to catch the hash fragment processing
         async function checkSession() {
             const { data: { session }, error } = await supabase.auth.getSession();
             
-            if (error || !session) {
-                console.error("No active session found:", error);
-                toast.error("Invalid or expired session. Please check your invitation link.");
-                // We don't immediately redirect to give them a chance to see the error
-                // but we could redirect to /login after a delay
+            if (session) {
+                setIsCheckingSession(false);
+            } else if (error) {
+                console.error("Session check error:", error);
+                toast.error("Session verification failed. Please try again.");
+                setIsCheckingSession(false);
+            } else {
+                // If no session yet, listen for the first auth event
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+                    if (session) {
+                        setIsCheckingSession(false);
+                        subscription.unsubscribe();
+                    } else if (event === 'SIGNED_OUT') {
+                        // If it's been a while and still no session, show error
+                        setTimeout(() => {
+                            if (isCheckingSession) {
+                                toast.error("No active session found. Your link might be expired.");
+                                setIsCheckingSession(false);
+                            }
+                        }, 3000);
+                    }
+                });
+
+                return () => subscription.unsubscribe();
             }
-            setIsCheckingSession(false);
         }
         checkSession();
-    }, [supabase.auth]);
+    }, [supabase.auth, isCheckingSession]);
 
     const handleSetupPassword = async (e: React.FormEvent) => {
         e.preventDefault();
