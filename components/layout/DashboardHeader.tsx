@@ -35,12 +35,19 @@ export function DashboardHeader() {
   }, []);
 
   const handleLogout = async () => {
-    const supabase = createClient();
-    await Promise.all([
-      supabase.auth.signOut(),
-      clearAdditionalAuthCookie(),
-    ]);
-    router.push("/");
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      
+      await clearAdditionalAuthCookie();
+      
+      router.refresh();
+      
+      router.push("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+      window.location.href = "/";
+    }
   };
 
   return (
