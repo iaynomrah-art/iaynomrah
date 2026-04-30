@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { ChevronDown, ChevronUp, RefreshCw, X, Monitor, Save } from "lucide-react"
 import Row from "@/components/ui/row"
 import { toast } from "sonner"
-import { confirmTrade } from "@/helper/automation"
+import { confirmTrade, forceCloseTrade } from "@/helper/automation"
 import { updatePairedAccount } from "@/helper/paired_accounts"
 import { Input } from "@/components/ui/input"
 import {
@@ -15,6 +15,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 
 interface AccountColumnProps {
     account: any;
@@ -145,6 +153,8 @@ const AccountColumn = ({
 export default function OngoingTradeRow({ pair }: { pair: any }) {
     const [isOpen, setIsOpen] = useState(false)
     const [isRecovering, setIsRecovering] = useState(false)
+    const [isForceClosing, setIsForceClosing] = useState(false)
+    const [isForceCloseModalOpen, setIsForceCloseModalOpen] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
 
     // Local state for editable parameters
@@ -255,6 +265,64 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
         }
     }
 
+    const handleForceClose = async () => {
+        try {
+            setIsForceClosing(true)
+
+            const primaryPayload = {
+                username: String(pair.primary_account?.credentials?.username || ""),
+                password: String(pair.primary_account?.credentials?.password || ""),
+                symbol: String(params.symbol),
+                order_amount: String(params.primary_order_amount),
+                tp_ticks: String(params.primary_take_profit),
+                sl_ticks: String(params.primary_stop_loss),
+                purchase_type: String(params.primary_order_type),
+                account_number: String(pair.primary_account?.credentials?.username || pair.primary_account?.id),
+                latest_equity: String(pair.primary_account?.live_equity || 0),
+                daily_pnl: String(pair.primary_account?.daily_pnl || 0),
+                rdd: String(pair.primary_account?.rdd || 0)
+            }
+
+            const secondaryPayload = {
+                username: String(pair.secondary_account?.credentials?.username || ""),
+                password: String(pair.secondary_account?.credentials?.password || ""),
+                symbol: String(params.symbol),
+                order_amount: String(params.secondary_order_amount),
+                tp_ticks: String(params.secondary_take_profit),
+                sl_ticks: String(params.secondary_stop_loss),
+                purchase_type: String(params.secondary_order_type),
+                account_number: String(pair.secondary_account?.credentials?.username || pair.secondary_account?.id),
+                latest_equity: String(pair.secondary_account?.live_equity || 0),
+                daily_pnl: String(pair.secondary_account?.daily_pnl || 0),
+                rdd: String(pair.secondary_account?.rdd || 0)
+            }
+
+            const unit1 = pair.primary_account?.accounts?.units;
+            const unit2 = pair.secondary_account?.accounts?.units;
+
+            if (!unit1?.api_base_url || !unit2?.api_base_url) {
+                throw new Error("API URL missing for one or both units");
+            }
+
+            const normalizeUrl = (url: string) => url.endsWith('/') ? url : `${url}/`;
+            const api1 = normalizeUrl(unit1.api_base_url);
+            const api2 = normalizeUrl(unit2.api_base_url);
+
+            await Promise.all([
+                forceCloseTrade(api1, primaryPayload),
+                forceCloseTrade(api2, secondaryPayload)
+            ]);
+
+            toast.success("Force close signal sent successfully")
+            setIsForceCloseModalOpen(false)
+        } catch (error: any) {
+            console.error("Force close error:", error)
+            toast.error(error.message || "Failed to force close trade")
+        } finally {
+            setIsForceClosing(false)
+        }
+    }
+
     return (
         <div className="border border-[#1a1a1a] rounded-xl overflow-hidden bg-[#0a0a0a] shadow-sm">
             {/* Clickable Header */}
@@ -323,8 +391,20 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
                             Saving...
                         </div>
                     )}
-                    <button className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all">
-                        <X className="h-4 w-4" />
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsForceCloseModalOpen(true);
+                        }}
+                        disabled={isForceClosing}
+                        className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                        title="Force Close"
+                    >
+                        {isForceClosing ? (
+                            <div className="h-4 w-4 border-2 border-red-500/20 border-t-red-500 rounded-full animate-spin" />
+                        ) : (
+                            <X className="h-4 w-4" />
+                        )}
                     </button>
                 </div>
             </div>
@@ -349,14 +429,14 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
                         />
                     </div>
 
-                    <div className="p-4 bg-[#161a1e] border-t border-[#2b3139] flex justify-center">
+                    <div className="p-4 bg-[#161a1e] border-t border-[#2b3139] flex justify-center gap-4">
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
                                 handleRecover();
                             }}
-                            disabled={isRecovering}
-                            className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white font-bold py-3 px-12 rounded-lg flex items-center gap-2 transition-all shadow-lg active:scale-95 min-w-[300px] justify-center"
+                            disabled={isRecovering || isForceClosing}
+                            className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white font-bold py-3 px-12 rounded-lg flex items-center gap-2 transition-all shadow-lg active:scale-95 min-w-[200px] justify-center"
                         >
                             {isRecovering ? (
                                 <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -365,9 +445,52 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
                             )}
                             Recover
                         </button>
+
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsForceCloseModalOpen(true);
+                            }}
+                            disabled={isRecovering || isForceClosing}
+                            className="bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 text-white font-bold py-3 px-12 rounded-lg flex items-center gap-2 transition-all shadow-lg active:scale-95 min-w-[200px] justify-center"
+                        >
+                            {isForceClosing ? (
+                                <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <X className="h-5 w-5" />
+                            )}
+                            Force Close
+                        </button>
                     </div>
                 </div>
             )}
+            {/* Confirmation Modal */}
+            <Dialog open={isForceCloseModalOpen} onOpenChange={setIsForceCloseModalOpen}>
+                <DialogContent className="bg-[#0b0e11] border-[#2b3139] text-white">
+                    <DialogHeader>
+                        <DialogTitle>Force Close Trade</DialogTitle>
+                        <DialogDescription className="text-muted-foreground">
+                            Are you sure you want to force close this pair? This action will immediately close both primary and secondary positions.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-4 flex gap-2 sm:gap-0">
+                        <button
+                            onClick={() => setIsForceCloseModalOpen(false)}
+                            className="px-4 py-2 rounded-lg font-medium bg-[#161a1e] hover:bg-[#2b3139] transition-colors border border-[#2b3139]"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleForceClose}
+                            disabled={isForceClosing}
+                            className="px-4 py-2 rounded-lg font-medium bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 flex items-center justify-center gap-2 transition-colors"
+                        >
+                            {isForceClosing && <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
+                            Confirm Force Close
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

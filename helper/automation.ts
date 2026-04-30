@@ -32,3 +32,13 @@ export const confirmTrade = async (apiBaseUrl: string, payload: any) => {
 
     return result.data
 }
+
+export const forceCloseTrade = async (apiBaseUrl: string, payload: any) => {
+    const result = await axios.post(`${apiBaseUrl}api/v1/runner/ClosePosition.1.0.0.nupkg`, {     
+        arguments: {
+            ...payload
+        }  
+    })
+
+    return result.data
+}
