@@ -24,9 +24,11 @@ import { Building2 } from 'lucide-react'
 
 interface MyUnitsClientProps {
     initialUnits: any[];
+    role: string | null;
+    franchises: any[];
 }
 
-export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
+export default function MyUnitsClient({ initialUnits, role: initialRole, franchises }: MyUnitsClientProps) {
     const [units, setUnits] = useState(initialUnits);
     const [searchQuery, setSearchQuery] = useState("");
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -36,19 +38,9 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
     const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
     const [isFranchiseModalOpen, setIsFranchiseModalOpen] = useState(false);
-    const [role, setRole] = useState<string | null>(null);
+    const [role, setRole] = useState<string | null>(initialRole);
     const [selectedFranchise, setSelectedFranchise] = useState<string>("all");
 
-    useEffect(() => {
-        const fetchUser = async () => {
-            const supabase = createClient();
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                setRole(user.app_metadata?.role || null);
-            }
-        };
-        fetchUser();
-    }, []);
 
 
 
@@ -211,6 +203,8 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
             <UnitModal
                 isOpen={isUnitModalOpen}
                 initialData={unitToEdit}
+                franchises={franchises}
+                units={units}
                 onClose={() => {
                     setIsUnitModalOpen(false);
                     setUnitToEdit(null);

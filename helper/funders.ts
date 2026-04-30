@@ -78,3 +78,29 @@ export async function deleteFunder(id: string) {
     return true;
 }
 
+export async function createFunderSuggestion(formData: Partial<Funder>) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error("User not found");
+
+  const payload = {
+    suggested_by: user.id,
+    name: formData.name,
+    allias: formData.allias,
+    text_color: formData.text_color,
+    allias_color: formData.allias_color,
+    status: 'pending'
+  };
+
+  const { data, error } = await supabase
+    .from("funder_suggestions")
+    .insert([payload])
+    .select();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}

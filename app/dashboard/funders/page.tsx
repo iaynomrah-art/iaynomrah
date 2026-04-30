@@ -1,100 +1,18 @@
-"use client"
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { getFunders } from "@/helper/funders";
+import FundersClient from "./FundersClient";
 
-import React, { Suspense, useState, useEffect } from 'react'
-import { getFunders } from '@/helper/funders'
-import { SearchBarHeader } from '@/components/ui/search-bar-header'
-import { FundersTable } from '@/components/tables/funders'
-import { FundersTableSkeleton } from '@/components/skeleton/FundersTableSkeleton'
-import { FunderModal } from '@/components/modal/FunderModal'
+export default async function FundersPage() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-const FundersPage = () => {
-    const [funders, setFunders] = useState<any[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const [searchQuery, setSearchQuery] = useState("")
-    const [isModalOpen, setIsModalOpen] = useState(false)
-    const [selectedFunder, setSelectedFunder] = useState<any | null>(null)
-
-    const fetchFunders = async (silent = false) => {
-        if (!silent) setIsLoading(true)
-        try {
-            const data = await getFunders()
-            setFunders(data)
-        } catch (error) {
-            console.error("Failed to fetch funders:", error)
-        } finally {
-            if (!silent) setIsLoading(false)
-        }
+    if (!user) {
+        redirect("/dashboard");
     }
 
-    useEffect(() => {
-        fetchFunders()
-    }, [])
+    const isSuperAdmin = user.app_metadata?.role === 'super-admin';
+    const funders = await getFunders();
 
-    const handleAddClick = () => {
-        setSelectedFunder(null)
-        setIsModalOpen(true)
-    }
-
-    const handleEditClick = (funder: any) => {
-        setSelectedFunder(funder)
-        setIsModalOpen(true)
-    }
-
-    const handleModalClose = () => {
-        setIsModalOpen(false)
-        setSelectedFunder(null)
-    }
-
-    const handleModalSuccess = () => {
-        setIsModalOpen(false)
-        setSelectedFunder(null)
-        fetchFunders(true) // Refresh silently
-    }
-
-    const filteredFunders = funders.filter(funder => {
-        const query = searchQuery.toLowerCase()
-        return (
-            (funder.name?.toLowerCase() || "").includes(query) ||
-            (funder.allias?.toLowerCase() || "").includes(query)
-        )
-    })
-
-    return (
-        <div suppressHydrationWarning className="p-6 bg-[#050505] h-full">
-            <div className="flex flex-col rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-2xl overflow-hidden ">
-                {/* Header Section */}
-                <div className="px-6 pt-6 pb-10">
-                    <SearchBarHeader
-                        title="Funders"
-                        addButtonText="Add Funder"
-                        // addHref="/dashboard/funders/add-funder" // Removed
-                        onAddClick={handleAddClick}
-                        showSearch={true}
-                        onSearchChange={setSearchQuery}
-                    />
-                </div>
-
-                {/* Content Section */}
-                <div className="px-6 pb-6">
-                    {isLoading ? (
-                        <FundersTableSkeleton />
-                    ) : (
-                        <FundersTable
-                            data={filteredFunders}
-                            onEdit={handleEditClick}
-                        />
-                    )}
-                </div>
-            </div>
-
-            <FunderModal
-                isOpen={isModalOpen}
-                onClose={handleModalClose}
-                onSuccess={handleModalSuccess}
-                initialData={selectedFunder}
-            />
-        </div>
-    )
+    return <FundersClient initialFunders={funders} isSuperAdmin={isSuperAdmin} />;
 }
-
-export default FundersPage

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,7 +10,9 @@ import {
   CreditCard,
   Users,
   ChevronRight,
+  Store,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -85,6 +87,27 @@ const menuItems: MenuItem[] = [
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getRole = async () => {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+      if (data?.user?.app_metadata?.role) {
+        setRole(data.user.app_metadata.role);
+      }
+    };
+    getRole();
+  }, []);
+
+  const displayMenuItems = [...menuItems];
+  if (role === 'super-admin') {
+    displayMenuItems.splice(1, 0, {
+      title: "Franchise",
+      href: "/dashboard/franchise",
+      icon: <Store className="w-4 h-4" />,
+    });
+  }
 
   return (
     <Sidebar collapsible="icon" className="border-r border-[#1a1a1a] bg-[#050505]">
@@ -102,7 +125,7 @@ export function DashboardSidebar() {
             Main Menu
           </SidebarGroupLabel>
           <SidebarMenu>
-            {menuItems.map((item) => {
+            {displayMenuItems.map((item) => {
               const hasChildren = item.children && item.children.length > 0;
               const isActive = pathname === item.href;
               const isChildActive = item.children?.some(

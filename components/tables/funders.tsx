@@ -49,10 +49,11 @@ const formatResetTime = (time?: string | null) => {
 
 interface FundersTableProps {
     data: Funder[]
-    onEdit: (funder: Funder) => void
+    onEdit?: (funder: Funder) => void
+    isSuperAdmin?: boolean
 }
 
-export const FundersTable = ({ data, onEdit }: FundersTableProps) => {
+export const FundersTable = ({ data, onEdit, isSuperAdmin = true }: FundersTableProps) => {
     const [selectedFunder, setSelectedFunder] = useState<{ id: string, name: string | null } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -86,7 +87,7 @@ export const FundersTable = ({ data, onEdit }: FundersTableProps) => {
                         <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">FUNDER NAME</TableHead>
                         <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">FUNDER ALIAS</TableHead>
                         <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">RESET TIME</TableHead>
-                        <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        {isSuperAdmin && <TableHead className="w-1/4 text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>}
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -102,12 +103,13 @@ export const FundersTable = ({ data, onEdit }: FundersTableProps) => {
                                 <TableCell className="text-white py-4 font-medium text-sm">{funder.name || "-"}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">{funder.allias || "-"}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">{formatResetTime(funder.reset_time)}</TableCell>
+                                {isSuperAdmin && (
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            onClick={() => onEdit(funder)}
+                                            onClick={() => onEdit?.(funder)}
                                             className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors"
                                         >
                                             <Pencil className="h-4 w-4" />
@@ -122,6 +124,7 @@ export const FundersTable = ({ data, onEdit }: FundersTableProps) => {
                                         </Button>
                                     </div>
                                 </TableCell>
+                                )}
                             </TableRow>
                         ))
                     )}

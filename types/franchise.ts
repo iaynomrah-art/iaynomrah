@@ -5,6 +5,7 @@ export interface Franchise {
   code: string | null;
   investor_name: string | null;
   description: string | null;
+  owner_id: string | null;
 }
 
 export type CreateFranchise = Omit<Franchise, "id" | "created_at">;
