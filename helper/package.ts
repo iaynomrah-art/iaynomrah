@@ -84,6 +84,7 @@ export async function packageTable() {
       max_daily_loss,
       max_total_loss,
       profit_target,
+      consistency_rule,
       funder:funders(name)
     `);
 

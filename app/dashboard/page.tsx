@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = 'force-dynamic'
 import { Suspense } from "react";
 import { getFunders } from "@/helper/funders";
 import { getAccounts } from "@/helper/accounts";

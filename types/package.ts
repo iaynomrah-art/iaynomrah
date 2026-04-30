@@ -12,6 +12,7 @@ export interface Package {
   max_daily_loss: number | null;
   max_total_loss: number | null;
   profit_target: number | null;
+  consistency_rule: number | null;
   funder_id: string | null;
   funder?: Funder;
   funders?: Funder;

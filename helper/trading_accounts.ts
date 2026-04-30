@@ -3,8 +3,93 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
+/**
+ * Backfill trading_accounts for any funder_account records that were inserted
+ * directly into the DB (bypassing the UI's createFunderAccount helper).
+ */
+async function syncMissingTradingAccounts() {
+  const supabase = await createClient();
+
+  // Find funder_accounts that have no corresponding trading_accounts row
+  const { data: allFunderAccounts, error: faError } = await supabase
+    .from("funder_account")
+    .select("id, package_id, package:package(balance)");
+
+  if (faError || !allFunderAccounts) {
+    console.error("[syncMissing] Error fetching funder_accounts:", faError?.message, faError?.details);
+    return;
+  }
+
+  const { data: existingTAs, error: taError } = await supabase
+    .from("trading_accounts")
+    .select("funder_account_id");
+
+  if (taError) {
+    console.error("[syncMissing] Error fetching trading_accounts:", taError.message);
+    return;
+  }
+
+  const linkedIds = new Set((existingTAs || []).map((ta: any) => ta.funder_account_id));
+  const missing = allFunderAccounts.filter((fa: any) => !linkedIds.has(fa.id));
+
+  if (missing.length === 0) return;
+
+  console.log(`[syncMissing] Found ${missing.length} funder_accounts without trading_accounts, backfilling...`);
+
+  // Insert with FK + live_equity from package balance
+  for (const fa of missing) {
+    const balance = (fa as any).package?.balance || 0;
+    const { error: insertError } = await supabase
+      .from("trading_accounts")
+      .insert([{ funder_account_id: fa.id, account_status: "idle", live_equity: balance }]);
+
+    if (insertError) {
+      console.error(`[syncMissing] Error backfilling for ${fa.id}:`, insertError.message, insertError.details, insertError.hint);
+      // Try absolute minimum
+      const { error: retryError } = await supabase
+        .from("trading_accounts")
+        .insert([{ funder_account_id: fa.id }]);
+      if (retryError) {
+        console.error(`[syncMissing] RETRY FAILED for ${fa.id}:`, retryError.message, retryError.details, retryError.hint);
+      } else {
+        console.log(`[syncMissing] Backfilled (minimal) for ${fa.id}`);
+      }
+    } else {
+      console.log(`[syncMissing] Backfilled for ${fa.id} with live_equity: ${balance}`);
+    }
+  }
+}
+
 export async function getTradingAccounts(type?: string) {
   const supabase = await createClient();
+
+  // Backfill any funder_accounts missing from trading_accounts
+  await syncMissingTradingAccounts();
+
+  // Repair: fix any trading_accounts with 0/null live_equity from package balance
+  const { data: zeroEquity } = await supabase
+    .from("trading_accounts")
+    .select("id, funder_account_id")
+    .or("live_equity.eq.0,live_equity.is.null");
+
+  if (zeroEquity && zeroEquity.length > 0) {
+    for (const ta of zeroEquity) {
+      if (!ta.funder_account_id) continue;
+      const { data: fa } = await supabase
+        .from("funder_account")
+        .select("package:package(balance)")
+        .eq("id", ta.funder_account_id)
+        .single();
+      const balance = (fa as any)?.package?.balance;
+      if (balance && balance > 0) {
+        await supabase
+          .from("trading_accounts")
+          .update({ live_equity: balance })
+          .eq("id", ta.id);
+        console.log(`[repairEquity] Updated trading_account ${ta.id} live_equity to ${balance}`);
+      }
+    }
+  }
 
   let query = supabase.from("trading_accounts").select(`
     *,
@@ -22,9 +107,10 @@ export async function getTradingAccounts(type?: string) {
   const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching trading accounts:", error);
+    console.error("Error fetching trading accounts:", error.message, error.details, error.hint);
     return [];
   }
+  console.log(`[getTradingAccounts] Returned ${data?.length ?? 0} records`);
 
   // Flatten the data to maintain compatibility with existing components
   return data.map((item: any) => {

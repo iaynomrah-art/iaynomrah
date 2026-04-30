@@ -1,5 +1,7 @@
 import React, { Suspense } from 'react'
 import { getCredentials } from '@/helper/credentials'
+
+export const dynamic = 'force-dynamic'
 import { SearchBarHeader } from '@/components/ui/search-bar-header'
 import { CredentialsTable, CredentialsTableSkeleton } from '@/components/tables/credentials'
 import { CreateCredentialDialog } from '@/components/modal/Create/CreateCredentials'

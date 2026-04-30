@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils"
 import { ChevronDown, ChevronUp, RefreshCw, X, Monitor, Save } from "lucide-react"
 import Row from "@/components/ui/row"
 import { toast } from "sonner"
-import { confirmTrade, forceCloseTrade } from "@/helper/automation"
 import { updatePairedAccount } from "@/helper/paired_accounts"
+import { broadcastToUnit } from "@/helper/realtime"
 import { Input } from "@/components/ui/input"
 import {
     Select,
@@ -185,6 +185,35 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
         })
     }, [pair])
 
+    const getPlatform = (acc: any) => {
+        const creds = acc.credentials;
+        const pkgCreds = acc.package_ref?.credential || acc.package_ref?.credentials;
+        return creds?.platform || pkgCreds?.platform;
+    }
+
+    const createRealtimePayload = (acc: any, isPrimary: boolean, operation: string) => {
+        const creds = acc.credentials;
+        const pkgCreds = acc.package_ref?.credential || acc.package_ref?.credentials;
+        const platform = getPlatform(acc);
+
+        return {
+            event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : 'run_tradelocker',
+            payload: {
+                username: creds?.username || pkgCreds?.username || "",
+                password: creds?.password || pkgCreds?.password || "",
+                server: creds?.server || pkgCreds?.server || "",
+                purchase_type: isPrimary ? params.primary_order_type : params.secondary_order_type,
+                order_amount: isPrimary ? params.primary_order_amount : params.secondary_order_amount,
+                take_profit: isPrimary ? params.primary_take_profit : params.secondary_take_profit,
+                stop_loss: isPrimary ? params.primary_stop_loss : params.secondary_stop_loss,
+                account_id: creds?.account_id || acc.accounts_id,
+                db_account_id: acc.accounts_id,
+                symbol: String(params.symbol || "XAUUSD"),
+                operation: operation
+            }
+        }
+    }
+
     const handleUpdateParameters = async (newParams = params) => {
         try {
             setIsSaving(true)
@@ -211,55 +240,38 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
         try {
             setIsRecovering(true)
 
-            const primaryPayload = {
-                username: String(pair.primary_account?.credentials?.username || ""),
-                password: String(pair.primary_account?.credentials?.password || ""),
-                symbol: String(params.symbol),
-                order_amount: String(params.primary_order_amount),
-                tp_ticks: String(params.primary_take_profit),
-                sl_ticks: String(params.primary_stop_loss),
-                purchase_type: String(params.primary_order_type),
-                account_number: String(pair.primary_account?.credentials?.username || pair.primary_account?.id),
-                latest_equity: String(pair.primary_account?.live_equity || 0),
-                daily_pnl: String(pair.primary_account?.daily_pnl || 0),
-                rdd: String(pair.primary_account?.rdd || 0)
+            const unit1Id = pair.primary_account?.accounts?.units?.unit_id;
+            const unit2Id = pair.secondary_account?.accounts?.units?.unit_id;
+
+            if (!unit1Id || !unit2Id) {
+                throw new Error("One or both units are missing a Unit GUID. Cannot connect to trading PCs.")
             }
 
-            const secondaryPayload = {
-                username: String(pair.secondary_account?.credentials?.username || ""),
-                password: String(pair.secondary_account?.credentials?.password || ""),
-                symbol: String(params.symbol),
-                order_amount: String(params.secondary_order_amount),
-                tp_ticks: String(params.secondary_take_profit),
-                sl_ticks: String(params.secondary_stop_loss),
-                purchase_type: String(params.secondary_order_type),
-                account_number: String(pair.secondary_account?.credentials?.username || pair.secondary_account?.id),
-                latest_equity: String(pair.secondary_account?.live_equity || 0),
-                daily_pnl: String(pair.secondary_account?.daily_pnl || 0),
-                rdd: String(pair.secondary_account?.rdd || 0)
+            const p1Data = createRealtimePayload(pair.primary_account, true, 'trade-terminator');
+            const p2Data = createRealtimePayload(pair.secondary_account, false, 'trade-terminator');
+
+            toast.loading("Sending recovery signal...", { id: 'recover-trade' })
+
+            // Recovery uses the trade-terminator operation to re-sync or recover state
+            const [p1Res, p2Res] = await Promise.all([
+                broadcastToUnit({ unitId: unit1Id, event: p1Data.event, payload: p1Data.payload, timeoutMs: 60000 }),
+                broadcastToUnit({ unitId: unit2Id, event: p2Data.event, payload: p2Data.payload, timeoutMs: 60000 })
+            ])
+
+            const p1Result = p1Res?.result || {};
+            const p2Result = p2Res?.result || {};
+
+            if (p1Result?.success === false || p1Result?.status === 'failed' || p1Result?.status === 'error') {
+                throw new Error(`Primary machine execution failed: ${p1Result?.reason || p1Result?.message || 'Unknown error'}`)
+            }
+            if (p2Result?.success === false || p2Result?.status === 'failed' || p2Result?.status === 'error') {
+                throw new Error(`Secondary machine execution failed: ${p2Result?.reason || p2Result?.message || 'Unknown error'}`)
             }
 
-            const unit1 = pair.primary_account?.accounts?.units;
-            const unit2 = pair.secondary_account?.accounts?.units;
-
-            if (!unit1?.api_base_url || !unit2?.api_base_url) {
-                throw new Error("API URL missing for one or both units");
-            }
-
-            const normalizeUrl = (url: string) => url.endsWith('/') ? url : `${url}/`;
-            const api1 = normalizeUrl(unit1.api_base_url);
-            const api2 = normalizeUrl(unit2.api_base_url);
-
-            // Recovery uses the same confirmTrade logic to re-sync state
-            await Promise.all([
-                confirmTrade(api1, primaryPayload),
-                confirmTrade(api2, secondaryPayload)
-            ]);
-
-            toast.success("Trade recovery signal sent")
+            toast.success("Trade recovery executed successfully", { id: 'recover-trade' })
         } catch (error: any) {
             console.error("Recovery error:", error)
-            toast.error(error.message || "Failed to recover trade")
+            toast.error(error.message || "Failed to recover trade", { id: 'recover-trade' })
         } finally {
             setIsRecovering(false)
         }
@@ -269,55 +281,38 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
         try {
             setIsForceClosing(true)
 
-            const primaryPayload = {
-                username: String(pair.primary_account?.credentials?.username || ""),
-                password: String(pair.primary_account?.credentials?.password || ""),
-                symbol: String(params.symbol),
-                order_amount: String(params.primary_order_amount),
-                tp_ticks: String(params.primary_take_profit),
-                sl_ticks: String(params.primary_stop_loss),
-                purchase_type: String(params.primary_order_type),
-                account_number: String(pair.primary_account?.credentials?.username || pair.primary_account?.id),
-                latest_equity: String(pair.primary_account?.live_equity || 0),
-                daily_pnl: String(pair.primary_account?.daily_pnl || 0),
-                rdd: String(pair.primary_account?.rdd || 0)
+            const unit1Id = pair.primary_account?.accounts?.units?.unit_id;
+            const unit2Id = pair.secondary_account?.accounts?.units?.unit_id;
+
+            if (!unit1Id || !unit2Id) {
+                throw new Error("One or both units are missing a Unit GUID. Cannot connect to trading PCs.")
             }
 
-            const secondaryPayload = {
-                username: String(pair.secondary_account?.credentials?.username || ""),
-                password: String(pair.secondary_account?.credentials?.password || ""),
-                symbol: String(params.symbol),
-                order_amount: String(params.secondary_order_amount),
-                tp_ticks: String(params.secondary_take_profit),
-                sl_ticks: String(params.secondary_stop_loss),
-                purchase_type: String(params.secondary_order_type),
-                account_number: String(pair.secondary_account?.credentials?.username || pair.secondary_account?.id),
-                latest_equity: String(pair.secondary_account?.live_equity || 0),
-                daily_pnl: String(pair.secondary_account?.daily_pnl || 0),
-                rdd: String(pair.secondary_account?.rdd || 0)
+            const p1Data = createRealtimePayload(pair.primary_account, true, 'close-position');
+            const p2Data = createRealtimePayload(pair.secondary_account, false, 'close-position');
+
+            toast.loading("Sending force close signal...", { id: 'force-close' })
+
+            const [p1Res, p2Res] = await Promise.all([
+                broadcastToUnit({ unitId: unit1Id, event: p1Data.event, payload: p1Data.payload, timeoutMs: 60000 }),
+                broadcastToUnit({ unitId: unit2Id, event: p2Data.event, payload: p2Data.payload, timeoutMs: 60000 })
+            ])
+
+            const p1Result = p1Res?.result || {};
+            const p2Result = p2Res?.result || {};
+
+            if (p1Result?.success === false || p1Result?.status === 'failed' || p1Result?.status === 'error') {
+                throw new Error(`Primary machine execution failed: ${p1Result?.reason || p1Result?.message || 'Unknown error'}`)
+            }
+            if (p2Result?.success === false || p2Result?.status === 'failed' || p2Result?.status === 'error') {
+                throw new Error(`Secondary machine execution failed: ${p2Result?.reason || p2Result?.message || 'Unknown error'}`)
             }
 
-            const unit1 = pair.primary_account?.accounts?.units;
-            const unit2 = pair.secondary_account?.accounts?.units;
-
-            if (!unit1?.api_base_url || !unit2?.api_base_url) {
-                throw new Error("API URL missing for one or both units");
-            }
-
-            const normalizeUrl = (url: string) => url.endsWith('/') ? url : `${url}/`;
-            const api1 = normalizeUrl(unit1.api_base_url);
-            const api2 = normalizeUrl(unit2.api_base_url);
-
-            await Promise.all([
-                forceCloseTrade(api1, primaryPayload),
-                forceCloseTrade(api2, secondaryPayload)
-            ]);
-
-            toast.success("Force close signal sent successfully")
+            toast.success("Force close executed successfully", { id: 'force-close' })
             setIsForceCloseModalOpen(false)
         } catch (error: any) {
             console.error("Force close error:", error)
-            toast.error(error.message || "Failed to force close trade")
+            toast.error(error.message || "Failed to force close trade", { id: 'force-close' })
         } finally {
             setIsForceClosing(false)
         }

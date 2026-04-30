@@ -26,6 +26,7 @@ const packageSchema = z.object({
     max_total_loss_percent: z.string().optional(),
     profit_target_percent: z.string().optional(),
     daily_profit_target_percent: z.string().optional(),
+    consistency_rule_percent: z.string().optional(),
 })
 
 type PackageFormValues = z.infer<typeof packageSchema>
@@ -85,6 +86,8 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
             daily_profit_target_percent:
                 initialData?.daily_profit_target_percent?.toString() ||
                 getDefaultPercentageValue(initialData?.daily_profit_target, initialBalance),
+            consistency_rule_percent:
+                initialData?.consistency_rule?.toString() || "40",
         },
     })
 
@@ -114,6 +117,7 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
             const submitTotalLossPercent = data.max_total_loss_percent ? parseFloat(data.max_total_loss_percent) : 0
             const submitProfitTargetPercent = data.profit_target_percent ? parseFloat(data.profit_target_percent) : 0
             const submitDailyProfitTargetPercent = data.daily_profit_target_percent ? parseFloat(data.daily_profit_target_percent) : 0
+            const submitConsistencyRulePercent = data.consistency_rule_percent ? parseFloat(data.consistency_rule_percent) : 40
 
             const payload = {
                 name: data.name,
@@ -126,6 +130,7 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
                 max_total_loss: submitTotalLossPercent > 0 ? (balanceValue * submitTotalLossPercent) / 100 : null,
                 profit_target: submitProfitTargetPercent > 0 ? (balanceValue * submitProfitTargetPercent) / 100 : null,
                 daily_profit_target: submitDailyProfitTargetPercent > 0 ? (balanceValue * submitDailyProfitTargetPercent) / 100 : null,
+                consistency_rule: submitConsistencyRulePercent,
             }
 
             if (isUpdate) {
@@ -350,6 +355,25 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
                         />
                         <p className="text-xs text-gray-400">
                             = ${calculatedValues.profit_target.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="consistency_rule_percent" className="text-white text-xs">
+                            Consistency Rule (%)
+                        </Label>
+                        <Input
+                            id="consistency_rule_percent"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            {...register("consistency_rule_percent")}
+                            className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
+                            placeholder="e.g. 40"
+                        />
+                        <p className="text-xs text-gray-400">
+                            Max 1-day profit as % of total
                         </p>
                     </div>
                 </div>

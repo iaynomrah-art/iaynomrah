@@ -113,7 +113,7 @@ export const PairAccountsModal = ({
         if (totalAllowance <= 0) totalAllowance = liveEquity * totalLossPercent;
 
         const allowance = Math.min(dailyAllowance, totalAllowance);
-        return Number((Math.max(0, allowance) * 0.96).toFixed(2));
+        return Number((Math.max(0, allowance) * 0.70).toFixed(2));
     };
 
     const recalculateMetrics = (pair: Pair): Pair => {

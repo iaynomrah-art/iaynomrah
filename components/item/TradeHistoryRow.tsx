@@ -16,6 +16,11 @@ export default function TradeHistoryRow({ pair }: { pair: any }) {
         isPrimary: boolean
     }) => {
         const orderType = isPrimary ? pair.primary_order_type : pair.secondary_order_type;
+        const tradeStartBalance = isPrimary ? pair.primary_starting_balance : pair.secondary_starting_balance;
+        const tradeFinalBalance = isPrimary ? pair.primary_final_balance : pair.secondary_final_balance;
+        const tradePnl = (tradeStartBalance != null && tradeFinalBalance != null)
+            ? (tradeFinalBalance - tradeStartBalance)
+            : 0;
 
         return (
             <div className="flex flex-col bg-[#161a1e] w-full">
@@ -40,10 +45,9 @@ export default function TradeHistoryRow({ pair }: { pair: any }) {
                 {/* Account Details */}
                 <div className="divide-y divide-[#2b3139]">
                     <Row label="Phase" value={account.package_ref?.phase || "N/A"} color="text-[#f0b90b]" />
-                    <Row label="Starting Balance" value={`$${(account.package_ref?.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
-                    <Row label="Latest Equity" value={`$${(account.live_equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
-                    <Row label="Daily P&L" value={`$${(account.daily_pnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={(account.daily_pnl || 0) >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
-                    <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
+                    <Row label="Session Start Balance" value={`$${(tradeStartBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                    <Row label="Session End Balance" value={`$${(tradeFinalBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                    <Row label="Session P&L" value={`$${tradePnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={tradePnl >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
 
                     <Row label="Symbol" value={pair.symbol || "XAUUSD"} color="text-white font-bold" />
                     <Row
@@ -78,6 +82,12 @@ export default function TradeHistoryRow({ pair }: { pair: any }) {
         })
         : 'N/A';
 
+    const primaryPnl = (pair.primary_final_balance != null && pair.primary_starting_balance != null)
+        ? (pair.primary_final_balance - pair.primary_starting_balance) : 0;
+    const secondaryPnl = (pair.secondary_final_balance != null && pair.secondary_starting_balance != null)
+        ? (pair.secondary_final_balance - pair.secondary_starting_balance) : 0;
+    const totalPnl = primaryPnl + secondaryPnl;
+
     return (
         <div className="border border-[#1a1a1a] rounded-xl overflow-hidden bg-[#0d0d0d] shadow-sm opacity-80 hover:opacity-100 transition-opacity">
             {/* Clickable Header */}
@@ -104,6 +114,15 @@ export default function TradeHistoryRow({ pair }: { pair: any }) {
                         <div className="h-4 w-px bg-[#2b3139]" />
 
                         <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <span className={cn(
+                                    "text-[12px] font-bold tracking-widest px-2.5 py-0.5 rounded-full",
+                                    totalPnl >= 0 ? "bg-[#2ebc66]/20 text-[#2ebc66]" : "bg-[#f6465d]/20 text-[#f6465d]"
+                                )}>
+                                    {totalPnl >= 0 ? "+" : ""}${totalPnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
+                            </div>
+                            <div className="h-3 w-px bg-[#2b3139]" />
                             <div className="flex items-center gap-2 text-muted-foreground">
                                 <Calendar className="h-3.5 w-3.5" />
                                 <span className="text-[11px] font-medium uppercase tracking-wider">{formattedDate}</span>

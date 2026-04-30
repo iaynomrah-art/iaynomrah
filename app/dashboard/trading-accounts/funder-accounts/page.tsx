@@ -1,5 +1,7 @@
 import React, { Suspense } from 'react'
 import { getFunderAccounts } from '@/helper/funder_accounts'
+
+export const dynamic = 'force-dynamic'
 import { SearchBarHeader } from '@/components/ui/search-bar-header'
 import { FunderAccountsTable } from '@/components/tables/funder_accounts'
 import { FunderAccountsTableSkeleton } from '@/components/skeleton/FunderAccountsTableSkeleton'
