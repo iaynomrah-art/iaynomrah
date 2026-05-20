@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp, RefreshCw, X, Monitor, Save } from "lucide-reac
 import Row from "@/components/ui/row"
 import { toast } from "sonner"
 import { updatePairedAccount } from "@/helper/paired_accounts"
-import { broadcastToUnit } from "@/helper/realtime"
+import { createClient } from "@/lib/supabase/client"
 import { Input } from "@/components/ui/input"
 import {
     Select,
@@ -252,20 +252,33 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
 
             toast.loading("Sending recovery signal...", { id: 'recover-trade' })
 
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
+
             // Recovery uses the trade-terminator operation to re-sync or recover state
-            const [p1Res, p2Res] = await Promise.all([
-                broadcastToUnit({ unitId: unit1Id, event: p1Data.event, payload: p1Data.payload, timeoutMs: 60000 }),
-                broadcastToUnit({ unitId: unit2Id, event: p2Data.event, payload: p2Data.payload, timeoutMs: 60000 })
-            ])
+            const executeResponse = await fetch(`${orchestratorUrl}/api/v1/units/pair/execute`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    unit1Id,
+                    unit2Id,
+                    p1Event: p1Data.event,
+                    p1Payload: p1Data.payload,
+                    p2Event: p2Data.event,
+                    p2Payload: p2Data.payload,
+                    timeoutMs: 60000
+                })
+            });
 
-            const p1Result = p1Res?.result || {};
-            const p2Result = p2Res?.result || {};
-
-            if (p1Result?.success === false || p1Result?.status === 'failed' || p1Result?.status === 'error') {
-                throw new Error(`Primary machine execution failed: ${p1Result?.reason || p1Result?.message || 'Unknown error'}`)
-            }
-            if (p2Result?.success === false || p2Result?.status === 'failed' || p2Result?.status === 'error') {
-                throw new Error(`Secondary machine execution failed: ${p2Result?.reason || p2Result?.message || 'Unknown error'}`)
+            if (!executeResponse.ok) {
+                const errData = await executeResponse.json().catch(() => ({}));
+                const errorMessage = typeof errData.error === 'string' ? errData.error : errData.error?.message;
+                throw new Error(errData.message || errorMessage || "Execution failed on the orchestrator");
             }
 
             toast.success("Trade recovery executed successfully", { id: 'recover-trade' })
@@ -293,19 +306,32 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
 
             toast.loading("Sending force close signal...", { id: 'force-close' })
 
-            const [p1Res, p2Res] = await Promise.all([
-                broadcastToUnit({ unitId: unit1Id, event: p1Data.event, payload: p1Data.payload, timeoutMs: 60000 }),
-                broadcastToUnit({ unitId: unit2Id, event: p2Data.event, payload: p2Data.payload, timeoutMs: 60000 })
-            ])
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
 
-            const p1Result = p1Res?.result || {};
-            const p2Result = p2Res?.result || {};
+            const executeResponse = await fetch(`${orchestratorUrl}/api/v1/units/pair/execute`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    unit1Id,
+                    unit2Id,
+                    p1Event: p1Data.event,
+                    p1Payload: p1Data.payload,
+                    p2Event: p2Data.event,
+                    p2Payload: p2Data.payload,
+                    timeoutMs: 60000
+                })
+            });
 
-            if (p1Result?.success === false || p1Result?.status === 'failed' || p1Result?.status === 'error') {
-                throw new Error(`Primary machine execution failed: ${p1Result?.reason || p1Result?.message || 'Unknown error'}`)
-            }
-            if (p2Result?.success === false || p2Result?.status === 'failed' || p2Result?.status === 'error') {
-                throw new Error(`Secondary machine execution failed: ${p2Result?.reason || p2Result?.message || 'Unknown error'}`)
+            if (!executeResponse.ok) {
+                const errData = await executeResponse.json().catch(() => ({}));
+                const errorMessage = typeof errData.error === 'string' ? errData.error : errData.error?.message;
+                throw new Error(errData.message || errorMessage || "Force close failed on the orchestrator");
             }
 
             toast.success("Force close executed successfully", { id: 'force-close' })

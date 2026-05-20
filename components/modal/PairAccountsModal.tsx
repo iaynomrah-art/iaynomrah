@@ -21,7 +21,7 @@ import { TradingAccount } from "@/types/trading_accounts"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { broadcastToUnit } from "@/helper/realtime"
-import { createPairedAccount, updatePairedAccount, deletePairedAccount } from "@/helper/paired_accounts"
+import { deletePairedAccount, updatePairedAccount } from "@/helper/paired_accounts"
 import { createClient } from "@/lib/supabase/client"
 
 import { Input } from "@/components/ui/input"
@@ -521,88 +521,53 @@ export const PairAccountsModal = ({
                 }
             }
 
-            // --- STEP 0: SAVE TO DB IMMEDIATELY (trade_status: initializing) ---
-            // This makes the pair visible in the Paired Accounts tab right away
-            toast.loading("Registering pair in database...", { id: 'pair-trade' })
-            try {
-                const pairedRecord = await createPairedAccount({
-                    primary_account_id: primary.id,
-                    secondary_account_id: secondary.id,
-                    symbol: primary.symbol || "XAUUSD",
-                    primary_order_amount: primary.order_amount,
-                    primary_order_type: primary.trade_type,
-                    primary_take_profit: primary.tp_ticks,
-                    primary_stop_loss: primary.sl_ticks,
-                    secondary_order_amount: secondary.order_amount,
-                    secondary_order_type: secondary.trade_type,
-                    secondary_take_profit: secondary.tp_ticks,
-                    secondary_stop_loss: secondary.sl_ticks,
-                    trade_status: 'initializing',
-                    is_active: true,
-                    notes: null,
-                    primary_automation_status: null,
-                    secondary_automation_status: null,
-                })
-                savedPairId = pairedRecord?.[0]?.id || null;
+            // Call Orchestrator to handle the full pairing flow
+            toast.loading("Initiating pairing via Orchestrator...", { id: 'pair-trade' });
+            
+            const supabaseForToken = createClient();
+            const { data: { session } } = await supabaseForToken.auth.getSession();
+            const token = session?.access_token;
+            const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
+            
+            const p1Data = createRealtimePayload(primary, 'input-order');
+            const p2Data = createRealtimePayload(secondary, 'input-order');
 
-                // Mark both trading accounts as 'paired'
-                const supabase = createClient();
-                await supabase
-                    .from('trading_accounts')
-                    .update({ account_status: 'paired' })
-                    .in('id', [primary.id, secondary.id])
-            } catch (e: any) {
-                console.error('Failed to save pair record:', e)
-                toast.error('Could not register pair in database. Aborting.', { id: 'pair-trade' })
-                return
+            const payload = {
+                primary_id: primary.id,
+                secondary_id: secondary.id,
+                symbol: primary.symbol || "XAUUSD",
+                primary_order_amount: primary.order_amount,
+                primary_order_type: primary.trade_type,
+                primary_take_profit: primary.tp_ticks,
+                primary_stop_loss: primary.sl_ticks,
+                secondary_order_amount: secondary.order_amount,
+                secondary_order_type: secondary.trade_type,
+                secondary_take_profit: secondary.tp_ticks,
+                secondary_stop_loss: secondary.sl_ticks,
+                unit1Id: unit1Id,
+                unit2Id: unit2Id,
+                p1Event: p1Data.event,
+                p1Payload: p1Data.payload,
+                p2Event: p2Data.event,
+                p2Payload: p2Data.payload
+            };
+
+            const response = await fetch(`${orchestratorUrl}/api/v1/units/pair`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                const errorMessage = typeof data.error === 'string' ? data.error : data.error?.message;
+                throw new Error(data.message || errorMessage || "Failed to pair accounts via Orchestrator");
             }
 
-            // --- PRE-FLIGHT CHECK ---
-            toast.loading("Pinging trading machines...", { id: 'pair-trade' })
-            try {
-                await Promise.all([
-                    broadcastToUnit({ unitId: unit1Id, event: 'ping', timeoutMs: 10000 }),
-                    broadcastToUnit({ unitId: unit2Id, event: 'ping', timeoutMs: 10000 })
-                ])
-            } catch (e: any) {
-                throw new Error(`Pre-flight connection failed: ${e.message}. Ensure local servers are running.`)
-            }
-
-            // --- STAGE ORDERS (INPUT ONLY) ---
-            toast.loading("Preparing trades on both devices... (this may take a while)", { id: 'pair-trade' })
-            let p1Res, p2Res;
-            try {
-                const p1Data = createRealtimePayload(primary, 'input-order');
-                const p2Data = createRealtimePayload(secondary, 'input-order');
-
-                [p1Res, p2Res] = await Promise.all([
-                    broadcastToUnit({ unitId: unit1Id, event: p1Data.event, payload: p1Data.payload, timeoutMs: 0 }),
-                    broadcastToUnit({ unitId: unit2Id, event: p2Data.event, payload: p2Data.payload, timeoutMs: 0 })
-                ])
-
-                const p1Result = p1Res?.result || {};
-                const p2Result = p2Res?.result || {};
-
-                if (p1Result?.success === false || p1Result?.status === 'failed' || p1Result?.status === 'error') {
-                    throw new Error(`Primary machine staging failed: ${p1Result?.reason || p1Result?.message || 'Likely failed TP/SL validation.'}`)
-                }
-                if (p2Result?.success === false || p2Result?.status === 'failed' || p2Result?.status === 'error') {
-                    throw new Error(`Secondary machine staging failed: ${p2Result?.reason || p2Result?.message || 'Likely failed TP/SL validation.'}`)
-                }
-            } catch (e: any) {
-                toast.dismiss('pair-trade')
-                throw new Error(`Execution aborted during staging: ${e.message}.`)
-            }
-
-            // --- SUCCESS ---
-            // Both devices staged the trade successfully. Update the DB to 'paired'
-            if (savedPairId) {
-                try {
-                    await updatePairedAccount(savedPairId, { trade_status: 'paired' })
-                } catch (e) {
-                    console.error('Failed to update pair status to paired:', e)
-                }
-            }
             toast.success("Accounts successfully paired and staged! You can now start trading.", { id: 'pair-trade', duration: 5000 })
             onConfirm(pairs)
             onClose()
@@ -611,14 +576,12 @@ export const PairAccountsModal = ({
             console.error("Pairing error:", error)
             toast.dismiss('pair-trade')
 
-            // Cleanup on failure
-            if (savedPairId) {
-                try { await deletePairedAccount(savedPairId) } catch (e) { }
-                const supabase = createClient();
-                try {
-                    await supabase.from('trading_accounts').update({ account_status: 'idle' }).in('id', [primary.id, secondary.id])
-                } catch (e) { }
-            }
+            // Cleanup on failure if the backend didn't clean it up or if it failed before the fetch
+            // Let the backend handle the DB rollback since the Orchestrator does it natively now
+            const supabase = createClient();
+            try {
+                await supabase.from('trading_accounts').update({ account_status: 'idle' }).in('id', [primary.id, secondary.id])
+            } catch (e) { }
 
             // Show "Try Again" Modal (Requirement: failed = remove the record in the database, add a modal to with option to try again)
             Swal.fire({
