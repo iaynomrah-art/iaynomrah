@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { broadcastToUnit } from "@/helper/realtime";
 
 import {
     Pencil,
@@ -84,23 +83,22 @@ export function UnitCard({
             }
             
             try {
-                await broadcastToUnit({
-                    unitId: guid,
-                    event: 'ping',
-                    timeoutMs: 5000
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                
+                const response = await fetch(`https://orchestrator.iaynomrah.cloud/api/v1/units/ping/${guid}`, {
+                    signal: controller.signal
                 });
-                if (isMounted) {
-                    setIsCheckingHealth(false);
-                    if (status !== 'enabled') {
-                        onStatusChange?.(id, 'enabled');
-                    }
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error("Health check failed");
                 }
             } catch (error) {
+                // Do not update status on failure/success as per requirements
+            } finally {
                 if (isMounted) {
                     setIsCheckingHealth(false);
-                    if (status !== 'not connected') {
-                        onStatusChange?.(id, 'not connected');
-                    }
                 }
             }
         };
@@ -120,14 +118,21 @@ export function UnitCard({
         setIsPinging(true);
         const toastId = toast.loading(`Pinging ${code}...`);
         try {
-            await broadcastToUnit({
-                unitId: guid,
-                event: 'ping',
-                timeoutMs: 10000
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            const response = await fetch(`https://orchestrator.iaynomrah.cloud/api/v1/units/ping/${guid}`, {
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error("Failed to ping unit.");
+            }
             toast.success("Pong! Unit is online and responding.", { id: toastId });
         } catch (error: any) {
-            toast.error(error.message || "Failed to ping unit.", { id: toastId });
+            const msg = error.name === 'AbortError' ? "Timeout: No response from unit." : (error.message || "Failed to ping unit.");
+            toast.error(msg, { id: toastId });
         } finally {
             setIsPinging(false);
         }

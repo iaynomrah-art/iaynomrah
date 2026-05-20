@@ -39,6 +39,15 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
     const [role, setRole] = useState<string | null>(null);
     const [selectedFranchise, setSelectedFranchise] = useState<string>("all");
 
+    const refreshUnitsSilent = async () => {
+        try {
+            const data = await getUnitsWithCounts();
+            setUnits(data as any);
+        } catch (error) {
+            console.error("Failed to refresh units silently:", error);
+        }
+    };
+
     useEffect(() => {
         const fetchUser = async () => {
             const supabase = createClient();
@@ -48,11 +57,22 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
             }
         };
         fetchUser();
+
+        const supabase = createClient();
+        const channel = supabase
+            .channel('realtime_units_client')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'units' }, () => {
+                refreshUnitsSilent();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'funder_account' }, () => {
+                refreshUnitsSilent();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
-
-
-
-
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
