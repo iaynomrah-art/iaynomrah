@@ -231,6 +231,7 @@ export function TradeNotificationListener() {
               "Realtime notifications are active and working!"
             );
           } : requestPermission}
+          suppressHydrationWarning={true}
           className={cn(
             "group relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 border shadow-lg overflow-hidden",
             permission === 'granted' 
