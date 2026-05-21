@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { User, LogOut, Settings, Bell, Globe, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+import Swal from "sweetalert2";
+
 export function DashboardHeader() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string>("admin_aitrade@disruptorai.com");
@@ -43,6 +45,28 @@ export function DashboardHeader() {
     router.push("/");
   };
 
+  const handleDownload = () => {
+    Swal.fire({
+      title: 'Download Installer',
+      text: 'Are you sure you want to download the PairTradingServer installer?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Download',
+      cancelButtonText: 'Cancel',
+      background: '#0d0d0d',
+      color: '#ffffff',
+      confirmButtonColor: '#2ebc66',
+      cancelButtonColor: '#1a1a1a',
+      customClass: {
+        popup: 'border border-[#1a1a1a] rounded-xl',
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        window.open("https://github.com/iaynomrah-art/iaynomrah-app/releases/download/v1/PairTradingServer_Setup_v1.0.1.exe", "_blank");
+      }
+    });
+  };
+
   return (
     <header suppressHydrationWarning={true} className="sticky top-0 z-40 h-16 border-b border-[#1a1a1a] bg-[#050505]/80 backdrop-blur-md flex items-center justify-between px-4 lg:px-6 w-full">
       <div className="flex items-center gap-4">
@@ -60,17 +84,15 @@ export function DashboardHeader() {
         {/* Actions Group */}
         <div className="flex items-center gap-1 border-r border-[#1a1a1a] pr-2 lg:pr-4 mr-1 lg:mr-2">
 
-          <a
-            href="https://github.com/iaynomrah-art/iaynomrah-app/raw/refs/heads/main/PairTradingServer.exe"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Button
+            variant="ghost"
+            onClick={handleDownload}
+            className="text-gray-400 hover:text-green-400 hover:bg-[#1a1a1a] h-9 px-3 gap-2"
             title="Download Installer"
           >
-            <Button variant="ghost" className="text-gray-400 hover:text-green-400 hover:bg-[#1a1a1a] h-9 px-3 gap-2">
-              <Download className="w-4 h-4" />
-              <p className="text-sm font-medium">Download Installer</p>
-            </Button>
-          </a>
+            <Download className="w-4 h-4" />
+            <p className="text-sm font-medium">Download Installer</p>
+          </Button>
         </div>
 
         {/* User Menu */}
