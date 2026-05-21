@@ -7,6 +7,8 @@ export interface Credential {
   platform_id?: string;
   server?: string;
   name?: string;
+  account_id?: string;
+  accounts?: any;
 
   // Joined fields
   package?: Array<{

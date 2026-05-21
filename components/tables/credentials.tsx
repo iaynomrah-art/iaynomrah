@@ -88,12 +88,22 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
                             <TableRow key={credential.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
                                 <TableCell className="text-white py-4 font-medium text-sm">
                                     {((): string => {
+                                        // Try direct account relation first
+                                        const acc = credential.accounts;
+                                        if (acc) {
+                                            const account = Array.isArray(acc) ? acc[0] : acc;
+                                            if (account && (account.first_name || account.last_name)) {
+                                                return `${account.first_name || ""} ${account.last_name || ""}`.trim();
+                                            }
+                                        }
+                                        
+                                        // Fallback to package relation
                                         const pkg = credential.package?.[0];
                                         if (!pkg) return "-";
-                                        const accounts = pkg.accounts;
-                                        const acc = Array.isArray(accounts) ? accounts[0] : accounts;
-                                        if (!acc) return "-";
-                                        return `${acc.first_name || ""} ${acc.last_name || ""}`.trim() || "-";
+                                        const pkgAccounts = pkg.accounts;
+                                        const pkgAcc = Array.isArray(pkgAccounts) ? pkgAccounts[0] : pkgAccounts;
+                                        if (!pkgAcc) return "-";
+                                        return `${pkgAcc.first_name || ""} ${pkgAcc.last_name || ""}`.trim() || "-";
                                     })()}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">

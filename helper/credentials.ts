@@ -16,6 +16,8 @@ export async function getCredentials(): Promise<Credential[]> {
       password,
       platform,
       platform_id,
+      account_id,
+      accounts(*),
       package:package(
         id,
         funder_id,
@@ -53,7 +55,8 @@ export async function getCredentialById(id: string) {
 
 export async function createCredential(formData: any) {
   const supabase = await createClient();
-  const { account_id, funder_id, ...credentialData } = formData;
+  const { funder_id, ...credentialData } = formData;
+  const account_id = credentialData.account_id;
 
   const { data: credential, error: credError } = await supabase
     .from("credentials")
@@ -109,7 +112,8 @@ export async function createCredential(formData: any) {
 
 export async function updateCredential(id: string, formData: any) {
   const supabase = await createClient();
-  const { account_id, funder_id, ...credentialData } = formData;
+  const { funder_id, ...credentialData } = formData;
+  const account_id = credentialData.account_id;
 
   const { data: credential, error: credError } = await supabase
     .from("credentials")
@@ -192,6 +196,8 @@ export async function credentialsTable(): Promise<Credential[]> {
       platform,
       platform_id,
       server,
+      account_id,
+      accounts(*),
       package:package(
         id,
         funder_id,

@@ -67,7 +67,7 @@ export const AccountCredentialsForm = ({
             platform: initialData?.platform ?? "",
             platform_id: initialData?.platform_id ?? "",
             server: (initialData as any)?.server ?? "",
-            account_id: initialData?.package?.[0]?.account_id || "",
+            account_id: initialData?.account_id || initialData?.package?.[0]?.account_id || "",
         },
     })
 
