@@ -8,7 +8,7 @@ import { toast } from "sonner"
 import Swal from 'sweetalert2'
 import { EditPairedAccountModal } from "@/components/modal/EditPairedAccountModal"
 import { deletePairedAccount, updatePairedAccount } from "@/helper/paired_accounts"
-import { broadcastToUnit } from "@/helper/realtime"
+import { createClient } from "@/lib/supabase/client"
 
 const AccountColumn = ({
     account,
@@ -130,32 +130,39 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                 }
             }
 
-            toast.loading("Pinging trading machines...", { id: 'start-trade' })
-            await Promise.all([
-                broadcastToUnit({ unitId: unit1Id, event: 'ping', timeoutMs: 10000 }),
-                broadcastToUnit({ unitId: unit2Id, event: 'ping', timeoutMs: 10000 })
-            ])
-
             toast.loading("Opening positions on both devices...", { id: 'start-trade' })
+
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
 
             // 1. Prepare payload for realtime (place order only)
             const p1Data = createRealtimePayload(pair.primary_account, true, 'place-order');
             const p2Data = createRealtimePayload(pair.secondary_account, false, 'place-order');
 
-            // 2. Call websocket and wait for the order to be placed
-            const [p1Res, p2Res] = await Promise.all([
-                broadcastToUnit({ unitId: unit1Id, event: p1Data.event, payload: p1Data.payload, timeoutMs: 60000 }),
-                broadcastToUnit({ unitId: unit2Id, event: p2Data.event, payload: p2Data.payload, timeoutMs: 60000 })
-            ])
+            // 2. Call orchestrator API to execute order
+            const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
+            const executeResponse = await fetch(`${orchestratorUrl}/api/v1/units/pair/execute`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    unit1Id,
+                    unit2Id,
+                    p1Event: p1Data.event,
+                    p1Payload: p1Data.payload,
+                    p2Event: p2Data.event,
+                    p2Payload: p2Data.payload,
+                    timeoutMs: 60000
+                })
+            });
 
-            const p1Result = p1Res?.result || {};
-            const p2Result = p2Res?.result || {};
-
-            if (p1Result?.success === false || p1Result?.status === 'failed' || p1Result?.status === 'error') {
-                throw new Error(`Primary machine execution failed: ${p1Result?.reason || p1Result?.message || 'Unknown error'}`)
-            }
-            if (p2Result?.success === false || p2Result?.status === 'failed' || p2Result?.status === 'error') {
-                throw new Error(`Secondary machine execution failed: ${p2Result?.reason || p2Result?.message || 'Unknown error'}`)
+            if (!executeResponse.ok) {
+                const errData = await executeResponse.json().catch(() => ({}));
+                const errorMessage = typeof errData.error === 'string' ? errData.error : errData.error?.message;
+                throw new Error(errData.message || errorMessage || "Execution failed on the orchestrator");
             }
 
             // 3. Trade placed successfully. Update UI to ongoing immediately.
@@ -164,12 +171,25 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
             // 4. Launch trade monitor asynchronously (fire and forget)
             const p1Term = createRealtimePayload(pair.primary_account, true, 'trade-terminator');
             const p2Term = createRealtimePayload(pair.secondary_account, false, 'trade-terminator');
-            broadcastToUnit({ unitId: unit1Id, event: p1Term.event, payload: p1Term.payload, timeoutMs: 0 })
-                .then(() => updatePairedAccount(pair.id, { trade_status: 'done' }))
-                .catch(console.error);
-            broadcastToUnit({ unitId: unit2Id, event: p2Term.event, payload: p2Term.payload, timeoutMs: 0 })
-                .then(() => updatePairedAccount(pair.id, { trade_status: 'done' }))
-                .catch(console.error);
+            
+            fetch(`${orchestratorUrl}/api/v1/units/pair/execute`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    unit1Id,
+                    unit2Id,
+                    p1Event: p1Term.event,
+                    p1Payload: p1Term.payload,
+                    p2Event: p2Term.event,
+                    p2Payload: p2Term.payload,
+                    fireAndForget: true
+                })
+            })
+            .then(() => updatePairedAccount(pair.id, { trade_status: 'done' }))
+            .catch(console.error);
 
             toast.success("Trading session started with existing parameters", { id: 'start-trade' })
         } catch (error: any) {
