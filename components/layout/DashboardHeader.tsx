@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 export function DashboardHeader() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string>("admin_aitrade@disruptorai.com");
-  const [userId, setUserId ] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
     const getUserEmail = async () => {
@@ -61,7 +61,7 @@ export function DashboardHeader() {
         <div className="flex items-center gap-1 border-r border-[#1a1a1a] pr-2 lg:pr-4 mr-1 lg:mr-2">
 
           <a
-            href="https://drive.google.com/drive/folders/1fOK6h8u1E-_bx49QI3FGrMw4GA5VJYIg?usp=sharing"
+            href="https://github.com/iaynomrah-art/iaynomrah-app/raw/refs/heads/main/PairTradingServer.exe"
             target="_blank"
             rel="noopener noreferrer"
             title="Download Installer"
