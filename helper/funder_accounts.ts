@@ -60,7 +60,7 @@ export async function createFunderAccount(formData: any) {
 
   if (funderAccountError) {
     console.error("Error creating funder account:", funderAccountError.message, funderAccountError.details, funderAccountError.hint);
-    throw new Error(funderAccountError.message);
+    return { error: funderAccountError.message };
   }
   console.log("[createFunderAccount] Created:", funderAccountData);
 

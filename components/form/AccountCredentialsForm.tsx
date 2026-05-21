@@ -76,10 +76,12 @@ export const AccountCredentialsForm = ({
         setIsPending(true)
         try {
             if (isUpdate) {
-                await updateCredential(initialData.id, data)
+                const res = await updateCredential(initialData.id, data)
+                if (res?.error) throw new Error(res.error)
                 toast.success("Credential updated successfully")
             } else {
-                await createCredential(data)
+                const res = await createCredential(data)
+                if (res?.error) throw new Error(res.error)
                 toast.success("Credential created successfully")
             }
 

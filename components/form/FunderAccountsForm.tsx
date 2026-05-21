@@ -95,10 +95,12 @@ export const FunderAccountsForm = ({
             }
 
             if (isUpdate) {
-                await updateFunderAccount(initialData.id, payload)
+                const res = await updateFunderAccount(initialData.id, payload) as any
+                if (res?.error) throw new Error(res.error)
                 toast.success("Funder account updated successfully")
             } else {
-                await createFunderAccount(payload)
+                const res = await createFunderAccount(payload) as any
+                if (res?.error) throw new Error(res.error)
                 toast.success("Funder account created successfully")
             }
 

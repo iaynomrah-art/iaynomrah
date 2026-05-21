@@ -66,7 +66,7 @@ export async function createCredential(formData: any) {
 
   if (credError) {
     console.error("Error creating credential:", credError.message, credError.details, credError.hint);
-    throw new Error(credError.message);
+    return { error: credError.message };
   }
   console.log("[createCredential] Created:", credential);
 
@@ -124,7 +124,7 @@ export async function updateCredential(id: string, formData: any) {
 
   if (credError) {
     console.error("Error updating credential:", credError);
-    throw new Error(credError.message);
+    return { error: credError.message };
   }
 
   // Auto-link this credential to all packages that belong to the selected account
@@ -177,7 +177,8 @@ export async function deleteCredential(id: string) {
   const { error } = await supabase.from("credentials").delete().eq("id", id);
 
   if (error) {
-    throw new Error(error.message);
+    console.error("Error deleting credential:", error.message);
+    return { error: error.message };
   }
   revalidatePath("/dashboard/trading-accounts/credentials");
   return true;

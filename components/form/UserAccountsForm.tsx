@@ -16,9 +16,7 @@ const userAccountSchema = z.object({
     first_name: z.string().min(1, "First name is required"),
     middle_name: z.string().optional(),
     last_name: z.string().min(1, "Last name is required"),
-    birth_year: z.string().optional(),
-    birth_month: z.string().optional(),
-    birth_day: z.string().optional(),
+    birthday: z.string().min(1, "Birthday is required"),
     email: z.string().email("Invalid email address"),
     contact_number: z.string().min(1, "Contact number 1 is required"),
     contact_number_2: z.string().optional(),
@@ -57,9 +55,9 @@ export const UserAccountsForm = ({ initialData, units = [], setAccounts, onSucce
             first_name: initialData?.first_name || "",
             middle_name: initialData?.middle_name || "",
             last_name: initialData?.last_name || "",
-            birth_year: initialData?.birth_year || "",
-            birth_month: initialData?.birth_month || "",
-            birth_day: initialData?.birth_day || "",
+            birthday: (initialData?.birth_year && initialData?.birth_month && initialData?.birth_day) 
+                ? `${initialData.birth_year}-${String(initialData.birth_month).padStart(2, '0')}-${String(initialData.birth_day).padStart(2, '0')}`
+                : "",
             email: initialData?.email || "",
             contact_number: initialData?.contact_number || "",
             contact_number_2: initialData?.contact_number_2 || "",
@@ -79,8 +77,18 @@ export const UserAccountsForm = ({ initialData, units = [], setAccounts, onSucce
 
         try {
             // Convert empty strings to null for numeric fields to avoid Postgres errors
-            const numericFields = ["birth_year", "birth_month", "birth_day", "contact_number", "contact_number_2", "zip_code"] as const;
-            const sanitizedData = { ...data } as any;
+            const numericFields = ["contact_number", "contact_number_2", "zip_code"] as const;
+            
+            const [birth_year, birth_month, birth_day] = data.birthday.split('-');
+            
+            const sanitizedData = { 
+                ...data,
+                birth_year: Number(birth_year),
+                birth_month: Number(birth_month),
+                birth_day: Number(birth_day),
+            } as any;
+            
+            delete sanitizedData.birthday;
 
             numericFields.forEach(field => {
                 if (sanitizedData[field] === "") {
@@ -102,11 +110,13 @@ export const UserAccountsForm = ({ initialData, units = [], setAccounts, onSucce
             // Optimistic update
             if (isUpdate) {
                 setAccounts(prev => prev.map(acc => acc.id === initialData.id ? optimisticAccount : acc));
-                await updateAccount(initialData.id, sanitizedData)
+                const res = await updateAccount(initialData.id, sanitizedData) as any
+                if (res?.error) throw new Error(res.error)
                 toast.success("User account updated successfully")
             } else {
                 setAccounts(prev => [optimisticAccount, ...prev]);
-                await createAccount(sanitizedData)
+                const res = await createAccount(sanitizedData) as any
+                if (res?.error) throw new Error(res.error)
                 toast.success("User account created successfully")
             }
 
@@ -180,34 +190,15 @@ export const UserAccountsForm = ({ initialData, units = [], setAccounts, onSucce
                 </div>
 
                 {/* BIRTH DATE */}
-                <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="birth_year" className="text-white">BIRTH YEAR</Label>
-                        <Input
-                            id="birth_year"
-                            {...register("birth_year")}
-                            className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                            placeholder="YYYY"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="birth_month" className="text-white">BIRTH MONTH</Label>
-                        <Input
-                            id="birth_month"
-                            {...register("birth_month")}
-                            className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                            placeholder="MM"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="birth_day" className="text-white">BIRTH DAY</Label>
-                        <Input
-                            id="birth_day"
-                            {...register("birth_day")}
-                            className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                            placeholder="DD"
-                        />
-                    </div>
+                <div className="space-y-2">
+                    <Label htmlFor="birthday" className="text-white">BIRTHDAY</Label>
+                    <Input
+                        id="birthday"
+                        type="date"
+                        {...register("birthday")}
+                        className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 [color-scheme:dark]"
+                    />
+                    {errors.birthday && <p className="text-xs text-red-500">{errors.birthday.message}</p>}
                 </div>
 
                 {/* EMAIL ADDRESS */}

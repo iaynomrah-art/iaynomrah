@@ -32,9 +32,10 @@ interface Package {
 interface PackagesTableProps {
     data: Package[]
     onEdit: (pkg: Package) => void
+    onDeleteSuccess?: () => void
 }
 
-export const PackagesTable = ({ data, onEdit }: PackagesTableProps) => {
+export const PackagesTable = ({ data, onEdit, onDeleteSuccess }: PackagesTableProps) => {
     const [selectedPackage, setSelectedPackage] = useState<{ id: string, name: string } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -53,6 +54,9 @@ export const PackagesTable = ({ data, onEdit }: PackagesTableProps) => {
             toast.success("Package deleted successfully");
             setIsDeleteModalOpen(false);
             setSelectedPackage(null);
+            if (onDeleteSuccess) {
+                onDeleteSuccess();
+            }
         } catch (error: any) {
             toast.error(error.message || "Failed to delete package");
         } finally {

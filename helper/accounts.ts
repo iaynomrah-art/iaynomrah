@@ -39,7 +39,7 @@ export async function createAccount(formData: any) {
     .select();
 
   if (error) {
-    throw new Error(error.message);
+    return { error: error.message };
   }
   revalidatePath("/dashboard/trading-accounts/user-accounts");
   return data;
@@ -54,7 +54,7 @@ export async function updateAccount(id: string, formData: any) {
     .select();
 
   if (error) {
-    throw new Error(error.message);
+    return { error: error.message };
   }
   revalidatePath("/dashboard/trading-accounts/user-accounts");
   return data;
@@ -68,7 +68,7 @@ export async function deleteAccount(id: string) {
     .eq("id", id);
 
   if (error) {
-    throw new Error(error.message);
+    return { error: error.message };
   }
   revalidatePath("/dashboard/trading-accounts/user-accounts");
   return true;

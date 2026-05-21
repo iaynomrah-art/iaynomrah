@@ -121,6 +121,9 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
             const submitDailyProfitTargetPercent = data.daily_profit_target_percent ? parseFloat(data.daily_profit_target_percent) : 0
             const submitConsistencyRulePercent = data.consistency_rule_percent ? parseFloat(data.consistency_rule_percent) : 40
 
+            const selectedCredential = credentials.find(c => c.id === data.credential_id);
+            const submitAccountId = selectedCredential?.account_id || null;
+
             const payload = {
                 name: data.name,
                 balance: balanceValue,
@@ -129,6 +132,7 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
                 symbol: data.symbol,
                 funder_id: data.funder_id,
                 credential_id: data.credential_id || null,
+                account_id: submitAccountId,
                 max_daily_loss: submitDailyLossPercent > 0 ? (balanceValue * submitDailyLossPercent) / 100 : null,
                 max_total_loss: submitTotalLossPercent > 0 ? (balanceValue * submitTotalLossPercent) / 100 : null,
                 profit_target: submitProfitTargetPercent > 0 ? (balanceValue * submitProfitTargetPercent) / 100 : null,

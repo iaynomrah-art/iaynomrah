@@ -100,6 +100,7 @@ const PackagesPage = () => {
                         <PackagesTable
                             data={filteredPackages}
                             onEdit={handleEditClick}
+                            onDeleteSuccess={() => fetchData(true)}
                         />
                     )}
                 </div>
