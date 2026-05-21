@@ -108,11 +108,26 @@ export const PairAccountsModal = ({
         const totalFloor = initialBalance * (1 - totalLossPercent);
         let totalAllowance = liveEquity - totalFloor;
 
+        // Consistency Constraint
+        const consistencyPercent = parseNum(acc.package_ref?.consistency_rule, 0); // e.g. 40
+        const profitTarget = parseNum(acc.package_ref?.profit_target, 0);
+        let consistencyAllowance = Infinity;
+        
+        if (consistencyPercent > 0 && profitTarget > 0) {
+            // Absolute maximum profit allowed in a single day to pass consistency rule
+            const maxDailyProfit = profitTarget * (consistencyPercent / 100);
+            
+            // Subtract profit already made today to find remaining allowance
+            const incurredProfit = parseNum(p.daily_pnl ?? acc.daily_pnl, 0);
+            consistencyAllowance = Math.max(0, maxDailyProfit - (incurredProfit > 0 ? incurredProfit : 0));
+        }
+
         // Sanity check: prevent mathematically returning 0 if the values are identical due to testing quirks
         if (dailyAllowance <= 0) dailyAllowance = liveEquity * dailyLossPercent;
         if (totalAllowance <= 0) totalAllowance = liveEquity * totalLossPercent;
 
-        const allowance = Math.min(dailyAllowance, totalAllowance);
+        // Take the smallest allowed risk based on all constraints
+        const allowance = Math.min(dailyAllowance, totalAllowance, consistencyAllowance);
         return Number((Math.max(0, allowance) * 0.70).toFixed(2));
     };
 
