@@ -65,7 +65,7 @@ export const FunderAccountsTable = ({
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
                         <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">UNIT</TableHead>
                         <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">USER</TableHead>
-                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">ACCOUNT ID</TableHead>
+                        <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">CREDENTIAL</TableHead>
                         <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">PACKAGE</TableHead>
                         <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">FUNDER</TableHead>
                         <TableHead className="w-1/10 text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">STATUS</TableHead>
@@ -90,7 +90,7 @@ export const FunderAccountsTable = ({
                                     {item.package?.account ? `${item.package.account.first_name} ${item.package.account.last_name}`.trim() : "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
-                                    {item.package?.account?.id || "-"}
+                                    {item.package?.credential ? `${item.package.credential.username}${item.package.credential.platform_id ? ` - ${item.package.credential.platform_id}` : ''}` : "-"}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
                                     {item.package?.name || "-"}

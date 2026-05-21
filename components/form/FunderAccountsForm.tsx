@@ -19,7 +19,7 @@ import { Funder } from "@/types/funder"
 const funderAccountSchema = z.object({
     funder_id: z.string().min(1, "Funder is required"),
     package_id: z.string().min(1, "Package is required"),
-    user: z.string().min(1, "User is required"),
+    credential_id: z.string().min(1, "Credential is required"),
 })
 
 type FunderAccountFormValues = z.infer<typeof funderAccountSchema>
@@ -27,7 +27,8 @@ type FunderAccountFormValues = z.infer<typeof funderAccountSchema>
 interface FunderAccountsFormProps {
     initialData?: FunderAccount | null
     packages?: Package[]
-    accounts?: Account[]
+    accounts?: Account[] // Keep if needed for getPackageDisplayName
+    credentials?: import("@/types/credentials").Credential[]
     units?: Unit[]
     funders?: Funder[]
     // Added these two props to handle Modal logic
@@ -39,6 +40,7 @@ export const FunderAccountsForm = ({
     initialData,
     packages = [],
     accounts = [],
+    credentials = [],
     units = [],
     funders = [],
     onSuccess, // Destructure here
@@ -59,7 +61,7 @@ export const FunderAccountsForm = ({
         defaultValues: {
             funder_id: initialData?.package?.funder_id || "",
             package_id: initialData?.package_id || "",
-            user: initialData?.user || initialData?.package?.account_id || initialData?.accounts?.id || "",
+            credential_id: (initialData as any)?.credential_id || initialData?.package?.credential_id || "",
         },
     })
 
@@ -75,9 +77,9 @@ export const FunderAccountsForm = ({
                 // Note: The Package type might use 'funder_id' (database column naming) or similar. 
                 // Based on previous code: pkg.funder_id
                 setValue("funder_id", pkg.funder_id?.toString() || "");
-                // Auto-sync User when Package changes
-                if (pkg.account_id) {
-                    setValue("user", pkg.account_id.toString());
+                // Auto-sync Credential when Package changes
+                if (pkg.credential_id) {
+                    setValue("credential_id", pkg.credential_id.toString());
                 }
             }
         }
@@ -88,7 +90,7 @@ export const FunderAccountsForm = ({
         try {
             const payload = {
                 package_id: data.package_id,
-                user: data.user,
+                credential_id: data.credential_id,
                 status: initialData?.status ?? "idle",
             }
 
@@ -147,25 +149,25 @@ export const FunderAccountsForm = ({
             )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                {/* USER */}
+                {/* CREDENTIAL */}
                 <div className="space-y-2">
-                    <Label htmlFor="user" className="text-white text-sm font-medium">USER</Label>
+                    <Label htmlFor="credential_id" className="text-white text-sm font-medium">CREDENTIAL</Label>
                     <div className="relative">
                         <select
-                            id="user"
-                            {...register("user")}
+                            id="credential_id"
+                            {...register("credential_id")}
                             className="flex h-11 w-full rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] text-white px-4 py-2 text-sm appearance-none focus:border-blue-500 transition-all outline-none ring-0 shadow-inner"
                         >
-                            <option value="">-- Select User --</option>
-                            {accounts.map((acc) => (
-                                <option key={acc.id} value={acc.id}>
-                                    {acc.first_name} {acc.last_name} ({acc.email})
+                            <option value="">-- Select Credential --</option>
+                            {credentials.map((cred) => (
+                                <option key={cred.id} value={cred.id}>
+                                    {cred.username} - {cred.platform} {cred.platform_id ? `(${cred.platform_id})` : ''}
                                 </option>
                             ))}
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                     </div>
-                    {errors.user && <p className="text-xs text-red-500 mt-1">{errors.user.message}</p>}
+                    {errors.credential_id && <p className="text-xs text-red-500 mt-1">{errors.credential_id.message}</p>}
                 </div>
 
                 {/* PACKAGE - MOVED UP and Logic Changed */}

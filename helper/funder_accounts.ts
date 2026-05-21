@@ -39,9 +39,22 @@ export async function getFunderAccountById(id: string) {
 
 export async function createFunderAccount(formData: any) {
   const supabase = await createClient();
+
+  // Extract credential_id since it's not in the funder_account table
+  const { credential_id, ...funderAccountPayload } = formData;
+  let account_id = null;
+
+  if (credential_id) {
+    const { data: cred } = await supabase.from('credentials').select('account_id').eq('id', credential_id).single();
+    if (cred) {
+      account_id = cred.account_id;
+      funderAccountPayload.user = account_id;
+    }
+  }
+
   const { data: funderAccountData, error: funderAccountError } = await supabase
     .from("funder_account")
-    .insert([formData])
+    .insert([funderAccountPayload])
     .select()
     .single();
 
@@ -51,17 +64,22 @@ export async function createFunderAccount(formData: any) {
   }
   console.log("[createFunderAccount] Created:", funderAccountData);
 
-  // Sync the selected user to the package so display queries work
-  // (display relies on package.account_id → accounts join, not funder_account.user)
-  if (formData.package_id && formData.user) {
+  // Sync the selected credential to the package so display queries work
+  // (display relies on package.credential_id and package.account_id)
+  if (formData.package_id && formData.credential_id) {
+    const { data: cred } = await supabase.from('credentials').select('account_id').eq('id', formData.credential_id).single();
+
     const { error: syncError } = await supabase
       .from("package")
-      .update({ account_id: formData.user })
+      .update({
+        credential_id: formData.credential_id,
+        account_id: cred?.account_id || null
+      })
       .eq("id", formData.package_id);
     if (syncError) {
-      console.error("[createFunderAccount] Error syncing user to package:", syncError.message);
+      console.error("[createFunderAccount] Error syncing credential to package:", syncError.message);
     } else {
-      console.log("[createFunderAccount] Synced user to package.account_id");
+      console.log("[createFunderAccount] Synced credential and account to package");
     }
   }
 
@@ -106,7 +124,7 @@ export async function createFunderAccount(formData: any) {
           .insert([{ funder_account_id: funderAccountData.id }])
           .select()
           .single();
-        
+
         if (retryError) {
           console.error("[createFunderAccount] RETRY ALSO FAILED:", retryError.message, retryError.details, retryError.hint);
         } else {
@@ -131,16 +149,16 @@ export async function createFunderAccount(formData: any) {
         }
       }
 
-      // Auto-link the credential from the package back to the funder_account record
+      // Auto-link the account_id from the package back to the funder_account record
       // so trade automation always has a direct reference without extra joins
-      if (packageData.credential_id) {
+      if (packageData.account_id) {
         const { error: linkError } = await supabase
           .from("funder_account")
-          .update({ credential_id: packageData.credential_id })
+          .update({ user: packageData.account_id })
           .eq("id", funderAccountData.id);
-        console.log("[createFunderAccount] Credential auto-link:", linkError ? `ERROR: ${linkError.message}` : "SUCCESS");
+        console.log("[createFunderAccount] User auto-link:", linkError ? `ERROR: ${linkError.message}` : "SUCCESS");
       } else {
-        console.log("[createFunderAccount] No credential_id on package, skipping auto-link");
+        console.log("[createFunderAccount] No account_id on package, skipping auto-link");
       }
     } else {
       console.error("[createFunderAccount] Package fetch FAILED, skipping trading account creation");
@@ -155,9 +173,21 @@ export async function createFunderAccount(formData: any) {
 
 export async function updateFunderAccount(id: string, formData: any) {
   const supabase = await createClient();
+
+  const { credential_id, ...funderAccountPayload } = formData;
+  let account_id = null;
+
+  if (credential_id) {
+    const { data: cred } = await supabase.from('credentials').select('account_id').eq('id', credential_id).single();
+    if (cred) {
+      account_id = cred.account_id;
+      funderAccountPayload.user = account_id;
+    }
+  }
+
   const { data, error } = await supabase
     .from("funder_account")
-    .update(formData)
+    .update(funderAccountPayload)
     .eq("id", id)
     .select();
 
@@ -165,11 +195,16 @@ export async function updateFunderAccount(id: string, formData: any) {
     throw new Error(error.message);
   }
 
-  // Sync the selected user to the package so display queries work
-  if (formData.package_id && formData.user) {
+  // Sync the selected credential to the package so display queries work
+  if (formData.package_id && formData.credential_id) {
+    const { data: cred } = await supabase.from('credentials').select('account_id').eq('id', formData.credential_id).single();
+
     await supabase
       .from("package")
-      .update({ account_id: formData.user })
+      .update({
+        credential_id: formData.credential_id,
+        account_id: cred?.account_id || null
+      })
       .eq("id", formData.package_id);
   }
 
@@ -199,7 +234,9 @@ export async function funderAccountsTable() {
       created_at,
       package:package(
         name, 
-        funders(name),
+        credential_id,
+        credential:credentials(username, platform_id),
+        funders(name, allias, allias_color, text_color),
         account:accounts(id, first_name, last_name, email, units(unit_name))
       )
     `,

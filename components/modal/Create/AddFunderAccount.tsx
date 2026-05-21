@@ -14,6 +14,8 @@ import { Funder } from '@/types/funder'
 import { getPackages } from '@/helper/package'
 import { getAccounts } from '@/helper/accounts'
 import { getFunders } from '@/helper/funders'
+import { getCredentials } from '@/helper/credentials'
+import { Credential } from '@/types/credentials'
 import { Skeleton } from '@/components/ui/skeleton';
 
 export const CreateFunderAccountDialog = () => {
@@ -21,6 +23,7 @@ export const CreateFunderAccountDialog = () => {
     const [packages, setPackages] = useState<Package[]>([])
     const [accounts, setAccounts] = useState<Account[]>([])
     const [funders, setFunders] = useState<Funder[]>([])
+    const [credentials, setCredentials] = useState<Credential[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
 
@@ -29,14 +32,16 @@ export const CreateFunderAccountDialog = () => {
             if (open) {
                 setIsLoading(true)
                 try {
-                    const [pkgs, accs, fnds] = await Promise.all([
+                    const [pkgs, accs, fnds, creds] = await Promise.all([
                         getPackages(),
                         getAccounts(),
-                        getFunders()
+                        getFunders(),
+                        getCredentials()
                     ])
                     setPackages(pkgs)
                     setAccounts(accs)
                     setFunders(fnds)
+                    setCredentials(creds)
                 } catch (error) {
                     console.error("Failed to fetch options", error)
                 } finally {
@@ -47,6 +52,7 @@ export const CreateFunderAccountDialog = () => {
                 setPackages([])
                 setAccounts([])
                 setFunders([])
+                setCredentials([])
             }
         }
         fetchOptions()
@@ -98,6 +104,7 @@ export const CreateFunderAccountDialog = () => {
                             packages={packages}
                             accounts={accounts}
                             funders={funders}
+                            credentials={credentials}
                             onSuccess={handleSuccess}
                             onCancel={() => setOpen(false)}
                         />
