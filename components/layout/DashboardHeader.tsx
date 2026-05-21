@@ -44,7 +44,7 @@ export function DashboardHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-40 h-16 border-b border-[#1a1a1a] bg-[#050505]/80 backdrop-blur-md flex items-center justify-between px-4 lg:px-6 w-full">
+    <header suppressHydrationWarning={true} className="sticky top-0 z-40 h-16 border-b border-[#1a1a1a] bg-[#050505]/80 backdrop-blur-md flex items-center justify-between px-4 lg:px-6 w-full">
       <div className="flex items-center gap-4">
         <SidebarTrigger className="text-gray-400 hover:text-white hover:bg-[#1a1a1a] transition-all" />
 
@@ -76,7 +76,7 @@ export function DashboardHeader() {
         {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-3 p-1 rounded-full hover:bg-[#1a1a1a] transition-all outline-none group">
+            <button suppressHydrationWarning className="flex items-center gap-3 p-1 rounded-full hover:bg-[#1a1a1a] transition-all outline-none group">
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center border border-white/10 shadow-lg group-hover:scale-105 transition-transform">
                 <span className="text-white text-[11px] font-black leading-none">AI</span>
               </div>
