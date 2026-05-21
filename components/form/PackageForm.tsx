@@ -20,6 +20,7 @@ const packageSchema = z.object({
     balance: z.string().min(1, "Balance is required"),
     phase: z.string().min(1, "Phase is required"),
     symbol: z.string().min(1, "symbol is required"),
+    purchase_price: z.string().optional(),
     funder_id: z.string().min(1, "Funder is required"),
     credential_id: z.string().optional(),
     max_daily_loss_percent: z.string().optional(),
@@ -72,6 +73,7 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
             balance: initialData?.balance?.toString() || "",
             phase: initialData?.phase?.toLowerCase() || "",
             symbol: initialData?.symbol || "",
+            purchase_price: initialData?.purchase_price?.toString() || "",
             funder_id: initialData?.funder_id?.toString() || "",
             credential_id: initialData?.credential_id?.toString() || "",
             max_daily_loss_percent:
@@ -122,6 +124,7 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
             const payload = {
                 name: data.name,
                 balance: balanceValue,
+                purchase_price: data.purchase_price ? parseFloat(data.purchase_price) : null,
                 phase: data.phase,
                 symbol: data.symbol,
                 funder_id: data.funder_id,
@@ -224,8 +227,8 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
                 {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
             </div>
 
-            {/* Grid for Balance, Phase, Symbol */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Grid for Balance, Purchase Price, Phase, Symbol */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {/* Balance */}
                 <div className="space-y-2">
                     <Label htmlFor="balance" className="text-white">
@@ -240,6 +243,22 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
                         placeholder="100000"
                     />
                     {errors.balance && <p className="text-xs text-red-500">{errors.balance.message}</p>}
+                </div>
+
+                {/* Purchase Price */}
+                <div className="space-y-2">
+                    <Label htmlFor="purchase_price" className="text-white">
+                        Purchase Price ($)
+                    </Label>
+                    <Input
+                        id="purchase_price"
+                        type="number"
+                        step="0.01"
+                        {...register("purchase_price")}
+                        className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
+                        placeholder="e.g. 500"
+                    />
+                    {errors.purchase_price && <p className="text-xs text-red-500">{errors.purchase_price.message}</p>}
                 </div>
 
                 {/* Phase */}

@@ -72,6 +72,7 @@ const PackagesPage = () => {
             (pkg.max_daily_loss?.toString() || "").includes(query) ||
             (pkg.max_total_loss?.toString() || "").includes(query) ||
             (pkg.profit_target?.toString() || "").includes(query) ||
+            (pkg.purchase_price?.toString() || "").includes(query) ||
             (pkg.funders?.name?.toLowerCase() || "").includes(query)
         )
     })

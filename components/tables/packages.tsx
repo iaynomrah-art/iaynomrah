@@ -22,6 +22,7 @@ interface Package {
     balance?: string | number
     phase?: string
     instrument?: string
+    purchase_price?: string | number
     funders?: {
         name: string
     }
@@ -67,6 +68,7 @@ export const PackagesTable = ({ data, onEdit }: PackagesTableProps) => {
                         <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">FUNDER</TableHead>
                         <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PACKAGE NAME</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">BALANCE</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PURCHASE PRICE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PHASE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">INSTRUMENT</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">DAILY LOSS</TableHead>
@@ -79,7 +81,7 @@ export const PackagesTable = ({ data, onEdit }: PackagesTableProps) => {
                 <TableBody>
                     {data.length === 0 ? (
                         <TableRow className="border-[#1a1a1a]">
-                            <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                            <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                                 No packages found.
                             </TableCell>
                         </TableRow>
@@ -91,6 +93,7 @@ export const PackagesTable = ({ data, onEdit }: PackagesTableProps) => {
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">{item.name}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">{item.balance || "-"}</TableCell>
+                                <TableCell className="text-white py-4 text-sm">${item.purchase_price || "0"}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">{item.phase || "-"}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">{item.symbol || "-"}</TableCell>
                                 <TableCell className="text-white py-4 text-sm">${item.max_daily_loss || "0"}</TableCell>
@@ -143,6 +146,7 @@ export const PackagesTableSkeleton = () => {
                         <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">FUNDER</TableHead>
                         <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PACKAGE NAME</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">BALANCE</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PURCHASE PRICE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PHASE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">INSTRUMENT</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">DAILY LOSS</TableHead>
@@ -160,6 +164,9 @@ export const PackagesTableSkeleton = () => {
                             </TableCell>
                             <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[120px] bg-[#1a1a1a]" />
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
