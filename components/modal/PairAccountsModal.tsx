@@ -27,7 +27,6 @@ import { createClient } from "@/lib/supabase/client"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Row from "@/components/ui/row"
-import { LoginConfirmationModal } from "@/components/modal/LoginConfirmationModal"
 import PlayIcon from "@/components/ui/playicon"
 
 import { TradeStatus } from "@/types/paired"
@@ -71,7 +70,6 @@ export const PairAccountsModal = ({
     const [pairs, setPairs] = React.useState<Pair[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
     const [isSuggesting, setIsSuggesting] = React.useState(false)
-    const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false)
     const autoSuggestAttempted = React.useRef(false)
     const multiplier = 0.01 // Default tick multiplier
 
@@ -112,11 +110,11 @@ export const PairAccountsModal = ({
         const consistencyPercent = parseNum(acc.package_ref?.consistency_rule, 0); // e.g. 40
         const profitTarget = parseNum(acc.package_ref?.profit_target, 0);
         let consistencyAllowance = Infinity;
-        
+
         if (consistencyPercent > 0 && profitTarget > 0) {
             // Absolute maximum profit allowed in a single day to pass consistency rule
             const maxDailyProfit = profitTarget * (consistencyPercent / 100);
-            
+
             // Subtract profit already made today to find remaining allowance
             const incurredProfit = parseNum(p.daily_pnl ?? acc.daily_pnl, 0);
             consistencyAllowance = Math.max(0, maxDailyProfit - (incurredProfit > 0 ? incurredProfit : 0));
@@ -478,13 +476,11 @@ export const PairAccountsModal = ({
             return
         }
 
-        // ALL validations passed, pop up the Auth Modal
-        setIsAuthModalOpen(true)
+        // ALL validations passed, directly execute pairing
+        executePairing()
     }
 
     const executePairing = async () => {
-        // Close auth modal
-        setIsAuthModalOpen(false)
         let savedPairId: string | null = null;
         const primary = pairs[0]
         const secondary = pairs[1]
@@ -538,12 +534,12 @@ export const PairAccountsModal = ({
 
             // Call Orchestrator to handle the full pairing flow
             toast.loading("Initiating pairing via Orchestrator...", { id: 'pair-trade' });
-            
+
             const supabaseForToken = createClient();
             const { data: { session } } = await supabaseForToken.auth.getSession();
             const token = session?.access_token;
             const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
-            
+
             const p1Data = createRealtimePayload(primary, 'input-order');
             const p2Data = createRealtimePayload(secondary, 'input-order');
 
@@ -800,12 +796,6 @@ export const PairAccountsModal = ({
                 `}</style>
             </DialogContent>
 
-            {/* Login / Auth Confirmation Modal */}
-            <LoginConfirmationModal
-                isOpen={isAuthModalOpen}
-                onClose={() => setIsAuthModalOpen(false)}
-                onConfirm={executePairing}
-            />
         </Dialog>
     )
 }
