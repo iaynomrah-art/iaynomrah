@@ -7,28 +7,34 @@ import { PackagesTable, PackagesTableSkeleton } from '@/components/tables/packag
 import { PackageModal } from '@/components/modal/PackageModal'
 import { getFunders } from '@/helper/funders'
 import { getCredentials } from '@/helper/credentials'
+import { getAccounts } from '@/helper/accounts'
+import { ChevronDown } from 'lucide-react'
 
 // Packages management page: lists packages and opens add/update modal.
 const PackagesPage = () => {
     const [packages, setPackages] = useState<any[]>([])
     const [funders, setFunders] = useState<any[]>([])
     const [credentials, setCredentials] = useState<any[]>([])
+    const [accounts, setAccounts] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
+    const [selectedAccountId, setSelectedAccountId] = useState<string>("")
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedPackage, setSelectedPackage] = useState<any | null>(null)
 
     const fetchData = async (silent = false) => {
         if (!silent) setIsLoading(true)
         try {
-            const [packagesData, fundersData, credentialsData] = await Promise.all([
+            const [packagesData, fundersData, credentialsData, accountsData] = await Promise.all([
                 getPackages(),
                 getFunders(),
-                getCredentials()
+                getCredentials(),
+                getAccounts()
             ])
             setPackages(packagesData)
             setFunders(fundersData)
             setCredentials(credentialsData)
+            setAccounts(accountsData)
         } catch (error) {
             console.error("Failed to fetch data:", error)
         } finally {
@@ -64,7 +70,7 @@ const PackagesPage = () => {
 
     const filteredPackages = packages.filter(pkg => {
         const query = searchQuery.toLowerCase()
-        return (
+        const matchesSearch = (
             (pkg.name?.toLowerCase() || "").includes(query) ||
             (pkg.balance?.toString() || "").includes(query) ||
             (pkg.phase?.toString() || "").includes(query) ||
@@ -75,6 +81,9 @@ const PackagesPage = () => {
             (pkg.purchase_price?.toString() || "").includes(query) ||
             (pkg.funders?.name?.toLowerCase() || "").includes(query)
         )
+        const matchesAccount = selectedAccountId ? pkg.account_id === selectedAccountId : true;
+        
+        return matchesSearch && matchesAccount;
     })
 
     return (
@@ -85,10 +94,26 @@ const PackagesPage = () => {
                     <SearchBarHeader
                         title="Packages"
                         addButtonText="Add Package"
-                        // addHref="/dashboard/funders/add-package" // Removed
                         onAddClick={handleAddClick}
                         showSearch={true}
                         onSearchChange={setSearchQuery}
+                        extraAction={
+                            <div className="relative">
+                                <select
+                                    value={selectedAccountId}
+                                    onChange={(e) => setSelectedAccountId(e.target.value)}
+                                    className="h-10 rounded-md border border-[#262626] bg-[#1F2937] text-white px-3 py-1 text-sm appearance-none focus:border-blue-500 transition-all min-w-[150px] pr-8"
+                                >
+                                    <option value="">All Accounts</option>
+                                    {accounts.map(acc => (
+                                        <option key={acc.id} value={acc.id}>
+                                            {acc.first_name} {acc.last_name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                            </div>
+                        }
                     />
                 </div>
 
