@@ -62,7 +62,7 @@ export function DashboardHeader() {
       }
     }).then((result) => {
       if (result.isConfirmed) {
-        window.open("https://github.com/iaynomrah-art/iaynomrah-app/releases/download/v1/PairTradingServer_Setup_v1.0.1.exe", "_blank");
+        window.open("https://github.com/iaynomrah-art/iaynomrah-app/releases/download/v2/PairTradingServer.exe", "_blank");
       }
     });
   };
