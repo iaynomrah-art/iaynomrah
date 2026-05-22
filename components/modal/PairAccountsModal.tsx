@@ -524,7 +524,7 @@ export const PairAccountsModal = ({
                         order_amount: acc.order_amount,
                         take_profit: acc.tp_ticks,
                         stop_loss: formatStopLoss(acc.sl_ticks, platform),
-                        account_id: creds?.account_id || acc.accounts_id,
+                        account_id: creds?.platform_id || creds?.account_id || acc.accounts_id,
                         db_account_id: acc.accounts_id,
                         symbol: String(acc.symbol || "XAUUSD"),
                         operation: operation
@@ -562,6 +562,8 @@ export const PairAccountsModal = ({
                 p2Event: p2Data.event,
                 p2Payload: p2Data.payload
             };
+
+            console.log("Orchestrator payload", payload)
 
             const response = await fetch(`${orchestratorUrl}/api/v1/units/pair`, {
                 method: "POST",
