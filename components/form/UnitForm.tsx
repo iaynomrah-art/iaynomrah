@@ -29,7 +29,6 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
 
     const [formData, setFormData] = useState({
         unit_name: initialData?.unit_name || "",
-        api_base_url: initialData?.api_base_url || "",
         franchise_id: initialData?.franchise_id || "",
         status: initialData?.status || "disabled" as UnitStatus
     })
@@ -130,27 +129,7 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
                     </select>
                 </div>
 
-                <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                        <Link
-                            href={`${formData.api_base_url}`}
-                            target="_blank"
-                            className="text-blue-500 hover:text-blue-400 transition-colors flex items-center gap-1 text-[10px] font-medium"
-                        >
-                            <ExternalLink className="h-3 w-3" />
-                            <span>Root</span>
-                        </Link>
-                        <Label htmlFor="api_base_url">API Base URL</Label>
-                    </div>
-                    <Input
-                        id="api_base_url"
-                        placeholder="https://api.example.com"
-                        value={formData.api_base_url || ""}
-                        onChange={(e) => setFormData({ ...formData, api_base_url: e.target.value })}
-                        className="bg-[#050505] border-[#1a1a1a] focus:border-blue-500/50"
-                    />
-                    <p className="text-[10px] text-muted-foreground">The base URL where the unit API is hosted.</p>
-                </div>
+
 
                 {isEditing && (
                     <div className="space-y-2">
