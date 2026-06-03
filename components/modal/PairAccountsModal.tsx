@@ -409,7 +409,6 @@ export const PairAccountsModal = ({
                     updatePair(pairs[0].id, 'loss_price', Number(data.stop))
                 }, 100)
             }
-
             localStorage.setItem('ai_signal_last_called', Date.now().toString())
 
         } catch (error: any) {
@@ -420,12 +419,46 @@ export const PairAccountsModal = ({
         }
     }
 
+    const fetchMarketLevelsAndCalculate = async (currentPairs: Pair[]) => {
+        if (currentPairs.length < 2) return;
+        try {
+            const symbol = currentPairs[0].symbol || 'XAUUSD';
+            const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
+            const res = await fetch(`${orchestratorUrl}/api/v1/market/levels?symbol=${symbol}&timeframe=1h`);
+            
+            if (!res.ok) return;
+            const data = await res.json();
+            
+            if (data.resistance1 && data.support1) {
+                const resistance = Number(data.resistance1);
+                const support = Number(data.support1);
+                
+                if (resistance > support) {
+                    const diff = resistance - support;
+                    
+                    currentPairs.forEach((pair, idx) => {
+                        const targetProfit = pair.remaining_target_profit ?? pair.package_ref?.profit_target ?? 0;
+                        if (targetProfit > 0) {
+                            const multiplier = (targetProfit / diff) * 2.5;
+                            setTimeout(() => {
+                                updatePair(pair.id, 'order_amount', Number(multiplier.toFixed(2)))
+                            }, 150 + (idx * 50));
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch market levels:', error);
+        }
+    };
+
     React.useEffect(() => {
         if (!isOpen) {
             autoSuggestAttempted.current = false
         } else if (isOpen && pairs.length === 2 && !autoSuggestAttempted.current) {
             autoSuggestAttempted.current = true
             handleSuggestDirection(true)
+            fetchMarketLevelsAndCalculate(pairs)
         }
     }, [isOpen, pairs.length])
 

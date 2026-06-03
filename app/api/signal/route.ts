@@ -11,13 +11,13 @@ export async function GET(request: Request) {
     try {
         // Call the external Python API
         // We append the symbol and specific timeframe
-        const url = `http://187.77.153.2/api/signal?symbol=${symbol}&timeframe=1h`;
+        const url = `https://orchestrator.iaynomrah.cloud/api/v1/market/signal?symbol=${symbol}&timeframe=1h`;
         const res = await fetch(url);
         
         if (!res.ok) {
             // Wait, if it failed with the symbol, let's try calling it with just GOLD fallback
             if (res.status === 404 || res.status === 400 || res.status === 422) {
-                const fallbackUrl = `http://187.77.153.2/api/signal?symbol=GOLD&timeframe=1h`;
+                const fallbackUrl = `https://orchestrator.iaynomrah.cloud/api/v1/market/signal?symbol=GOLD&timeframe=1h`;
                 const fallbackRes = await fetch(fallbackUrl);
                 if (!fallbackRes.ok) {
                     const errorText = await fallbackRes.text();
