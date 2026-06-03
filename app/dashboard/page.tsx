@@ -162,7 +162,7 @@ async function UserCheck() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-grow min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-grow min-h-0">
         
         <div className="p-4 rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-lg flex flex-col h-full">
           <h3 className="text-sm font-semibold text-white mb-2 shrink-0">Earnings per Franchise</h3>
@@ -200,46 +200,6 @@ async function UserCheck() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 h-full">
-          <div className="p-4 rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-lg shrink-0">
-            <h3 className="text-sm font-semibold text-white mb-3">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <Button className="h-9 bg-[#0d0d0d] border border-[#1a1a1a] hover:bg-[#141414] text-white text-xs justify-start px-3 w-full" variant="outline">
-                <Plus className="h-3.5 w-3.5 text-blue-500 mr-2" /> Funder
-              </Button>
-              <Button className="h-9 bg-[#0d0d0d] border border-[#1a1a1a] hover:bg-[#141414] text-white text-xs justify-start px-3 w-full" variant="outline">
-                <Users className="h-3.5 w-3.5 text-purple-500 mr-2" /> Accounts
-              </Button>
-              <Button className="h-9 bg-[#0d0d0d] border border-[#1a1a1a] hover:bg-[#141414] text-white text-xs justify-start px-3 w-full" variant="outline">
-                <Server className="h-3.5 w-3.5 text-orange-500 mr-2" /> Servers
-              </Button>
-              <Button className="h-9 bg-[#0d0d0d] border border-[#1a1a1a] hover:bg-[#141414] text-white text-xs justify-start px-3 w-full" variant="outline">
-                <Activity className="h-3.5 w-3.5 text-green-500 mr-2" /> Trading
-              </Button>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] shadow-lg flex-grow flex flex-col min-h-0">
-            <h3 className="text-sm font-semibold text-white mb-3 shrink-0">Recent Activity</h3>
-            <div className="space-y-4 overflow-y-auto flex-grow pr-2">
-              <div className="flex gap-3 items-start">
-                <div className="mt-1 h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)] shrink-0" />
-                <div className="space-y-0.5">
-                  <p className="text-xs font-medium text-white">System initialized</p>
-                  <p className="text-[11px] text-muted-foreground">Welcome to Harmony AI Trading Platform</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 items-start">
-                <div className="mt-1 h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)] shrink-0" />
-                <div className="space-y-0.5">
-                  <p className="text-xs font-medium text-white">Ready to start trading</p>
-                  <p className="text-[11px] text-muted-foreground">Add funders and accounts to begin</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

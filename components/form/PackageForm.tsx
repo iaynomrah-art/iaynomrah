@@ -17,9 +17,9 @@ import Swal from "sweetalert2"
 
 const packageSchema = z.object({
     name: z.string().min(1, "Package name is required"),
-    balance: z.string().min(1, "Balance is required"),
+    equity: z.string().min(1, "Equity is required"),
     phase: z.string().min(1, "Phase is required"),
-    symbol: z.string().min(1, "symbol is required"),
+    instrument: z.string().min(1, "Instrument is required"),
     purchase_price: z.string().optional(),
     funder_id: z.string().min(1, "Funder is required"),
     credential_id: z.string().optional(),
@@ -54,67 +54,80 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
     const isUpdate = !!initialData
 
     // Calculate percentages from existing dollar amounts when editing old records.
-    const getDefaultPercentageValue = (dollarAmount: number, balance: number) => {
-        if (!dollarAmount || !balance || balance === 0) return ""
-        return ((dollarAmount / balance) * 100).toFixed(2)
+    const getDefaultPercentageValue = (dollarAmount: number, equity: number) => {
+        if (!dollarAmount || !equity || equity === 0) return ""
+        return ((dollarAmount / equity) * 100).toFixed(2)
     }
 
-    const initialBalance = initialData?.balance || 0
+    const initialEquity = initialData?.balance || 0
+
+    const equityPresets = [
+        { label: "$1,000 (1K)", value: "1000" },
+        { label: "$5,000 (5K)", value: "5000" },
+        { label: "$10,000 (10K)", value: "10000" },
+        { label: "$25,000 (25K)", value: "25000" },
+        { label: "$50,000 (50K)", value: "50000" },
+        { label: "$100,000 (100K)", value: "100000" },
+        { label: "$200,000 (200K)", value: "200000" },
+        { label: "$500,000 (500K)", value: "500000" },
+        { label: "$1,000,000 (1000K)", value: "1000000" },
+    ]
 
     const {
         register,
         handleSubmit,
         formState: { errors },
         watch,
+        setValue,
     } = useForm<PackageFormValues>({
         resolver: zodResolver(packageSchema),
         defaultValues: {
             name: initialData?.name || "",
-            balance: initialData?.balance?.toString() || "",
-            phase: initialData?.phase?.toLowerCase() || "",
-            symbol: initialData?.symbol || "",
+            equity: initialData?.balance?.toString() || (initialData ? "" : "1000000"),
+            phase: initialData?.phase?.toLowerCase() || "phase 1",
+            instrument: initialData?.symbol || (initialData ? "" : "XAUUSD"),
             purchase_price: initialData?.purchase_price?.toString() || "",
             funder_id: initialData?.funder_id?.toString() || "",
             credential_id: initialData?.credential_id?.toString() || "",
             max_daily_loss_percent:
                 initialData?.max_daily_loss_percent?.toString() ||
-                getDefaultPercentageValue(initialData?.max_daily_loss, initialBalance),
+                getDefaultPercentageValue(initialData?.max_daily_loss, initialEquity),
             max_total_loss_percent:
                 initialData?.max_total_loss_percent?.toString() ||
-                getDefaultPercentageValue(initialData?.max_total_loss, initialBalance),
+                getDefaultPercentageValue(initialData?.max_total_loss, initialEquity),
             profit_target_percent:
                 initialData?.profit_target_percent?.toString() ||
-                getDefaultPercentageValue(initialData?.profit_target, initialBalance),
+                getDefaultPercentageValue(initialData?.profit_target, initialEquity),
             daily_profit_target_percent:
                 initialData?.daily_profit_target_percent?.toString() ||
-                getDefaultPercentageValue(initialData?.daily_profit_target, initialBalance),
+                getDefaultPercentageValue(initialData?.daily_profit_target, initialEquity),
             consistency_rule_percent:
                 initialData?.consistency_rule?.toString() || "40",
         },
     })
 
-    const balance = watch("balance")
+    const equity = watch("equity")
     const dailyLossPercent = watch("max_daily_loss_percent") || "0"
     const totalLossPercent = watch("max_total_loss_percent") || "0"
     const profitTargetPercent = watch("profit_target_percent") || "0"
     const dailyProfitTargetPercent = watch("daily_profit_target_percent") || "0"
 
-    // Live preview: convert percentages to dollar values based on current balance.
+    // Live preview: convert percentages to dollar values based on current equity.
     React.useEffect(() => {
-        const balanceValue = parseFloat(balance) || 0
+        const equityValue = parseFloat(equity) || 0
 
         setCalculatedValues({
-            max_daily_loss: (balanceValue * (parseFloat(dailyLossPercent) || 0)) / 100,
-            max_total_loss: (balanceValue * (parseFloat(totalLossPercent) || 0)) / 100,
-            profit_target: (balanceValue * (parseFloat(profitTargetPercent) || 0)) / 100,
-            daily_profit_target: (balanceValue * (parseFloat(dailyProfitTargetPercent) || 0)) / 100,
+            max_daily_loss: (equityValue * (parseFloat(dailyLossPercent) || 0)) / 100,
+            max_total_loss: (equityValue * (parseFloat(totalLossPercent) || 0)) / 100,
+            profit_target: (equityValue * (parseFloat(profitTargetPercent) || 0)) / 100,
+            daily_profit_target: (equityValue * (parseFloat(dailyProfitTargetPercent) || 0)) / 100,
         })
-    }, [balance, dailyLossPercent, totalLossPercent, profitTargetPercent, dailyProfitTargetPercent])
+    }, [equity, dailyLossPercent, totalLossPercent, profitTargetPercent, dailyProfitTargetPercent])
 
     const onSubmit = async (data: PackageFormValues) => {
         setIsPending(true)
         try {
-            const balanceValue = parseFloat(data.balance)
+            const equityValue = parseFloat(data.equity)
             const submitDailyLossPercent = data.max_daily_loss_percent ? parseFloat(data.max_daily_loss_percent) : 0
             const submitTotalLossPercent = data.max_total_loss_percent ? parseFloat(data.max_total_loss_percent) : 0
             const submitProfitTargetPercent = data.profit_target_percent ? parseFloat(data.profit_target_percent) : 0
@@ -126,17 +139,17 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
 
             const payload = {
                 name: data.name,
-                balance: balanceValue,
+                balance: equityValue,
                 purchase_price: data.purchase_price ? parseFloat(data.purchase_price) : null,
                 phase: data.phase,
-                symbol: data.symbol,
+                symbol: data.instrument,
                 funder_id: data.funder_id,
                 credential_id: data.credential_id || null,
                 account_id: submitAccountId,
-                max_daily_loss: submitDailyLossPercent > 0 ? (balanceValue * submitDailyLossPercent) / 100 : null,
-                max_total_loss: submitTotalLossPercent > 0 ? (balanceValue * submitTotalLossPercent) / 100 : null,
-                profit_target: submitProfitTargetPercent > 0 ? (balanceValue * submitProfitTargetPercent) / 100 : null,
-                daily_profit_target: submitDailyProfitTargetPercent > 0 ? (balanceValue * submitDailyProfitTargetPercent) / 100 : null,
+                max_daily_loss: submitDailyLossPercent > 0 ? (equityValue * submitDailyLossPercent) / 100 : null,
+                max_total_loss: submitTotalLossPercent > 0 ? (equityValue * submitTotalLossPercent) / 100 : null,
+                profit_target: submitProfitTargetPercent > 0 ? (equityValue * submitProfitTargetPercent) / 100 : null,
+                daily_profit_target: submitDailyProfitTargetPercent > 0 ? (equityValue * submitDailyProfitTargetPercent) / 100 : null,
                 consistency_rule: submitConsistencyRulePercent,
             }
 
@@ -232,21 +245,43 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
             </div>
 
             {/* Grid for Balance, Purchase Price, Phase, Symbol */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {/* Balance */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Equity */}
                 <div className="space-y-2">
-                    <Label htmlFor="balance" className="text-white">
-                        Balance ($) <span className="text-red-400">*</span>
+                    <Label htmlFor="equity" className="text-white">
+                        Equity ($) <span className="text-red-400">*</span>
                     </Label>
-                    <Input
-                        id="balance"
-                        type="number"
-                        step="0.01"
-                        {...register("balance")}
-                        className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
-                        placeholder="100000"
-                    />
-                    {errors.balance && <p className="text-xs text-red-500">{errors.balance.message}</p>}
+                    <div className="relative">
+                        <Input
+                            id="equity"
+                            type="number"
+                            step="0.01"
+                            {...register("equity")}
+                            className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 pr-12"
+                            placeholder="e.g. 100000"
+                        />
+                        <div className="absolute right-0 top-0 bottom-0 w-10 flex items-center justify-center border-l border-gray-700 bg-gray-900/50 hover:bg-gray-900 rounded-r-md cursor-pointer overflow-hidden">
+                            <ChevronDown className="w-4 h-4 text-gray-400 pointer-events-none" />
+                            <select
+                                onChange={(e) => {
+                                    if (e.target.value) {
+                                        setValue("equity", e.target.value, { shouldValidate: true })
+                                    }
+                                    e.target.value = "" // reset select
+                                }}
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                defaultValue=""
+                            >
+                                <option value="" disabled>-- Select Preset --</option>
+                                {equityPresets.map((preset) => (
+                                    <option key={preset.value} value={preset.value}>
+                                        {preset.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    {errors.equity && <p className="text-xs text-red-500">{errors.equity.message}</p>}
                 </div>
 
                 {/* Purchase Price */}
@@ -286,18 +321,18 @@ export const PackageForm = ({ initialData, funders, credentials = [], onSuccess,
                     {errors.phase && <p className="text-xs text-red-500">{errors.phase.message}</p>}
                 </div>
 
-                {/* symbol */}
+                {/* instrument */}
                 <div className="space-y-2">
-                    <Label htmlFor="symbol" className="text-white">
-                        Symbol <span className="text-red-400">*</span>
+                    <Label htmlFor="instrument" className="text-white">
+                        Instrument <span className="text-red-400">*</span>
                     </Label>
                     <Input
-                        id="symbol"
-                        {...register("symbol")}
+                        id="instrument"
+                        {...register("instrument")}
                         className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
                         placeholder="e.g. MT5"
                     />
-                    {errors.symbol && <p className="text-xs text-red-500">{errors.symbol.message}</p>}
+                    {errors.instrument && <p className="text-xs text-red-500">{errors.instrument.message}</p>}
                 </div>
             </div>
 

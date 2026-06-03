@@ -100,6 +100,7 @@ const PackagesPage = () => {
                         extraAction={
                             <div className="relative">
                                 <select
+                                    suppressHydrationWarning
                                     value={selectedAccountId}
                                     onChange={(e) => setSelectedAccountId(e.target.value)}
                                     className="h-10 rounded-md border border-[#262626] bg-[#1F2937] text-white px-3 py-1 text-sm appearance-none focus:border-blue-500 transition-all min-w-[150px] pr-8"

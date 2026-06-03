@@ -71,7 +71,7 @@ export const PackagesTable = ({ data, onEdit, onDeleteSuccess }: PackagesTablePr
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
                         <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">FUNDER</TableHead>
                         <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PACKAGE NAME</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">BALANCE</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">EQUITY</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PURCHASE PRICE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PHASE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">INSTRUMENT</TableHead>
@@ -129,7 +129,7 @@ export const PackagesTable = ({ data, onEdit, onDeleteSuccess }: PackagesTablePr
                     )}
                 </TableBody>
             </Table>
-
+ 
             <DeletePackageModal
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
@@ -140,7 +140,7 @@ export const PackagesTable = ({ data, onEdit, onDeleteSuccess }: PackagesTablePr
         </div>
     )
 }
-
+ 
 export const PackagesTableSkeleton = () => {
     return (
         <div className="w-full">
@@ -149,7 +149,7 @@ export const PackagesTableSkeleton = () => {
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
                         <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">FUNDER</TableHead>
                         <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PACKAGE NAME</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">BALANCE</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">EQUITY</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PURCHASE PRICE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PHASE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">INSTRUMENT</TableHead>
