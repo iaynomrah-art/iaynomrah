@@ -677,7 +677,7 @@ export const PairAccountsModal = ({
 
                                     {/* Actionable Fields */}
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
-                                        <span className="text-[#848e9c] text-[13px] font-medium">Symbol</span>
+                                        <span className="text-[#848e9c] text-[13px] font-medium">Instrument</span>
                                         <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
                                             <input
                                                 type="text"
