@@ -13,7 +13,8 @@ import {
     Unplug,
     MonitorOff,
     CircleOff,
-    Activity
+    Activity,
+    Phone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -50,6 +51,7 @@ export interface UnitCardProps {
     onArchive?: (id: string, name: string) => void;
     onEdit?: (id: string) => void;
     role: string | null;
+    mobileNumber?: string | null;
 }
 
 export function UnitCard({
@@ -68,7 +70,8 @@ export function UnitCard({
     onStatusChange,
     onArchive,
     onEdit,
-    role
+    role,
+    mobileNumber
 }: UnitCardProps) {
     const [isPinging, setIsPinging] = useState(false);
     const [isCheckingHealth, setIsCheckingHealth] = useState(true);
@@ -206,6 +209,14 @@ export function UnitCard({
                 <div className="text-center mb-4 min-h-[24px]">
                     <div className="text-sm font-medium text-gray-300">{owner}</div>
                 </div>
+
+                {mobileNumber && (
+                    <div className="text-center mb-4 flex items-center justify-center gap-1.5 bg-[#0a0a0a] border border-gray-900 rounded-md p-1.5 font-mono text-[11px] text-gray-300">
+                        <Phone className="h-3 w-3 text-blue-400" />
+                        <span className="text-gray-500">SIM:</span>
+                        <span className="font-semibold text-white">{mobileNumber}</span>
+                    </div>
+                )}
 
                 <div className="border-t border-gray-700 mb-4" />
 

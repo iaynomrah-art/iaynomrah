@@ -12,6 +12,7 @@ export interface Unit {
   franchise_id: string | null;
   franchise?: Franchise;
   is_occupied: boolean;
+  mobile_number: string | null;
 }
 
 export type CreateUnit = Omit<

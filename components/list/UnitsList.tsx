@@ -73,6 +73,7 @@ const UnitsList = ({ units, onEdit, onArchive, onStatusChange, role }: UnitsList
                     onArchive={onArchive}
                     onStatusChange={onStatusChange}
                     role={role}
+                    mobileNumber={unit.mobile_number}
                 />
             ))}
         </div>

@@ -9,7 +9,7 @@ import { Franchise } from "@/types/franchise"
 import { getFranchises } from "@/helper/franchise"
 import { createUnit, updateUnit, getUnits } from "@/helper/units"
 import { toast } from "sonner"
-import { Loader2, ExternalLink } from "lucide-react"
+import { Loader2, ExternalLink, Pencil, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 
 interface UnitFormProps {
@@ -24,13 +24,16 @@ const UNIT_STATUSES: UnitStatus[] = ["enabled", "disabled", "processing", "slow 
 export function UnitForm({ initialData, onSuccess, franchises: initialFranchises, units: initialUnits }: UnitFormProps) {
     const isEditing = !!initialData
     const [isLoading, setIsLoading] = useState(false)
+    const [isNameEditable, setIsNameEditable] = useState(!initialData)
+    const [showConfirm, setShowConfirm] = useState(false)
     const [franchises, setFranchises] = useState<Franchise[]>(initialFranchises || [])
     const [units, setUnits] = useState<Unit[]>(initialUnits || [])
 
     const [formData, setFormData] = useState({
         unit_name: initialData?.unit_name || "",
         franchise_id: initialData?.franchise_id || "",
-        status: initialData?.status || "disabled" as UnitStatus
+        status: initialData?.status || "disabled" as UnitStatus,
+        mobile_number: initialData?.mobile_number || "",
     })
 
     useEffect(() => {
@@ -66,18 +69,20 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
         }
     }, [previewName, isEditing])
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
+    const executeSubmit = async () => {
         setIsLoading(true)
 
         try {
-            // Legacy config test removed - communication is now over Supabase Pub/Sub
+            const payload = {
+                ...formData,
+                mobile_number: formData.mobile_number.trim() === "" ? null : formData.mobile_number.trim()
+            }
 
             if (isEditing && initialData) {
-                await updateUnit(initialData.id, formData)
+                await updateUnit(initialData.id, payload)
                 toast.success("Unit updated successfully")
             } else {
-                await createUnit(formData)
+                await createUnit(payload)
                 toast.success("Unit created successfully")
             }
             onSuccess()
@@ -86,7 +91,41 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
             toast.error(error.message || "Failed to save unit")
         } finally {
             setIsLoading(false)
+            setShowConfirm(false)
         }
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        const trimmedNumber = formData.mobile_number.trim()
+        const finalMobileNumber = trimmedNumber === "" ? null : trimmedNumber
+
+        if (finalMobileNumber) {
+            const phMobileRegex = /^(09|\+639)\d{9}$/
+            if (!phMobileRegex.test(finalMobileNumber)) {
+                toast.error("Invalid mobile number format. Use 09xxxxxxxxx or +639xxxxxxxxx")
+                return
+            }
+
+            const isDuplicate = units.some((u) => 
+                u.id !== initialData?.id && 
+                !u.archived && 
+                u.mobile_number === finalMobileNumber
+            )
+
+            if (isDuplicate) {
+                toast.error("This mobile number is already assigned to another active unit.")
+                return
+            }
+        }
+
+        if (isEditing && formData.unit_name !== initialData?.unit_name && !showConfirm) {
+            setShowConfirm(true)
+            return
+        }
+
+        executeSubmit()
     }
 
 
@@ -95,15 +134,29 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
             <div className="space-y-4">
                 <div className="space-y-2">
                     <Label htmlFor="unit_name">Unit Name</Label>
-                    <Input
-                        id="unit_name"
-                        placeholder="e.g. Unit 01"
-                        value={formData.unit_name}
-                        onChange={(e) => setFormData({ ...formData, unit_name: e.target.value })}
-                        required
-                        disabled
-                        className="bg-[#050505] border-[#1a1a1a] focus:border-blue-500/50 opacity-100"
-                    />
+                    <div className="flex gap-2">
+                        <Input
+                            id="unit_name"
+                            placeholder="e.g. Unit 01"
+                            value={formData.unit_name}
+                            onChange={(e) => setFormData({ ...formData, unit_name: e.target.value })}
+                            required
+                            disabled={!isNameEditable}
+                            className="bg-[#050505] border-[#1a1a1a] focus:border-blue-500/50 disabled:opacity-50 flex-1"
+                        />
+                        {isEditing && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setIsNameEditable(!isNameEditable)}
+                                className="border-[#1a1a1a] bg-[#0a0a0a] hover:bg-[#1a1a1a] text-gray-400"
+                                title="Edit Unit Name"
+                            >
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
                     {!isEditing && previewName && (
                         <p className="text-[10px] text-blue-500/80 font-medium">
                             Preview: <span className="text-blue-400">{previewName}</span>
@@ -129,6 +182,22 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
                     </select>
                 </div>
 
+                <div className="space-y-2">
+                    <Label htmlFor="mobile_number">Mobile Number (Optional)</Label>
+                    <Input
+                        id="mobile_number"
+                        type="tel"
+                        placeholder="e.g. 09171234567 or +639171234567"
+                        value={formData.mobile_number}
+                        onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
+                        disabled={isLoading}
+                        className="bg-[#050505] border-[#1a1a1a] focus:border-blue-500/50 disabled:cursor-not-allowed text-white"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                        Must be a unique Philippine mobile number (0917xxxxxxx or +63917xxxxxxx). Can be left blank.
+                    </p>
+                </div>
+
 
 
                 {isEditing && (
@@ -150,22 +219,60 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
                 )}
             </div>
 
-            <div className="flex gap-3 pt-4 justify-end">
-                <Button
-                    type="submit"
-                    disabled={isLoading}
-                    className="bg-blue-600 hover:bg-blue-500 text-white min-w-[120px]"
-                >
-                    {isLoading ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving...
-                        </>
-                    ) : (
-                        isEditing ? "Update Unit" : "Add Unit"
-                    )}
-                </Button>
-            </div>
+            {showConfirm ? (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-md p-4 mt-6">
+                    <div className="flex items-center gap-3 text-amber-500 mb-2">
+                        <AlertTriangle className="h-5 w-5" />
+                        <h4 className="font-semibold text-sm">Confirm Name Change</h4>
+                    </div>
+                    <p className="text-sm text-amber-200/80 mb-4">
+                        Are you sure you want to change the unit name from <strong className="text-white">{initialData?.unit_name}</strong> to <strong className="text-white">{formData.unit_name}</strong>? This might affect existing integrations or reporting.
+                    </p>
+                    <div className="flex gap-3 justify-end">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setShowConfirm(false)}
+                            disabled={isLoading}
+                            className="text-gray-400 hover:text-white hover:bg-[#1a1a1a]"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={executeSubmit}
+                            disabled={isLoading}
+                            className="bg-amber-600 hover:bg-amber-500 text-white min-w-[120px]"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Updating...
+                                </>
+                            ) : (
+                                "Yes, Update Name"
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex gap-3 pt-4 justify-end">
+                    <Button
+                        type="submit"
+                        disabled={isLoading}
+                        className="bg-blue-600 hover:bg-blue-500 text-white min-w-[120px]"
+                    >
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Saving...
+                            </>
+                        ) : (
+                            isEditing ? "Update Unit" : "Add Unit"
+                        )}
+                    </Button>
+                </div>
+            )}
         </form>
     )
 }
