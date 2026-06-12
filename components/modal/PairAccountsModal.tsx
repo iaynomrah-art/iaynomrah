@@ -472,7 +472,7 @@ export const PairAccountsModal = ({
         const secondary = pairs[1]
 
         // 0. Validation: Burned Account Guard
-        const isBurned = (acc: TradingAccount) => acc.status === 'burned'
+        const isBurned = (acc: TradingAccount) => (acc.status as string) === 'burned'
         if (isBurned(primary) || isBurned(secondary)) {
             const burnedName = isBurned(primary)
                 ? `${primary.accounts?.first_name} ${primary.accounts?.last_name}`
