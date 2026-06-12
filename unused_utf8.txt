@@ -1,0 +1,207 @@
+﻿
+       summary               unimported v1.31.0 (next)
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+       unresolved imports  : 0
+       unused dependencies : 25
+       unimported files    : 160
+
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+     Γöé 25 unused dependencies
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   1 Γöé @hookform/resolvers
+   2 Γöé @radix-ui/react-checkbox
+   3 Γöé @radix-ui/react-collapsible
+   4 Γöé @radix-ui/react-dialog
+   5 Γöé @radix-ui/react-dropdown-menu
+   6 Γöé @radix-ui/react-label
+   7 Γöé @radix-ui/react-select
+   8 Γöé @radix-ui/react-separator
+   9 Γöé @radix-ui/react-slot
+  10 Γöé @radix-ui/react-tabs
+  11 Γöé @radix-ui/react-tooltip
+  12 Γöé @supabase/ssr
+  13 Γöé axios
+  14 Γöé class-variance-authority
+  15 Γöé clsx
+  16 Γöé jose
+  17 Γöé lucide-react
+  18 Γöé next-themes
+  19 Γöé nextjs-toploader
+  20 Γöé radix-ui
+  21 Γöé recharts
+  22 Γöé sonner
+  23 Γöé sweetalert2
+  24 Γöé tailwind-merge
+  25 Γöé zod
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+     Γöé 160 unimported files
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   1 Γöé C:\Users\Admin\Documents\iaynomrah\app\api\signal\route.ts
+   2 Γöé C:\Users\Admin\Documents\iaynomrah\app\auth\confirm\route.ts
+   3 Γöé C:\Users\Admin\Documents\iaynomrah\app\auth\error\page.tsx
+   4 Γöé C:\Users\Admin\Documents\iaynomrah\app\auth\forgot-password\page.tsx
+   5 Γöé C:\Users\Admin\Documents\iaynomrah\app\auth\login\page.tsx
+   6 Γöé C:\Users\Admin\Documents\iaynomrah\app\auth\setup-password\page.tsx
+   7 Γöé C:\Users\Admin\Documents\iaynomrah\app\auth\sign-up-success\page.tsx
+   8 Γöé C:\Users\Admin\Documents\iaynomrah\app\auth\sign-up\page.tsx
+   9 Γöé C:\Users\Admin\Documents\iaynomrah\app\auth\update-password\page.tsx
+  10 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\account\[id]\page.tsx
+  11 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\funders\packages\page.tsx
+  12 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\funders\page.tsx
+  13 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\layout.tsx
+  14 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\page.tsx
+  15 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\trade\history\page.tsx
+  16 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\trade\make-money\layout.tsx
+  17 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\trade\make-money\ongoing-trades\page.tsx
+  18 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\trade\make-money\page.tsx
+  19 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\trade\make-money\paired-accounts\page.tsx
+  20 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\trade\payout\page.tsx
+  21 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\trading-accounts\credentials\page.tsx
+  22 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\trading-accounts\funder-accounts\page.tsx
+  23 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\trading-accounts\user-accounts\page.tsx
+  24 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\trading-units\my-units\loading.tsx
+  25 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\trading-units\my-units\page.tsx
+  26 Γöé C:\Users\Admin\Documents\iaynomrah\app\dashboard\trading-units\settings\page.tsx
+  27 Γöé C:\Users\Admin\Documents\iaynomrah\app\layout.tsx
+  28 Γöé C:\Users\Admin\Documents\iaynomrah\app\page.tsx
+  29 Γöé C:\Users\Admin\Documents\iaynomrah\check_db.js
+  30 Γöé C:\Users\Admin\Documents\iaynomrah\components\card\CardUnit.tsx
+  31 Γöé C:\Users\Admin\Documents\iaynomrah\components\DashboardCharts.tsx
+  32 Γöé C:\Users\Admin\Documents\iaynomrah\components\form\AccountCredentialsForm.tsx
+  33 Γöé C:\Users\Admin\Documents\iaynomrah\components\form\AccountSettingsForm.tsx
+  34 Γöé C:\Users\Admin\Documents\iaynomrah\components\form\FranchiseForm.tsx
+  35 Γöé C:\Users\Admin\Documents\iaynomrah\components\form\FunderAccountsForm.tsx
+  36 Γöé C:\Users\Admin\Documents\iaynomrah\components\form\FunderForm.tsx
+  37 Γöé C:\Users\Admin\Documents\iaynomrah\components\form\PackageForm.tsx
+  38 Γöé C:\Users\Admin\Documents\iaynomrah\components\form\UnitForm.tsx
+  39 Γöé C:\Users\Admin\Documents\iaynomrah\components\form\UserAccountsForm.tsx
+  40 Γöé C:\Users\Admin\Documents\iaynomrah\components\item\FranchiseItem.tsx
+  41 Γöé C:\Users\Admin\Documents\iaynomrah\components\item\OngoingTradeRow.tsx
+  42 Γöé C:\Users\Admin\Documents\iaynomrah\components\item\PairedAccountRow.tsx
+  43 Γöé C:\Users\Admin\Documents\iaynomrah\components\item\TradeHistoryRow.tsx
+  44 Γöé C:\Users\Admin\Documents\iaynomrah\components\layout\DashboardHeader.tsx
+  45 Γöé C:\Users\Admin\Documents\iaynomrah\components\layout\DashboardSidebar.tsx
+  46 Γöé C:\Users\Admin\Documents\iaynomrah\components\list\FranchiseList.tsx
+  47 Γöé C:\Users\Admin\Documents\iaynomrah\components\list\UnitsList.tsx
+  48 Γöé C:\Users\Admin\Documents\iaynomrah\components\list\UnitsRealtime.tsx
+  49 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\AddFranchiseModal.tsx
+  50 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\ArchieveUniit.tsx
+  51 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\Create\AddFunderAccount.tsx
+  52 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\Create\CreateCredentials.tsx
+  53 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\Create\CreateUserAccountDialog.tsx
+  54 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\Delete\DeleteAccount.tsx
+  55 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\Delete\DeleteCredential.tsx
+  56 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\Delete\DeleteFunder.tsx
+  57 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\Delete\DeleteFunderAccount.tsx
+  58 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\Delete\DeletePackage.tsx
+  59 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\Edit\EditCredentialDialog.tsx
+  60 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\Edit\EditFunderAccountDialog.tsx
+  61 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\Edit\EditUserAccountDialog.tsx
+  62 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\EditPairedAccountModal.tsx
+  63 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\FranchiseModal.tsx
+  64 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\FunderModal.tsx
+  65 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\LoginConfirmationModal.tsx
+  66 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\PackageModal.tsx
+  67 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\PairAccountsModal.tsx
+  68 Γöé C:\Users\Admin\Documents\iaynomrah\components\modal\Update\UnitModal.tsx
+  69 Γöé C:\Users\Admin\Documents\iaynomrah\components\page\InviteUserButton.tsx
+  70 Γöé C:\Users\Admin\Documents\iaynomrah\components\page\MyUnitsClient.tsx
+  71 Γöé C:\Users\Admin\Documents\iaynomrah\components\search\UnitsSearch.tsx
+  72 Γöé C:\Users\Admin\Documents\iaynomrah\components\skeleton\AccountTableSkeleton.tsx
+  73 Γöé C:\Users\Admin\Documents\iaynomrah\components\skeleton\FunderAccountsTableSkeleton.tsx
+  74 Γöé C:\Users\Admin\Documents\iaynomrah\components\skeleton\FundersTableSkeleton.tsx
+  75 Γöé C:\Users\Admin\Documents\iaynomrah\components\skeleton\PairedTableSkeleton.tsx
+  76 Γöé C:\Users\Admin\Documents\iaynomrah\components\skeleton\TradingAccountsSkeleton.tsx
+  77 Γöé C:\Users\Admin\Documents\iaynomrah\components\skeleton\UnitSkeleton.tsx
+  78 Γöé C:\Users\Admin\Documents\iaynomrah\components\supabase\auth-button.tsx
+  79 Γöé C:\Users\Admin\Documents\iaynomrah\components\supabase\deploy-button.tsx
+  80 Γöé C:\Users\Admin\Documents\iaynomrah\components\supabase\env-var-warning.tsx
+  81 Γöé C:\Users\Admin\Documents\iaynomrah\components\supabase\forgot-password-form.tsx
+  82 Γöé C:\Users\Admin\Documents\iaynomrah\components\supabase\hero.tsx
+  83 Γöé C:\Users\Admin\Documents\iaynomrah\components\supabase\login-form.tsx
+  84 Γöé C:\Users\Admin\Documents\iaynomrah\components\supabase\logout-button.tsx
+  85 Γöé C:\Users\Admin\Documents\iaynomrah\components\supabase\next-logo.tsx
+  86 Γöé C:\Users\Admin\Documents\iaynomrah\components\supabase\sign-up-form.tsx
+  87 Γöé C:\Users\Admin\Documents\iaynomrah\components\supabase\supabase-logo.tsx
+  88 Γöé C:\Users\Admin\Documents\iaynomrah\components\supabase\theme-switcher.tsx
+  89 Γöé C:\Users\Admin\Documents\iaynomrah\components\supabase\update-password-form.tsx
+  90 Γöé C:\Users\Admin\Documents\iaynomrah\components\tables\accounts.tsx
+  91 Γöé C:\Users\Admin\Documents\iaynomrah\components\tables\credentials.tsx
+  92 Γöé C:\Users\Admin\Documents\iaynomrah\components\tables\funder_accounts.tsx
+  93 Γöé C:\Users\Admin\Documents\iaynomrah\components\tables\funders.tsx
+  94 Γöé C:\Users\Admin\Documents\iaynomrah\components\tables\packages.tsx
+  95 Γöé C:\Users\Admin\Documents\iaynomrah\components\tables\PairedTable.tsx
+  96 Γöé C:\Users\Admin\Documents\iaynomrah\components\tables\TradingAccountsTable.tsx
+  97 Γöé C:\Users\Admin\Documents\iaynomrah\components\tutorial\code-block.tsx
+  98 Γöé C:\Users\Admin\Documents\iaynomrah\components\tutorial\connect-supabase-steps.tsx
+  99 Γöé C:\Users\Admin\Documents\iaynomrah\components\tutorial\fetch-data-steps.tsx
+ 100 Γöé C:\Users\Admin\Documents\iaynomrah\components\tutorial\sign-up-user-steps.tsx
+ 101 Γöé C:\Users\Admin\Documents\iaynomrah\components\tutorial\tutorial-step.tsx
+ 102 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\badge.tsx
+ 103 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\button.tsx
+ 104 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\card.tsx
+ 105 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\checkbox.tsx
+ 106 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\collapsible.tsx
+ 107 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\dialog.tsx
+ 108 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\dropdown-menu.tsx
+ 109 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\input.tsx
+ 110 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\label.tsx
+ 111 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\playicon.tsx
+ 112 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\row.tsx
+ 113 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\search-bar-header.tsx
+ 114 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\select.tsx
+ 115 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\separator.tsx
+ 116 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\sheet.tsx
+ 117 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\sidebar.tsx
+ 118 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\skeleton.tsx
+ 119 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\sonner.tsx
+ 120 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\table.tsx
+ 121 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\tabs.tsx
+ 122 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\textarea.tsx
+ 123 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\tooltip.tsx
+ 124 Γöé C:\Users\Admin\Documents\iaynomrah\components\ui\TradeNotificationListener.tsx
+ 125 Γöé C:\Users\Admin\Documents\iaynomrah\helper\accounts.ts
+ 126 Γöé C:\Users\Admin\Documents\iaynomrah\helper\automation.ts
+ 127 Γöé C:\Users\Admin\Documents\iaynomrah\helper\credentials.ts
+ 128 Γöé C:\Users\Admin\Documents\iaynomrah\helper\franchise.ts
+ 129 Γöé C:\Users\Admin\Documents\iaynomrah\helper\funder_accounts.ts
+ 130 Γöé C:\Users\Admin\Documents\iaynomrah\helper\funders.ts
+ 131 Γöé C:\Users\Admin\Documents\iaynomrah\helper\package.ts
+ 132 Γöé C:\Users\Admin\Documents\iaynomrah\helper\paired_accounts.ts
+ 133 Γöé C:\Users\Admin\Documents\iaynomrah\helper\realtime.ts
+ 134 Γöé C:\Users\Admin\Documents\iaynomrah\helper\trading_accounts.ts
+ 135 Γöé C:\Users\Admin\Documents\iaynomrah\helper\units.ts
+ 136 Γöé C:\Users\Admin\Documents\iaynomrah\hooks\use-mobile.ts
+ 137 Γöé C:\Users\Admin\Documents\iaynomrah\hooks\use-trading-filter.tsx
+ 138 Γöé C:\Users\Admin\Documents\iaynomrah\lib\auth-actions.ts
+ 139 Γöé C:\Users\Admin\Documents\iaynomrah\lib\invite-actions.ts
+ 140 Γöé C:\Users\Admin\Documents\iaynomrah\lib\notificationSound.ts
+ 141 Γöé C:\Users\Admin\Documents\iaynomrah\lib\philippine-locations.ts
+ 142 Γöé C:\Users\Admin\Documents\iaynomrah\lib\philippine-regions.ts
+ 143 Γöé C:\Users\Admin\Documents\iaynomrah\lib\philippine-zip-codes.ts
+ 144 Γöé C:\Users\Admin\Documents\iaynomrah\lib\supabase\client.ts
+ 145 Γöé C:\Users\Admin\Documents\iaynomrah\lib\supabase\proxy.ts
+ 146 Γöé C:\Users\Admin\Documents\iaynomrah\lib\supabase\server.ts
+ 147 Γöé C:\Users\Admin\Documents\iaynomrah\lib\utils.ts
+ 148 Γöé C:\Users\Admin\Documents\iaynomrah\next.config.ts
+ 149 Γöé C:\Users\Admin\Documents\iaynomrah\proxy.ts
+ 150 Γöé C:\Users\Admin\Documents\iaynomrah\recycle_bin\my_units.tsx
+ 151 Γöé C:\Users\Admin\Documents\iaynomrah\tailwind.config.ts
+ 152 Γöé C:\Users\Admin\Documents\iaynomrah\types\accounts.ts
+ 153 Γöé C:\Users\Admin\Documents\iaynomrah\types\credentials.ts
+ 154 Γöé C:\Users\Admin\Documents\iaynomrah\types\franchise.ts
+ 155 Γöé C:\Users\Admin\Documents\iaynomrah\types\funder_accounts.ts
+ 156 Γöé C:\Users\Admin\Documents\iaynomrah\types\funder.ts
+ 157 Γöé C:\Users\Admin\Documents\iaynomrah\types\package.ts
+ 158 Γöé C:\Users\Admin\Documents\iaynomrah\types\paired.ts
+ 159 Γöé C:\Users\Admin\Documents\iaynomrah\types\trading_accounts.ts
+ 160 Γöé C:\Users\Admin\Documents\iaynomrah\types\units.ts
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+
+       Inspect the results and run npx unimported -u to update ignore lists
