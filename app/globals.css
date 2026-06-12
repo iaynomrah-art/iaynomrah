@@ -110,3 +110,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Fix SweetAlert2 modals being unclickable when opened inside Radix UI dialogs (e.g. PairAccountsModal) */
+.swal2-container {
+  pointer-events: auto !important;
+}
+

@@ -36,13 +36,31 @@ export function DashboardHeader() {
     getUserEmail();
   }, []);
 
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await Promise.all([
-      supabase.auth.signOut(),
-      clearAdditionalAuthCookie(),
-    ]);
-    router.push("/");
+  const handleLogout = () => {
+    Swal.fire({
+      title: 'Confirm Logout',
+      text: 'Are you sure you want to log out of your session?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Log Out',
+      cancelButtonText: 'Cancel',
+      background: '#0d0d0d',
+      color: '#ffffff',
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#1a1a1a',
+      customClass: {
+        popup: 'border border-[#1a1a1a] rounded-xl',
+      }
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        const supabase = createClient();
+        await Promise.all([
+          supabase.auth.signOut(),
+          clearAdditionalAuthCookie(),
+        ]);
+        router.push("/");
+      }
+    });
   };
 
   const handleDownload = () => {
