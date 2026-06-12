@@ -189,7 +189,7 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                             const isConsistencyWarning = (totalPnl > 0 && dailyPnl > 0 && consistencyLimitValue > 0 && dailyPnl >= (consistencyLimitValue * 0.8))
                             const isConsistencyViolation = (totalPnl > 0 && dailyPnl > 0 && consistencyLimitValue > 0 && dailyPnl > consistencyLimitValue)
 
-                            const isBurned = account.status === 'burned' || (maxDailyLoss > 0 && dailyDrawdownPercent >= 100) || (maxTotalLoss > 0 && totalDrawdownPercent >= 100)
+                            const isBurned = (account.status as string) === 'burned' || (maxDailyLoss > 0 && dailyDrawdownPercent >= 100) || (maxTotalLoss > 0 && totalDrawdownPercent >= 100)
 
                             return (
                                 <TableRow

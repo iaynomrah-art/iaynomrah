@@ -38,7 +38,7 @@ export const FunderAccountsTable = ({
     const [activeTab, setActiveTab] = useState<'active' | 'burned'>('active');
 
     const filteredData = data.filter(item => {
-        const isBurned = item.status === 'burned';
+        const isBurned = (item.status as string) === 'burned';
         return activeTab === 'active' ? !isBurned : isBurned;
     });
 
@@ -118,7 +118,7 @@ export const FunderAccountsTable = ({
                                 key={item.id} 
                                 className={cn(
                                     "border-[#1a1a1a] transition-colors",
-                                    item.status === 'burned' ? "bg-red-950/20 hover:bg-red-950/30" : "hover:bg-[#111]"
+                                    (item.status as string) === 'burned' ? "bg-red-950/20 hover:bg-red-950/30" : "hover:bg-[#111]"
                                 )}
                             >
                                 <TableCell className="text-white py-4 text-sm font-medium">
@@ -149,7 +149,7 @@ export const FunderAccountsTable = ({
                                     )}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm capitalize w-fit">
-                                    {item.status === 'burned' ? (
+                                    {(item.status as string) === 'burned' ? (
                                         <div className="px-2 py-0.5 rounded-full text-[10px] font-bold w-fit border whitespace-nowrap bg-red-500/10 text-red-500 border-red-500/20 flex items-center gap-1">
                                             🔥 BURNED
                                         </div>
