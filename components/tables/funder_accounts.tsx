@@ -18,7 +18,7 @@ import { deleteFunderAccount } from "@/helper/funder_accounts"
 import { toast } from "sonner"
 import Link from "next/link"
 import { EditFunderAccountDialog } from "@/components/modal/Edit/EditFunderAccountDialog"
-import { AccountStatusColors } from "@/lib/utils"
+import { AccountStatusColors, cn } from "@/lib/utils"
 import { AccountStatus, FunderAccount } from "@/types/funder_accounts"
 import { Package } from "@/types/package"
 import { Account } from "@/types/accounts"
@@ -35,6 +35,12 @@ export const FunderAccountsTable = ({
     const [selectedFunderAccount, setSelectedFunderAccount] = useState<{ id: string, name: string } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [activeTab, setActiveTab] = useState<'active' | 'burned'>('active');
+
+    const filteredData = data.filter(item => {
+        const isBurned = item.status === 'burned';
+        return activeTab === 'active' ? !isBurned : isBurned;
+    });
 
     const handleDeleteClick = (id: string, firstName?: string | null, lastName?: string | null) => {
         const name = firstName && lastName ? `${firstName} ${lastName}` : "this funder account";
@@ -60,6 +66,32 @@ export const FunderAccountsTable = ({
 
     return (
         <div className="w-full">
+            <div className="flex items-center gap-2 mb-6 border-b border-[#1a1a1a] pb-4">
+                <Button
+                    variant="ghost"
+                    onClick={() => setActiveTab('active')}
+                    className={cn(
+                        "h-8 px-4 text-xs font-semibold tracking-wider uppercase rounded-full transition-all duration-300",
+                        activeTab === 'active' 
+                            ? "bg-white text-black hover:bg-gray-200" 
+                            : "text-muted-foreground hover:text-white hover:bg-[#1a1a1a]"
+                    )}
+                >
+                    Active
+                </Button>
+                <Button
+                    variant="ghost"
+                    onClick={() => setActiveTab('burned')}
+                    className={cn(
+                        "h-8 px-4 text-xs font-semibold tracking-wider uppercase rounded-full transition-all duration-300",
+                        activeTab === 'burned' 
+                            ? "bg-red-500 text-white hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.3)]" 
+                            : "text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                    )}
+                >
+                    Burned
+                </Button>
+            </div>
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
@@ -74,15 +106,21 @@ export const FunderAccountsTable = ({
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {data.length === 0 ? (
+                    {filteredData.length === 0 ? (
                         <TableRow className="border-[#1a1a1a]">
-                            <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                                No funder accounts found.
+                            <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                                {activeTab === 'active' ? "No active funder accounts found." : "No burned funder accounts found."}
                             </TableCell>
                         </TableRow>
                     ) : (
-                        data.map((item) => (
-                            <TableRow key={item.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
+                        filteredData.map((item) => (
+                            <TableRow 
+                                key={item.id} 
+                                className={cn(
+                                    "border-[#1a1a1a] transition-colors",
+                                    item.status === 'burned' ? "bg-red-950/20 hover:bg-red-950/30" : "hover:bg-[#111]"
+                                )}
+                            >
                                 <TableCell className="text-white py-4 text-sm font-medium">
                                     {item.package?.account?.units?.unit_name || "-"}
                                 </TableCell>
@@ -111,17 +149,23 @@ export const FunderAccountsTable = ({
                                     )}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm capitalize w-fit">
-                                    <Badge
-                                        variant="outline"
-                                        style={{
-                                            backgroundColor: `${AccountStatusColors[item.status]}15`,
-                                            color: AccountStatusColors[item.status],
-                                            borderColor: `${AccountStatusColors[item.status]}30`,
-                                        }}
-                                        className="font-bold px-3 py-1 text-[10px] uppercase tracking-wider"
-                                    >
-                                        {item.status}
-                                    </Badge>
+                                    {item.status === 'burned' ? (
+                                        <div className="px-2 py-0.5 rounded-full text-[10px] font-bold w-fit border whitespace-nowrap bg-red-500/10 text-red-500 border-red-500/20 flex items-center gap-1">
+                                            🔥 BURNED
+                                        </div>
+                                    ) : (
+                                        <Badge
+                                            variant="outline"
+                                            style={{
+                                                backgroundColor: `${AccountStatusColors[item.status] || '#888'}15`,
+                                                color: AccountStatusColors[item.status] || '#888',
+                                                borderColor: `${AccountStatusColors[item.status] || '#888'}30`,
+                                            }}
+                                            className="font-bold px-3 py-1 text-[10px] uppercase tracking-wider"
+                                        >
+                                            {item.status}
+                                        </Badge>
+                                    )}
                                 </TableCell>
                                 <TableCell className="text-white py-4 text-sm">
                                     {item.created_at ? new Date(item.created_at).toLocaleDateString() : "-"}

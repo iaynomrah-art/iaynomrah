@@ -103,7 +103,7 @@ const PackagesPage = () => {
                                     suppressHydrationWarning
                                     value={selectedAccountId}
                                     onChange={(e) => setSelectedAccountId(e.target.value)}
-                                    className="h-10 rounded-md border border-[#262626] bg-[#1F2937] text-white px-3 py-1 text-sm appearance-none focus:border-blue-500 transition-all min-w-[150px] pr-8"
+                                    className="h-9 rounded-md border border-[#262626] bg-[#0a0a0a] text-white px-3 py-1 text-sm appearance-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all min-w-[150px] pr-8 cursor-pointer hover:bg-[#111]"
                                 >
                                     <option value="">All Accounts</option>
                                     {accounts.map(acc => (

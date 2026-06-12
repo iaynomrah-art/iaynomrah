@@ -113,11 +113,13 @@ export async function getTradingAccounts(type?: string) {
   console.log(`[getTradingAccounts] Returned ${data?.length ?? 0} records`);
 
   // Flatten the data to maintain compatibility with existing components
-  return data.map((item: any) => {
+  const flattened = data.map((item: any) => {
     const pkg = item.funder_account?.package_data;
+    const funderAccountId = item.funder_account?.id || item.funder_account_id;
     return {
       ...(item.funder_account || {}),
       ...item,
+      funder_account_id: funderAccountId,
       status: item.account_status || item.funder_account?.status || "idle",
       id: item.id,
       package_ref: pkg,
@@ -126,6 +128,8 @@ export async function getTradingAccounts(type?: string) {
       accounts_id: pkg?.credential?.platform_id,
     };
   });
+
+  return flattened;
 }
 
 export async function getTradingAccountById(id: string) {
@@ -277,4 +281,33 @@ export async function syncAllTradingAccountPhases() {
   }
 
   return { synced: updates.length };
+}
+
+export async function checkAndMarkBurned(
+  funderAccountId: string,
+  payload: {
+    liveEquity: number;
+    dailyStartingEquity: number;
+    maxDailyLoss: number;
+    maxTotalLoss: number;
+    balance: number;
+  }
+): Promise<"daily_drawdown" | "total_drawdown" | null> {
+  const { liveEquity, dailyStartingEquity, maxDailyLoss, maxTotalLoss, balance } = payload;
+
+  const isDailyBurned = maxDailyLoss > 0 && (dailyStartingEquity - liveEquity) >= maxDailyLoss;
+  const isTotalBurned = maxTotalLoss > 0 && (balance - liveEquity) >= maxTotalLoss;
+
+  if (!isDailyBurned && !isTotalBurned) return null;
+
+  const burnReason = isDailyBurned ? "daily_drawdown" : "total_drawdown";
+  const supabase = await createClient();
+
+  await supabase
+    .from("funder_account")
+    .update({ status: "burned", burn_reason: burnReason })
+    .eq("id", funderAccountId);
+
+  revalidatePath("/", "layout");
+  return burnReason;
 }

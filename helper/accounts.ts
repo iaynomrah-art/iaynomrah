@@ -92,3 +92,18 @@ export async function accountsTable() {
   }
   return data;
 }
+
+export async function setAccountFlagged(
+  accountId: string,
+  flagged: boolean,
+  note?: string
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("accounts")
+    .update({ flagged, flagged_note: note ?? null })
+    .eq("id", accountId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard");
+}

@@ -17,6 +17,8 @@ export interface Account {
   id_type: string;
   billing: string | null;
   unit_id: string | null;
+  flagged?: boolean;
+  flagged_note?: string | null;
   units?: import("./units").Unit;
 }
 

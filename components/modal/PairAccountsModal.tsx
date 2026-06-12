@@ -471,6 +471,16 @@ export const PairAccountsModal = ({
         const primary = pairs[0]
         const secondary = pairs[1]
 
+        // 0. Validation: Burned Account Guard
+        const isBurned = (acc: TradingAccount) => acc.status === 'burned'
+        if (isBurned(primary) || isBurned(secondary)) {
+            const burnedName = isBurned(primary)
+                ? `${primary.accounts?.first_name} ${primary.accounts?.last_name}`
+                : `${secondary.accounts?.first_name} ${secondary.accounts?.last_name}`
+            toast.error(`Cannot pair: "${burnedName}" is a burned account and can no longer be traded.`)
+            return
+        }
+
         // 1. Validation: Same Funder Warning
         const funderId1 = primary.package_ref?.funder_id
         const funderId2 = secondary.package_ref?.funder_id

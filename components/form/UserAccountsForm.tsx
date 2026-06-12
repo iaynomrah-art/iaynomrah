@@ -27,6 +27,8 @@ const userAccountSchema = z.object({
     id_type: z.string().min(1, "ID type is required"),
     billing: z.string().min(1, "Billing is required"),
     unit_id: z.string().min(1, "Unit is required"),
+    flagged: z.boolean().optional(),
+    flagged_note: z.string().optional(),
 })
 
 type UserAccountFormValues = z.infer<typeof userAccountSchema>
@@ -68,6 +70,8 @@ export const UserAccountsForm = ({ initialData, units = [], setAccounts, onSucce
             id_type: initialData?.id_type || "",
             billing: initialData?.billing || "",
             unit_id: initialData?.unit_id || "",
+            flagged: initialData?.flagged || false,
+            flagged_note: initialData?.flagged_note || "",
         },
     })
 
@@ -351,6 +355,30 @@ export const UserAccountsForm = ({ initialData, units = [], setAccounts, onSucce
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                     </div>
                     {errors.unit_id && <p className="text-xs text-red-500">{errors.unit_id.message}</p>}
+                </div>
+
+                {/* FLAGGED STATUS */}
+                <div className="space-y-4 p-4 border border-amber-500/20 bg-amber-500/5 rounded-md mt-4">
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="checkbox"
+                            id="flagged"
+                            {...register("flagged")}
+                            className="w-4 h-4 bg-gray-800 border-gray-700 rounded text-amber-500 focus:ring-amber-500 focus:ring-offset-gray-900"
+                        />
+                        <Label htmlFor="flagged" className="text-amber-500 font-bold flex items-center gap-1 cursor-pointer">
+                            FLAG THIS ACCOUNT FOR VIOLATION
+                        </Label>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="flagged_note" className="text-gray-400">VIOLATION NOTE (OPTIONAL)</Label>
+                        <Input
+                            id="flagged_note"
+                            {...register("flagged_note")}
+                            className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-600"
+                            placeholder="Describe the violation notice received from the prop firm"
+                        />
+                    </div>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-6 border-t border-gray-800">

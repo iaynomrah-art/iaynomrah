@@ -10,7 +10,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Trash2 } from "lucide-react"
+import { Trash2, AlertTriangle } from "lucide-react"
 import { DeleteAccountModal } from "@/components/modal/Delete/DeleteAccount"
 import { deleteAccount } from "@/helper/accounts"
 import { toast } from "sonner"
@@ -73,33 +73,27 @@ export const AccountsTable = ({ data, units = [], setAccounts }: AccountsTablePr
         }
     };
     return (
-        <div className="w-full">
+        <div className="w-full overflow-x-auto">
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
                         <TableHead className="w-[100px] text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">USER</TableHead>
                         <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">SERVER UNIT</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">FIRST NAME</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">MIDDLE NAME</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">LAST NAME</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">EMAIL</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">ADDRESS</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">CONTACT NUMBER 1</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">CONTACT NUMBER 2</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">ID TYPE</TableHead>
-                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">BILLING</TableHead>
+                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">CONTACT & ADDRESS</TableHead>
+                        <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap pb-4">VERIFICATION</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {data.length === 0 ? (
                         <TableRow className="border-[#1a1a1a]">
-                            <TableCell colSpan={11} className="h-24 text-center text-muted-foreground">
+                            <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                                 No accounts found.
                             </TableCell>
                         </TableRow>
                     ) : (
                         data.map((account) => (
-                            <TableRow key={account.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
+                            <TableRow key={account.id} className={`border-[#1a1a1a] transition-colors ${account.flagged ? 'bg-amber-500/5 hover:bg-amber-500/10' : 'hover:bg-[#111]'}`}>
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
                                         <EditUserAccountDialog account={account} units={units} setAccounts={setAccounts} />
@@ -113,20 +107,49 @@ export const AccountsTable = ({ data, units = [], setAccounts }: AccountsTablePr
                                         </Button>
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-white py-4">{account.units?.unit_name || "-"}</TableCell>
-                                <TableCell className="text-white py-4">{account.first_name}</TableCell>
-                                <TableCell className="text-white py-4">{account.middle_name || "-"}</TableCell>
-                                <TableCell className="text-white py-4">{account.last_name}</TableCell>
-                                <TableCell className="text-white py-4">{account.email}</TableCell>
-                                <TableCell className="text-white py-4">
-                                    {[account.address, account.city, account.province, account.zip_code]
-                                        .filter(Boolean)
-                                        .join(", ") || "-"}
+                                <TableCell className="py-4">
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-sm text-white">
+                                                {[account.first_name, account.middle_name, account.last_name].filter(Boolean).join(" ")}
+                                            </span>
+                                            {account.flagged && (
+                                                <span 
+                                                    title={account.flagged_note || "Flagged for violations"}
+                                                    className="px-2 py-0.5 rounded-full text-[9px] font-bold border whitespace-nowrap bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-sm flex items-center gap-1"
+                                                >
+                                                    <AlertTriangle className="w-3 h-3" />
+                                                    FLAGGED
+                                                </span>
+                                            )}
+                                        </div>
+                                        <span className="text-[11px] text-muted-foreground tracking-wide">{account.email}</span>
+                                    </div>
                                 </TableCell>
-                                <TableCell className="text-white py-4">{account.contact_number || "-"}</TableCell>
-                                <TableCell className="text-white py-4">{account.contact_number_2 || "-"}</TableCell>
-                                <TableCell className="text-white py-4">{account.id_type || "-"}</TableCell>
-                                <TableCell className="text-white py-4">{account.billing || "-"}</TableCell>
+                                <TableCell className="py-4">
+                                    <span className="text-sm text-white font-medium bg-[#1a1a1a] px-2.5 py-1 rounded-md border border-[#262626]">
+                                        {account.units?.unit_name || "-"}
+                                    </span>
+                                </TableCell>
+                                <TableCell className="py-4">
+                                    <div className="flex flex-col gap-1 max-w-[250px]">
+                                        <div className="flex items-center gap-2 text-sm text-white">
+                                            <span>{account.contact_number || "-"}</span>
+                                            {account.contact_number_2 && (
+                                                <span className="text-muted-foreground text-xs">• {account.contact_number_2}</span>
+                                            )}
+                                        </div>
+                                        <span className="text-[11px] text-muted-foreground truncate" title={[account.address, account.city, account.province, account.zip_code].filter(Boolean).join(", ")}>
+                                            {[account.address, account.city, account.province, account.zip_code].filter(Boolean).join(", ") || "No address provided"}
+                                        </span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="py-4">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-sm text-white">{account.id_type || "-"}</span>
+                                        <span className="text-[11px] text-muted-foreground uppercase tracking-wide">{account.billing || "No Billing"}</span>
+                                    </div>
+                                </TableCell>
                             </TableRow>
                         ))
                     )}

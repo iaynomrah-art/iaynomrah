@@ -23,7 +23,8 @@ export async function getCredentials(): Promise<Credential[]> {
         funder_id,
         account_id,
         funders(id, name, allias, allias_color, text_color),
-        accounts:accounts(id, first_name, last_name)
+        accounts:accounts(id, first_name, last_name),
+        funder_account:funder_account(status)
       )
     `,
     )
@@ -204,7 +205,8 @@ export async function credentialsTable(): Promise<Credential[]> {
         funder_id,
         account_id,
         funders(id, name, allias, allias_color, text_color),
-        accounts:accounts(id, first_name, last_name)
+        accounts:accounts(id, first_name, last_name),
+        funder_account:funder_account(status)
       )
     `,
     )

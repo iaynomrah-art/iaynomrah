@@ -59,5 +59,6 @@ export const AccountStatusColors: Record<AccountStatus, string> = {
   waiting: "#F87171",     // red
   oh: "#EC4899",          // pink
   kyc: "#2563EB",         // deep blue
-  "for payout": "#22D3EE" // cyan
+  "for payout": "#22D3EE", // cyan
+  burned: "#DC2626"       // crimson red
 };

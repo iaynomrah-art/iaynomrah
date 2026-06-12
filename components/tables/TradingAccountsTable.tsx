@@ -189,13 +189,17 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                             const isConsistencyWarning = (totalPnl > 0 && dailyPnl > 0 && consistencyLimitValue > 0 && dailyPnl >= (consistencyLimitValue * 0.8))
                             const isConsistencyViolation = (totalPnl > 0 && dailyPnl > 0 && consistencyLimitValue > 0 && dailyPnl > consistencyLimitValue)
 
+                            const isBurned = account.status === 'burned' || (maxDailyLoss > 0 && dailyDrawdownPercent >= 100) || (maxTotalLoss > 0 && totalDrawdownPercent >= 100)
+
                             return (
                                 <TableRow
                                     key={account.id}
-                                    onClick={() => toggleSelection(account.id)}
+                                    onClick={() => !isBurned && toggleSelection(account.id)}
                                     className={cn(
-                                        "border-[#1a1a1a] hover:bg-[#111] transition-colors group cursor-pointer",
-                                        selectedIds.includes(account.id) && "bg-blue-500/5 shadow-inner"
+                                        "border-[#1a1a1a] transition-colors group cursor-pointer",
+                                        !isBurned && "hover:bg-[#111]",
+                                        selectedIds.includes(account.id) && "bg-blue-500/5 shadow-inner",
+                                        isBurned && "bg-red-950/20 border-red-900/50 opacity-80 cursor-not-allowed pointer-events-none hover:bg-red-950/30"
                                     )}
                                 >
                                     <TableCell className="py-4 px-6">
@@ -207,7 +211,7 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                                                     <CheckSquare className="h-4 w-4 text-blue-500 animate-in zoom-in-75 duration-200" />
                                                 )
                                             ) : (
-                                                <Square className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
+                                                <Square className={cn("h-4 w-4 transition-colors", isBurned ? "text-muted-foreground/10" : "text-muted-foreground/30 group-hover:text-muted-foreground")} />
                                             )}
                                         </div>
                                     </TableCell>
@@ -253,18 +257,24 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                                         </div>
                                     </TableCell>
                                     <TableCell className="py-4">
-                                        <div className={cn(
-                                            "px-2 py-0.5 rounded-full text-[10px] font-bold w-fit border whitespace-nowrap",
-                                            {
-                                                'bg-green-500/10 text-green-500 border-green-500/20': ['Active', 'Trading', 'Paired'].includes(account.status),
-                                                'bg-yellow-500/10 text-yellow-500 border-yellow-500/20': ['Idle', 'WAITING', 'KYC', 'idle'].includes(account.status),
-                                                'bg-blue-500/10 text-blue-500 border-blue-500/20': ['BRC', 'BRC-CHECK'].includes(account.status),
-                                                'bg-orange-500/10 text-orange-500 border-orange-500/20': ['FOR PAYOUT', 'OH'].includes(account.status),
-                                                'bg-red-500/10 text-red-500 border-red-500/20': ['ABS'].includes(account.status),
-                                            }
-                                        )}>
-                                            {(account.status || 'idle').toUpperCase()}
-                                        </div>
+                                        {isBurned ? (
+                                            <div className="px-2 py-0.5 rounded-full text-[10px] font-bold w-fit border whitespace-nowrap bg-red-500/10 text-red-500 border-red-500/20 flex items-center gap-1">
+                                                🔥 BURNED
+                                            </div>
+                                        ) : (
+                                            <div className={cn(
+                                                "px-2 py-0.5 rounded-full text-[10px] font-bold w-fit border whitespace-nowrap",
+                                                {
+                                                    'bg-green-500/10 text-green-500 border-green-500/20': ['Active', 'Trading', 'Paired'].includes(account.status),
+                                                    'bg-yellow-500/10 text-yellow-500 border-yellow-500/20': ['Idle', 'WAITING', 'KYC', 'idle'].includes(account.status),
+                                                    'bg-blue-500/10 text-blue-500 border-blue-500/20': ['BRC', 'BRC-CHECK'].includes(account.status),
+                                                    'bg-orange-500/10 text-orange-500 border-orange-500/20': ['FOR PAYOUT', 'OH'].includes(account.status),
+                                                    'bg-red-500/10 text-red-500 border-red-500/20': ['ABS'].includes(account.status),
+                                                }
+                                            )}>
+                                                {(account.status || 'idle').toUpperCase()}
+                                            </div>
+                                        )}
                                     </TableCell>
                                     
                                     {/* L-EQUITY & TOTAL DRAWDOWN */}

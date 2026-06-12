@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DeletePackageModal } from "@/components/modal/Delete/DeletePackage"
 import { deletePackage } from "@/helper/package"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 interface Package {
     id: string
@@ -39,6 +40,12 @@ export const PackagesTable = ({ data, onEdit, onDeleteSuccess }: PackagesTablePr
     const [selectedPackage, setSelectedPackage] = useState<{ id: string, name: string } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [activeTab, setActiveTab] = useState<'active' | 'burned'>('active');
+
+    const filteredData = data.filter(item => {
+        const isBurned = item.funder_account?.some((fa: any) => fa.status === 'burned') || false;
+        return activeTab === 'active' ? !isBurned : isBurned;
+    });
 
     const handleDeleteClick = (id: string, name: string) => {
         setSelectedPackage({ id, name });
@@ -66,66 +73,161 @@ export const PackagesTable = ({ data, onEdit, onDeleteSuccess }: PackagesTablePr
 
     return (
         <div className="w-full">
+            <div className="flex items-center gap-2 mb-6 border-b border-[#1a1a1a] pb-4">
+                <Button
+                    variant="ghost"
+                    onClick={() => setActiveTab('active')}
+                    className={cn(
+                        "h-8 px-4 text-xs font-semibold tracking-wider uppercase rounded-full transition-all duration-300",
+                        activeTab === 'active' 
+                            ? "bg-white text-black hover:bg-gray-200" 
+                            : "text-muted-foreground hover:text-white hover:bg-[#1a1a1a]"
+                    )}
+                >
+                    Active
+                </Button>
+                <Button
+                    variant="ghost"
+                    onClick={() => setActiveTab('burned')}
+                    className={cn(
+                        "h-8 px-4 text-xs font-semibold tracking-wider uppercase rounded-full transition-all duration-300",
+                        activeTab === 'burned' 
+                            ? "bg-red-500 text-white hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.3)]" 
+                            : "text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                    )}
+                >
+                    Burned
+                </Button>
+            </div>
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">FUNDER</TableHead>
-                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PACKAGE NAME</TableHead>
+                        <TableHead className="w-[20%] text-muted-foreground font-medium text-sm pb-4">PACKAGE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">EQUITY</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PURCHASE PRICE</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PRICE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PHASE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">INSTRUMENT</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">DAILY LOSS</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">TOTAL LOSS</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">DAILY PROFIT TGT</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">MAX PROFIT TARGET</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">DRAWDOWN LIMITS</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">PROFIT TARGETS</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 text-right pr-6">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {data.length === 0 ? (
+                    {filteredData.length === 0 ? (
                         <TableRow className="border-[#1a1a1a]">
-                            <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
-                                No packages found.
+                            <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                                {activeTab === 'active' ? "No active packages found." : "No burned packages found."}
                             </TableCell>
                         </TableRow>
                     ) : (
-                        data.map((item) => (
-                            <TableRow key={item.id} className="border-[#1a1a1a] hover:bg-[#111] transition-colors">
-                                <TableCell className="text-white py-4 font-medium text-sm">
-                                    {item.funders?.name || "-"}
-                                </TableCell>
-                                <TableCell className="text-white py-4 text-sm">{item.name}</TableCell>
-                                <TableCell className="text-white py-4 text-sm">{item.balance || "-"}</TableCell>
-                                <TableCell className="text-white py-4 text-sm">${item.purchase_price || "0"}</TableCell>
-                                <TableCell className="text-white py-4 text-sm">{item.phase || "-"}</TableCell>
-                                <TableCell className="text-white py-4 text-sm">{item.symbol || "-"}</TableCell>
-                                <TableCell className="text-white py-4 text-sm">${item.max_daily_loss || "0"}</TableCell>
-                                <TableCell className="text-white py-4 text-sm">${item.max_total_loss || "0"}</TableCell>
-                                <TableCell className="text-white py-4 text-sm">${item.daily_profit_target || "0"}</TableCell>
-                                <TableCell className="text-white py-4 text-sm">${item.profit_target || "0"}</TableCell>
-                                <TableCell className="py-4">
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => onEdit(item)}
-                                            className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors"
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-red-500 transition-colors"
-                                            onClick={() => handleDeleteClick(item.id, item.name)}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ))
+                        filteredData.map((item) => {
+                            const isBurned = item.funder_account?.some((fa: any) => fa.status === 'burned');
+                            const balance = Number(item.balance || 0);
+                            const dailyLossValue = item.max_daily_loss ? (balance * (Number(item.max_daily_loss) / 100)) : null;
+                            const totalLossValue = item.max_total_loss ? (balance * (Number(item.max_total_loss) / 100)) : null;
+                            const dailyProfitValue = item.daily_profit_target ? (balance * (Number(item.daily_profit_target) / 100)) : null;
+                            const totalProfitValue = item.profit_target ? (balance * (Number(item.profit_target) / 100)) : null;
+
+                            return (
+                                <TableRow 
+                                    key={item.id} 
+                                    className={cn(
+                                        "border-[#1a1a1a] transition-colors",
+                                        isBurned ? "bg-red-950/20 hover:bg-red-950/30" : "hover:bg-[#111]"
+                                    )}
+                                >
+                                    <TableCell className="text-white py-4">
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-semibold text-sm">{item.name}</span>
+                                                {isBurned ? (
+                                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold border whitespace-nowrap bg-red-500/10 text-red-500 border-red-500/20 shadow-sm" title="This package is linked to a burned funder account">
+                                                        🔥 BURNED
+                                                    </span>
+                                                ) : (!item.funder_account || item.funder_account.length === 0) && (
+                                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold border whitespace-nowrap bg-gray-500/10 text-gray-400 border-gray-500/20 shadow-sm" title="This package has not been linked to a funder account yet">
+                                                        UNUSED
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-[11px] text-muted-foreground tracking-wide uppercase font-medium">
+                                                {item.funders?.name || "No Funder"}
+                                            </span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-white py-4 font-mono text-sm tracking-tight">${Number(item.balance || 0).toLocaleString()}</TableCell>
+                                    <TableCell className="text-white py-4 font-mono text-sm tracking-tight">${Number(item.purchase_price || 0).toLocaleString()}</TableCell>
+                                    <TableCell className="py-4">
+                                        <span className="px-2.5 py-1 rounded-md bg-[#1a1a1a] text-xs font-medium text-emerald-400 border border-emerald-500/20 capitalize shadow-sm">
+                                            {item.phase || "-"}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell className="py-4">
+                                        <span className="px-2.5 py-1 rounded-md bg-[#1a1a1a] text-xs font-medium text-blue-400 border border-blue-500/20 capitalize shadow-sm">
+                                            {item.symbol || "-"}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell className="py-4 pr-6">
+                                        <div className="flex flex-col gap-1.5">
+                                            <div className="flex items-center gap-4 text-xs">
+                                                <span className="text-muted-foreground w-10">Daily</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-mono text-red-400 font-medium">{item.max_daily_loss || 0}%</span>
+                                                    {dailyLossValue !== null && <span className="font-mono text-muted-foreground text-[10px]">(${dailyLossValue.toLocaleString()})</span>}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-xs">
+                                                <span className="text-muted-foreground w-10">Total</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-mono text-red-400 font-medium">{item.max_total_loss || 0}%</span>
+                                                    {totalLossValue !== null && <span className="font-mono text-muted-foreground text-[10px]">(${totalLossValue.toLocaleString()})</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4 pr-6">
+                                        <div className="flex flex-col gap-1.5">
+                                            <div className="flex items-center gap-4 text-xs">
+                                                <span className="text-muted-foreground w-10">Daily</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-mono text-emerald-400 font-medium">{item.daily_profit_target || 0}%</span>
+                                                    {dailyProfitValue !== null && <span className="font-mono text-muted-foreground text-[10px]">(${dailyProfitValue.toLocaleString()})</span>}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-xs">
+                                                <span className="text-muted-foreground w-10">Total</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-mono text-emerald-400 font-medium">{item.profit_target || 0}%</span>
+                                                    {totalProfitValue !== null && <span className="font-mono text-muted-foreground text-[10px]">(${totalProfitValue.toLocaleString()})</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4 pr-6">
+                                        <div className="flex items-center justify-end gap-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => onEdit(item)}
+                                                className="h-8 w-8 hover:bg-[#262626] text-muted-foreground hover:text-white transition-colors rounded-full"
+                                                title="Edit Package"
+                                            >
+                                                <Pencil className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors rounded-full"
+                                                onClick={() => handleDeleteClick(item.id, item.name)}
+                                                title="Delete Package"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })
                     )}
                 </TableBody>
             </Table>
@@ -147,56 +249,50 @@ export const PackagesTableSkeleton = () => {
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">FUNDER</TableHead>
-                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4">PACKAGE NAME</TableHead>
+                        <TableHead className="w-[20%] text-muted-foreground font-medium text-sm pb-4">PACKAGE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">EQUITY</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PURCHASE PRICE</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PRICE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">PHASE</TableHead>
                         <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">INSTRUMENT</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">DAILY LOSS</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">TOTAL LOSS</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">DAILY PROFIT TGT</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">MAX PROFIT TARGET</TableHead>
-                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4">ACTIONS</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">DRAWDOWN LIMITS</TableHead>
+                        <TableHead className="w-[15%] text-muted-foreground font-medium text-sm pb-4 whitespace-nowrap">PROFIT TARGETS</TableHead>
+                        <TableHead className="w-[10%] text-muted-foreground font-medium text-sm pb-4 text-right pr-6">ACTIONS</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {[1, 2, 3, 4, 5].map((i) => (
                         <TableRow key={i} className="border-[#1a1a1a] hover:bg-transparent">
                             <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[100px] bg-[#1a1a1a]" />
+                                <Skeleton className="h-8 w-[120px] bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[120px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
-                            </TableCell>
-                             <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[80px] bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
                                 <Skeleton className="h-4 w-[60px] bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[60px] bg-[#1a1a1a]" />
+                                <Skeleton className="h-6 w-[80px] rounded-full bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[60px] bg-[#1a1a1a]" />
+                                <Skeleton className="h-6 w-[80px] rounded-full bg-[#1a1a1a]" />
                             </TableCell>
                             <TableCell className="py-4">
-                                <Skeleton className="h-4 w-[60px] bg-[#1a1a1a]" />
+                                <div className="space-y-2">
+                                    <Skeleton className="h-3 w-[100px] bg-[#1a1a1a]" />
+                                    <Skeleton className="h-3 w-[100px] bg-[#1a1a1a]" />
+                                </div>
                             </TableCell>
                             <TableCell className="py-4">
-                                <div className="flex items-center gap-2">
-                                    <Skeleton className="h-8 w-8 rounded-md bg-[#1a1a1a]" />
-                                    <Skeleton className="h-8 w-8 rounded-md bg-[#1a1a1a]" />
+                                <div className="space-y-2">
+                                    <Skeleton className="h-3 w-[100px] bg-[#1a1a1a]" />
+                                    <Skeleton className="h-3 w-[100px] bg-[#1a1a1a]" />
+                                </div>
+                            </TableCell>
+                            <TableCell className="py-4 pr-6">
+                                <div className="flex items-center justify-end gap-2">
+                                    <Skeleton className="h-8 w-8 rounded-full bg-[#1a1a1a]" />
+                                    <Skeleton className="h-8 w-8 rounded-full bg-[#1a1a1a]" />
                                 </div>
                             </TableCell>
                         </TableRow>

@@ -14,13 +14,15 @@ export type AccountStatus =
   | "waiting"
   | "oh"
   | "kyc"
-  | "for payout";
+  | "for payout"
+  | "burned";
 export interface FunderAccount {
   id: string;
   created_at: string;
   package_id: string | null;
   status: AccountStatus;
   user: string | null;
+  burn_reason?: "daily_drawdown" | "total_drawdown" | "manual" | null;
 
   // Joined fields
   // The Package is now the primary data carrier for a FunderAccount connection
