@@ -697,8 +697,6 @@ export const PairAccountsModal = ({
                 return;
             }
 
-            console.log("Orchestrator payload", payload)
-
             const response = await fetch(`${orchestratorUrl}/api/v1/units/pair`, {
                 method: "POST",
                 headers: {

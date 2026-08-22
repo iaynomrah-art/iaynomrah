@@ -24,17 +24,9 @@ async function syncMissingTradingAccounts() {
     .from("trading_accounts")
     .select("funder_account_id");
 
-  if (taError) {
-    console.error("[syncMissing] Error fetching trading_accounts:", taError.message);
-    return;
-  }
-
-  const linkedIds = new Set((existingTAs || []).map((ta: any) => ta.funder_account_id));
-  const missing = allFunderAccounts.filter((fa: any) => !linkedIds.has(fa.id));
+  const missing = allFunderAccounts.filter((fa: any) => !fa.trading_accounts || fa.trading_accounts.length === 0);
 
   if (missing.length === 0) return;
-
-  console.log(`[syncMissing] Found ${missing.length} funder_accounts without trading_accounts, backfilling...`);
 
   // Insert with FK + live_equity from package balance
   for (const fa of missing) {
@@ -44,18 +36,17 @@ async function syncMissingTradingAccounts() {
       .insert([{ funder_account_id: fa.id, account_status: "idle", live_equity: balance }]);
 
     if (insertError) {
-      console.error(`[syncMissing] Error backfilling for ${fa.id}:`, insertError.message, insertError.details, insertError.hint);
       // Try absolute minimum
       const { error: retryError } = await supabase
         .from("trading_accounts")
         .insert([{ funder_account_id: fa.id }]);
       if (retryError) {
-        console.error(`[syncMissing] RETRY FAILED for ${fa.id}:`, retryError.message, retryError.details, retryError.hint);
+        // ... failure
       } else {
-        console.log(`[syncMissing] Backfilled (minimal) for ${fa.id}`);
+        // Success
       }
     } else {
-      console.log(`[syncMissing] Backfilled for ${fa.id} with live_equity: ${balance}`);
+      // Success
     }
   }
 }
@@ -82,11 +73,13 @@ export async function getTradingAccounts(type?: string) {
         .single();
       const balance = (fa as any)?.package?.balance;
       if (balance && balance > 0) {
-        await supabase
+        const { error: updateError } = await supabase
           .from("trading_accounts")
           .update({ live_equity: balance })
           .eq("id", ta.id);
-        console.log(`[repairEquity] Updated trading_account ${ta.id} live_equity to ${balance}`);
+        if (!updateError) {
+          // Success
+        }
       }
     }
   }
@@ -107,13 +100,11 @@ export async function getTradingAccounts(type?: string) {
   const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching trading accounts:", error.message, error.details, error.hint);
     return [];
   }
-  console.log(`[getTradingAccounts] Returned ${data?.length ?? 0} records`);
-
+  
   // Flatten the data to maintain compatibility with existing components
-  const flattened = data.map((item: any) => {
+  const flattened = (data || []).map((item: any) => {
     const pkg = item.funder_account?.package_data;
     const funderAccountId = item.funder_account?.id || item.funder_account_id;
     return {

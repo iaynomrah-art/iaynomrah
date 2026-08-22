@@ -35,7 +35,6 @@ export async function getCredentials(): Promise<Credential[]> {
     console.error("Error fetching credentials:", error.message, error.details, error.hint);
     return [];
   }
-  console.log(`[getCredentials] Returned ${data?.length ?? 0} records`);
   return data;
 }
 
@@ -69,7 +68,6 @@ export async function createCredential(formData: any) {
     console.error("Error creating credential:", credError.message, credError.details, credError.hint);
     return { error: credError.message };
   }
-  console.log("[createCredential] Created:", credential);
 
   // Auto-link this credential to all packages that belong to the selected account
   if (account_id) {
@@ -87,7 +85,6 @@ export async function createCredential(formData: any) {
     // Fallback: if no packages were linked (account_id not set on packages yet),
     // find packages through funder_account.user → funder_account.package_id
     if (!linkedPackages || linkedPackages.length === 0) {
-      console.log("[createCredential] No packages with account_id found, trying funder_account fallback");
       const { data: funderAccounts } = await supabase
         .from("funder_account")
         .select("package_id")
@@ -100,7 +97,6 @@ export async function createCredential(formData: any) {
             .from("package")
             .update({ credential_id: credential.id, account_id: account_id })
             .in("id", packageIds);
-          console.log("[createCredential] Linked credential via funder_account fallback to packages:", packageIds);
         }
       }
     }
@@ -149,7 +145,6 @@ export async function updateCredential(id: string, formData: any) {
 
     // Fallback: if no packages were linked, find packages through funder_account
     if (!linkedPackages || linkedPackages.length === 0) {
-      console.log("[updateCredential] No packages with account_id found, trying funder_account fallback");
       const { data: funderAccounts } = await supabase
         .from("funder_account")
         .select("package_id")
@@ -162,7 +157,6 @@ export async function updateCredential(id: string, formData: any) {
             .from("package")
             .update({ credential_id: id, account_id: account_id })
             .in("id", packageIds);
-          console.log("[updateCredential] Linked credential via funder_account fallback to packages:", packageIds);
         }
       }
     }

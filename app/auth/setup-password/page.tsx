@@ -22,12 +22,6 @@ export default function SetupPasswordPage() {
     const supabase = createClient();
 
     useEffect(() => {
-        // Debug logging for URL and hash
-        if (process.env.NODE_ENV === 'development' || true) {
-            console.log("Current URL:", window.location.href);
-            console.log("Current Hash:", window.location.hash);
-        }
-
         // Check for error parameters in the hash fragment (Supabase redirects errors there)
         const hash = window.location.hash;
         if (hash.includes("error=")) {

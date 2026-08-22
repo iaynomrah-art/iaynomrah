@@ -16,7 +16,6 @@ export async function getFunderAccounts() {
     console.error("Error fetching funder accounts:", error.message, error.details, error.hint);
     return [];
   }
-  console.log(`[getFunderAccounts] Returned ${data?.length ?? 0} records`);
   return data;
 }
 
@@ -62,7 +61,6 @@ export async function createFunderAccount(formData: any) {
     console.error("Error creating funder account:", funderAccountError.message, funderAccountError.details, funderAccountError.hint);
     return { error: funderAccountError.message };
   }
-  console.log("[createFunderAccount] Created:", funderAccountData);
 
   // Sync the selected credential to the package so display queries work
   // (display relies on package.credential_id and package.account_id)
@@ -79,12 +77,10 @@ export async function createFunderAccount(formData: any) {
     if (syncError) {
       console.error("[createFunderAccount] Error syncing credential to package:", syncError.message);
     } else {
-      console.log("[createFunderAccount] Synced credential and account to package");
     }
   }
 
   // Fetch package details to populate trading account and auto-link credential
-  console.log("[createFunderAccount] formData.package_id:", formData.package_id);
   if (formData.package_id) {
     const { data: packageData, error: packageError } = await supabase
       .from("package")
@@ -92,7 +88,6 @@ export async function createFunderAccount(formData: any) {
       .eq("id", formData.package_id)
       .single();
 
-    console.log("[createFunderAccount] Package fetch result:", {
       packageData: packageData ? { id: packageData.id, name: packageData.name, funder_id: packageData.funder_id, credential_id: packageData.credential_id, funders: packageData.funders } : null,
       packageError: packageError ? { message: packageError.message, details: packageError.details, hint: packageError.hint } : null,
     });
@@ -100,7 +95,6 @@ export async function createFunderAccount(formData: any) {
     if (!packageError && packageData) {
       // Create associated trading account - use minimal insert first (FK only)
       // then try optional denormalized fields. The display works via FK joins anyway.
-      console.log("[createFunderAccount] Creating trading account for funder_account:", funderAccountData.id);
 
       const { data: tradingAccountData, error: tradingAccountError } = await supabase
         .from("trading_accounts")
@@ -118,7 +112,6 @@ export async function createFunderAccount(formData: any) {
           tradingAccountError.message, tradingAccountError.details, tradingAccountError.hint,
         );
         // Retry with absolute minimum - just the FK
-        console.log("[createFunderAccount] Retrying with minimal insert (FK only)...");
         const { data: retryData, error: retryError } = await supabase
           .from("trading_accounts")
           .insert([{ funder_account_id: funderAccountData.id }])
@@ -128,7 +121,6 @@ export async function createFunderAccount(formData: any) {
         if (retryError) {
           console.error("[createFunderAccount] RETRY ALSO FAILED:", retryError.message, retryError.details, retryError.hint);
         } else {
-          console.log("[createFunderAccount] Trading account CREATED (minimal):", retryData);
           // Try to update with optional fields
           await supabase.from("trading_accounts").update({
             account_status: "idle",
@@ -136,7 +128,6 @@ export async function createFunderAccount(formData: any) {
           }).eq("id", retryData.id);
         }
       } else {
-        console.log("[createFunderAccount] Trading account CREATED:", tradingAccountData);
         // Try to set optional denormalized fields (may fail if columns don't exist)
         try {
           await supabase.from("trading_accounts").update({
@@ -156,15 +147,12 @@ export async function createFunderAccount(formData: any) {
           .from("funder_account")
           .update({ user: packageData.account_id })
           .eq("id", funderAccountData.id);
-        console.log("[createFunderAccount] User auto-link:", linkError ? `ERROR: ${linkError.message}` : "SUCCESS");
       } else {
-        console.log("[createFunderAccount] No account_id on package, skipping auto-link");
       }
     } else {
       console.error("[createFunderAccount] Package fetch FAILED, skipping trading account creation");
     }
   } else {
-    console.log("[createFunderAccount] No package_id in formData, skipping trading account creation");
   }
 
   revalidatePath("/dashboard/trading-accounts/funder-accounts");

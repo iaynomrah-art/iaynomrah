@@ -16,12 +16,11 @@ export function TradeNotificationListener() {
 
   // Centralized function to trigger all 3 notification types (Sound, Toast, Desktop)
   const triggerAllNotifications = useCallback((title: string, body: string, id?: string) => {
-    console.log("🔔 Triggering 3-way notification:", { title, body, id });
 
     // 1. Audio Notification
     if (audioRef.current) {
       audioRef.current.currentTime = 0
-      audioRef.current.play().catch(err => console.warn("Audio play blocked:", err))
+      audioRef.current.play().catch(err => {})
     }
 
     // 2. Browser Desktop Notification
@@ -105,8 +104,6 @@ export function TradeNotificationListener() {
       // Deduplicate — only notify once per trade id per session
       if (notifiedTrades.current.has(trade.id)) return
       notifiedTrades.current.add(trade.id)
-
-      console.log(`🔔 REALTIME TRADE DONE:`, trade.id)
 
       // Fetch pair details to get human-readable names
       const { data: pairDetails } = await supabase
