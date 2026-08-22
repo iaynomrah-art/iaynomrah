@@ -10,7 +10,15 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Pencil, Trash2 } from "lucide-react"
+import { Pencil, Trash2, Filter } from "lucide-react"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuCheckboxItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { DeleteFunderAccountModal } from "@/components/modal/Delete/DeleteFunderAccount"
@@ -26,21 +34,40 @@ import { Unit } from "@/types/units"
 import { Funder } from "@/types/funder"
 
 interface FunderAccountsTableProps {
-    data: FunderAccount[]
+    data: FunderAccount[];
+    franchises?: any[];
 }
 
 export const FunderAccountsTable = ({
-    data
+    data,
+    franchises
 }: FunderAccountsTableProps) => {
     const [selectedFunderAccount, setSelectedFunderAccount] = useState<{ id: string, name: string } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [activeTab, setActiveTab] = useState<'active' | 'burned'>('active');
+    const [hideBurned, setHideBurned] = useState(true); // By default, hide burned
+    const [selectedFunders, setSelectedFunders] = useState<string[]>([]);
+    const [selectedFranchises, setSelectedFranchises] = useState<string[]>([]);
+
+    const uniqueFunders = Array.from(new Set(data.map(item => item.package?.funders?.allias || item.package?.funders?.name).filter(Boolean))) as string[];
+    const uniqueFranchises = franchises 
+        ? franchises.map(f => f.name).sort() 
+        : Array.from(new Set(data.map(item => (item.package?.account?.units as any)?.franchise?.name).filter(Boolean))).sort() as string[];
 
     const filteredData = data.filter(item => {
         const isBurned = (item.status as string) === 'burned';
-        return activeTab === 'active' ? !isBurned : isBurned;
+        if (hideBurned && isBurned) return false;
+
+        const funderName = item.package?.funders?.allias || item.package?.funders?.name || "";
+        const matchesFunder = selectedFunders.length === 0 || selectedFunders.includes(funderName);
+        
+        const franchiseName = (item.package?.account?.units as any)?.franchise?.name || "";
+        const matchesFranchise = selectedFranchises.length === 0 || selectedFranchises.includes(franchiseName);
+
+        return matchesFunder && matchesFranchise;
     });
+
+    const activeFilterCount = selectedFunders.length + selectedFranchises.length + (!hideBurned ? 1 : 0);
 
     const handleDeleteClick = (id: string, firstName?: string | null, lastName?: string | null) => {
         const name = firstName && lastName ? `${firstName} ${lastName}` : "this funder account";
@@ -67,30 +94,74 @@ export const FunderAccountsTable = ({
     return (
         <div className="w-full">
             <div className="flex items-center gap-2 mb-6 border-b border-[#1a1a1a] pb-4">
-                <Button
-                    variant="ghost"
-                    onClick={() => setActiveTab('active')}
-                    className={cn(
-                        "h-8 px-4 text-xs font-semibold tracking-wider uppercase rounded-full transition-all duration-300",
-                        activeTab === 'active' 
-                            ? "bg-white text-black hover:bg-gray-200" 
-                            : "text-muted-foreground hover:text-white hover:bg-[#1a1a1a]"
-                    )}
-                >
-                    Active
-                </Button>
-                <Button
-                    variant="ghost"
-                    onClick={() => setActiveTab('burned')}
-                    className={cn(
-                        "h-8 px-4 text-xs font-semibold tracking-wider uppercase rounded-full transition-all duration-300",
-                        activeTab === 'burned' 
-                            ? "bg-red-500 text-white hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.3)]" 
-                            : "text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-                    )}
-                >
-                    Burned
-                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="h-9 bg-[#0d0d0d] border-[#1a1a1a] text-gray-300 hover:bg-[#111] hover:text-white transition-all">
+                            <Filter className="h-4 w-4 mr-2" />
+                            Filters
+                            {activeFilterCount > 0 && (
+                                <span className="ml-2 rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">
+                                    {activeFilterCount}
+                                </span>
+                            )}
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56 bg-[#0d0d0d] border-[#1a1a1a] text-gray-300">
+                        <DropdownMenuLabel>Visibility</DropdownMenuLabel>
+                        <DropdownMenuCheckboxItem
+                            checked={!hideBurned}
+                            onCheckedChange={(checked) => setHideBurned(!checked)}
+                            onSelect={(e) => e.preventDefault()}
+                            className="focus:bg-[#1a1a1a] focus:text-white"
+                        >
+                            Show Burned Accounts
+                        </DropdownMenuCheckboxItem>
+                        
+                        {uniqueFranchises.length > 0 && (
+                            <>
+                                <DropdownMenuSeparator className="bg-[#1a1a1a]" />
+                                <DropdownMenuLabel>Franchises</DropdownMenuLabel>
+                                {uniqueFranchises.map((f) => (
+                                    <DropdownMenuCheckboxItem
+                                        key={f}
+                                        checked={selectedFranchises.includes(f)}
+                                        onCheckedChange={(checked) => {
+                                            setSelectedFranchises(prev => 
+                                                checked ? [...prev, f] : prev.filter(x => x !== f)
+                                            );
+                                        }}
+                                        onSelect={(e) => e.preventDefault()}
+                                        className="focus:bg-[#1a1a1a] focus:text-white"
+                                    >
+                                        {f}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                            </>
+                        )}
+
+                        {uniqueFunders.length > 0 && (
+                            <>
+                                <DropdownMenuSeparator className="bg-[#1a1a1a]" />
+                                <DropdownMenuLabel>Funders</DropdownMenuLabel>
+                                {uniqueFunders.map((f) => (
+                                    <DropdownMenuCheckboxItem
+                                        key={f}
+                                        checked={selectedFunders.includes(f)}
+                                        onCheckedChange={(checked) => {
+                                            setSelectedFunders(prev => 
+                                                checked ? [...prev, f] : prev.filter(x => x !== f)
+                                            );
+                                        }}
+                                        onSelect={(e) => e.preventDefault()}
+                                        className="focus:bg-[#1a1a1a] focus:text-white"
+                                    >
+                                        {f}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                            </>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
@@ -109,7 +180,7 @@ export const FunderAccountsTable = ({
                     {filteredData.length === 0 ? (
                         <TableRow className="border-[#1a1a1a]">
                             <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                                {activeTab === 'active' ? "No active funder accounts found." : "No burned funder accounts found."}
+                                {hideBurned ? "No active funder accounts found." : "No funder accounts found matching the selected filters."}
                             </TableCell>
                         </TableRow>
                     ) : (

@@ -20,7 +20,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Building2 } from 'lucide-react'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuCheckboxItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Building2, Filter } from 'lucide-react'
 
 interface MyUnitsClientProps {
     initialUnits: any[];
@@ -38,7 +46,8 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
     const [isFranchiseModalOpen, setIsFranchiseModalOpen] = useState(false);
     const [role, setRole] = useState<string | null>(null);
     const [selectedFranchise, setSelectedFranchise] = useState<string>("all");
-
+    const [filterOccupiedOnly, setFilterOccupiedOnly] = useState(false);
+    const [filterEnabledOnly, setFilterEnabledOnly] = useState(false);
     const refreshUnitsSilent = async () => {
         try {
             const data = await getUnitsWithCounts();
@@ -145,7 +154,10 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
             unit.franchise?.code?.toLowerCase().includes(query)
         );
         const matchesFranchise = selectedFranchise === "all" || unit.franchise?.name === selectedFranchise;
-        return !unit.archived && matchesSearch && matchesFranchise;
+        const matchesOccupied = !filterOccupiedOnly || unit.is_occupied;
+        const matchesEnabled = !filterEnabledOnly || unit.status === 'enabled';
+
+        return !unit.archived && matchesSearch && matchesFranchise && matchesOccupied && matchesEnabled;
     });
 
     return (
@@ -184,6 +196,33 @@ export default function MyUnitsClient({ initialUnits }: MyUnitsClientProps) {
                                 </SelectContent>
                             </Select>
                         )}
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="h-10 bg-[#0d0d0d] border-gray-800 text-gray-300 hover:text-white hover:bg-gray-800 focus:ring-0">
+                                    <Filter className="h-4 w-4 mr-2" />
+                                    Filters
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-56 bg-[#0d0d0d] border-gray-800 text-gray-300" align="end">
+                                <DropdownMenuLabel>Filter Units</DropdownMenuLabel>
+                                <DropdownMenuSeparator className="bg-gray-800" />
+                                <DropdownMenuCheckboxItem
+                                    checked={filterOccupiedOnly}
+                                    onCheckedChange={setFilterOccupiedOnly}
+                                    className="focus:bg-gray-800 focus:text-white cursor-pointer"
+                                >
+                                    Occupied Only
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem
+                                    checked={filterEnabledOnly}
+                                    onCheckedChange={setFilterEnabledOnly}
+                                    className="focus:bg-gray-800 focus:text-white cursor-pointer"
+                                >
+                                    Enabled Only
+                                </DropdownMenuCheckboxItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
                         <UnitsSearch
                             value={searchQuery}

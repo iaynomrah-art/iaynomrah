@@ -216,8 +216,9 @@ export const EditPairedAccountModal = ({
             }
 
             const getPlatform = (acc: any) => {
-                const creds = acc.credentials;
-                const pkgCreds = acc.package_ref?.credential || acc.package_ref?.credentials;
+                const creds = Array.isArray(acc.credentials) ? acc.credentials[0] : acc.credentials;
+                const pkgCredsObj = acc.package_ref?.credential || acc.package_ref?.credentials;
+                const pkgCreds = Array.isArray(pkgCredsObj) ? pkgCredsObj[0] : pkgCredsObj;
                 return creds?.platform || pkgCreds?.platform;
             }
 
@@ -226,12 +227,13 @@ export const EditPairedAccountModal = ({
             }
 
             const createRealtimePayload = (acc: any, isPrimary: boolean, operation: string) => {
-                const creds = acc.credentials;
-                const pkgCreds = acc.package_ref?.credential || acc.package_ref?.credentials;
+                const creds = Array.isArray(acc.credentials) ? acc.credentials[0] : acc.credentials;
+                const pkgCredsObj = acc.package_ref?.credential || acc.package_ref?.credentials;
+                const pkgCreds = Array.isArray(pkgCredsObj) ? pkgCredsObj[0] : pkgCredsObj;
                 const platform = getPlatform(acc);
 
                 return {
-                    event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : 'run_tradelocker',
+                    event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : (platform?.toLowerCase().includes('mt5') || platform?.toLowerCase().includes('metatrader')) ? 'run_metatrader5' : 'run_tradelocker',
                     payload: {
                         username: creds?.username || pkgCreds?.username || "",
                         password: creds?.password || pkgCreds?.password || "",
@@ -240,8 +242,8 @@ export const EditPairedAccountModal = ({
                         order_amount: isPrimary ? localParams.primary_order_amount : localParams.secondary_order_amount,
                         take_profit: isPrimary ? localParams.primary_take_profit : localParams.secondary_take_profit,
                         stop_loss: formatStopLoss(isPrimary ? localParams.primary_stop_loss : localParams.secondary_stop_loss, platform),
-                        account_id: creds?.account_id || acc.accounts_id,
-                        db_account_id: acc.accounts_id,
+                        account_id: creds?.platform_id || pkgCreds?.platform_id || "",
+                        db_account_id: acc.id,
                         symbol: String(localParams.symbol || "XAUUSD"),
                         operation: operation
                     }
@@ -256,27 +258,11 @@ export const EditPairedAccountModal = ({
 
             toast.loading("Executing trades on both devices... (this may take up to 60 seconds)", { id: 'edit-trade' })
 
-            // 1. Prepare payload for real-time to place order
-            const p1Data = createRealtimePayload(pair.primary_account, true, 'auto-place-order');
-            const p2Data = createRealtimePayload(pair.secondary_account, false, 'auto-place-order');
+            // 1. Prepare payload — use 'auto-place-and-terminate' to place + monitor in one shot
+            const p1Data = createRealtimePayload(pair.primary_account, true, 'auto-place-and-terminate');
+            const p2Data = createRealtimePayload(pair.secondary_account, false, 'auto-place-and-terminate');
 
-            // 2. Call Websockets and wait for order placement
-            const [p1Res, p2Res] = await Promise.all([
-                broadcastToUnit({ unitId: unit1Id, event: p1Data.event, payload: p1Data.payload, timeoutMs: 60000 }),
-                broadcastToUnit({ unitId: unit2Id, event: p2Data.event, payload: p2Data.payload, timeoutMs: 60000 })
-            ])
-
-            const p1Result = p1Res?.result || {};
-            const p2Result = p2Res?.result || {};
-            
-            if (p1Result?.success === false || p1Result?.status === 'failed' || p1Result?.status === 'error') {
-                throw new Error(`Primary machine execution failed: ${p1Result?.reason || p1Result?.message || 'Unknown error'}`)
-            }
-            if (p2Result?.success === false || p2Result?.status === 'failed' || p2Result?.status === 'error') {
-                throw new Error(`Secondary machine execution failed: ${p2Result?.reason || p2Result?.message || 'Unknown error'}`)
-            }
-
-            // 3. Set to ongoing mode with updated params
+            // 2. Update DB with params and set to ongoing immediately (optimistic)
             await updatePairedAccount(pair.id, {
                 symbol: localParams.symbol,
                 primary_order_amount: localParams.primary_order_amount,
@@ -290,14 +276,10 @@ export const EditPairedAccountModal = ({
                 trade_status: 'ongoing'
             })
 
-            // 4. Launch trade monitor asynchronously (fire and forget)
-            const p1Term = createRealtimePayload(pair.primary_account, true, 'trade-terminator');
-            const p2Term = createRealtimePayload(pair.secondary_account, false, 'trade-terminator');
-            broadcastToUnit({ unitId: unit1Id, event: p1Term.event, payload: p1Term.payload, timeoutMs: 0 })
-                .then(() => updatePairedAccount(pair.id, { trade_status: 'done' }))
+            // 3. Fire combined place + monitor (fire and forget — runs until TP/SL)
+            broadcastToUnit({ unitId: unit1Id, event: p1Data.event, payload: p1Data.payload, timeoutMs: 0 })
                 .catch(console.error);
-            broadcastToUnit({ unitId: unit2Id, event: p2Term.event, payload: p2Term.payload, timeoutMs: 0 })
-                .then(() => updatePairedAccount(pair.id, { trade_status: 'done' }))
+            broadcastToUnit({ unitId: unit2Id, event: p2Data.event, payload: p2Data.payload, timeoutMs: 0 })
                 .catch(console.error);
 
             toast.success("Trade parameters updated and session started", { id: 'edit-trade' })

@@ -11,22 +11,23 @@ export async function GET(request: Request) {
     try {
         // Call the external Python API
         // We append the symbol and specific timeframe
-        const url = `https://orchestrator.iaynomrah.cloud/api/v1/market/signal?symbol=${symbol}&timeframe=1h`;
+        const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL?.replace(/\/$/, '') || 'https://orchestrator.iaynomrah.cloud';
+        // Note: Changing this to point to the new Python API format if you intend to bypass the Orchestrator
+        const url = `${orchestratorUrl}/api/v1/market/signal?symbol=${symbol}&timeframe=1h`;
         const res = await fetch(url);
         
         if (!res.ok) {
-            // Wait, if it failed with the symbol, let's try calling it with just GOLD fallback
+            // Try GOLD fallback if the symbol was not found
             if (res.status === 404 || res.status === 400 || res.status === 422) {
-                const fallbackUrl = `https://orchestrator.iaynomrah.cloud/api/v1/market/signal?symbol=GOLD&timeframe=1h`;
+                const fallbackUrl = `${orchestratorUrl}/api/v1/market/signal?symbol=GOLD&timeframe=1h`;
                 const fallbackRes = await fetch(fallbackUrl);
                 if (!fallbackRes.ok) {
-                    const errorText = await fallbackRes.text();
-                    return NextResponse.json({ error: 'Failed to fetch signal from local API' }, { status: fallbackRes.status });
+                    throw new Error(`Orchestrator returned ${fallbackRes.status} for fallback symbol GOLD`);
                 }
                 const fallbackData = await fallbackRes.json();
                 return transformResponse(fallbackData);
             }
-            return NextResponse.json({ error: `API Error: ${res.statusText}` }, { status: res.status });
+            throw new Error(`Orchestrator API Error: ${res.statusText} (${res.status})`);
         }
 
         const data = await res.json();

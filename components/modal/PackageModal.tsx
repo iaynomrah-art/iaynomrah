@@ -10,13 +10,13 @@ interface PackageModalProps {
     onSuccess: () => void
     initialData?: any | null
     funders: Funder[]
-    credentials?: any[]
+    accounts: any[]
 }
 
-export function PackageModal({ isOpen, onClose, onSuccess, initialData, funders, credentials = [] }: PackageModalProps) {
+export function PackageModal({ isOpen, onClose, onSuccess, initialData, funders, accounts = [] }: PackageModalProps) {
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="bg-[#0a0a0a] border-[#1a1a1a] text-white max-w-md max-h-[90vh] overflow-y-auto">
+            <DialogContent className="bg-[#0a0a0a] border-[#1a1a1a] text-white max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>{initialData ? 'Update Package' : 'Add New Package'}</DialogTitle>
                 </DialogHeader>
@@ -25,7 +25,7 @@ export function PackageModal({ isOpen, onClose, onSuccess, initialData, funders,
                         key={initialData?.id || 'new'}
                         initialData={initialData}
                         funders={funders}
-                        credentials={credentials}
+                        accounts={accounts}
                         onSuccess={onSuccess}
                         onCancel={onClose}
                     />

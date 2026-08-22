@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react'
 import { getFunderAccounts } from '@/helper/funder_accounts'
+import { getFranchises } from '@/helper/franchise'
 
 export const dynamic = 'force-dynamic'
 import { SearchBarHeader } from '@/components/ui/search-bar-header'
@@ -9,11 +10,13 @@ import { CreateFunderAccountDialog } from '@/components/modal/Create/AddFunderAc
 
 const FunderAccountsList = async () => {
     const data = await getFunderAccounts();
+    const franchisesData = await getFranchises();
 
     return (
         <div className="px-6 pb-6">
             <FunderAccountsTable
                 data={data}
+                franchises={franchisesData}
             />
         </div>
     );

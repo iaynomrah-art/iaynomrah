@@ -93,48 +93,55 @@ export default function TradeHistoryRow({ pair }: { pair: any }) {
             {/* Clickable Header */}
             <div
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-[#1a1a1a]/40 transition-all border-b border-[#2b3139]"
+                className="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-[#1a1a1a]/40 transition-all border-b border-[#2b3139] w-full"
             >
-                <div className="flex items-center gap-6 w-full">
+                {/* Left Side: Chevron and Names */}
+                <div className="flex items-center gap-4">
                     <div className="p-1 px-1.5 rounded bg-[#1a1a1a] text-muted-foreground">
                         {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </div>
 
-                    <div className="flex items-center justify-between gap-4 w-full">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest bg-[#1a1a1a] px-2 py-1 rounded">
-                                {pair.primary_account?.accounts?.units?.unit_name}
-                            </span>
-                            <span className="text-muted-foreground mx-1">/</span>
-                            <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest bg-[#1a1a1a] px-2 py-1 rounded">
-                                {pair.secondary_account?.accounts?.units?.unit_name}
-                            </span>
-                        </div>
-
-                        <div className="h-4 w-px bg-[#2b3139]" />
-
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <span className={cn(
-                                    "text-[12px] font-bold tracking-widest px-2.5 py-0.5 rounded-full",
-                                    totalPnl >= 0 ? "bg-[#2ebc66]/20 text-[#2ebc66]" : "bg-[#f6465d]/20 text-[#f6465d]"
-                                )}>
-                                    {totalPnl >= 0 ? "+" : ""}${totalPnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                </span>
-                            </div>
-                            <div className="h-3 w-px bg-[#2b3139]" />
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Calendar className="h-3.5 w-3.5" />
-                                <span className="text-[11px] font-medium uppercase tracking-wider">{formattedDate}</span>
-                            </div>
-                            <div className="bg-gray-800 text-gray-400 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-gray-700">
-                                Completed
-                            </div>
-                        </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest bg-[#1a1a1a] px-2 py-1 rounded">
+                            {pair.primary_account?.accounts?.units?.unit_name}
+                        </span>
+                        <span className="text-muted-foreground mx-1">/</span>
+                        <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest bg-[#1a1a1a] px-2 py-1 rounded">
+                            {pair.secondary_account?.accounts?.units?.unit_name}
+                        </span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                {/* Right Side: PnL, Date, Status, Delete */}
+                <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
+                    {/* PnL */}
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <span className={cn(
+                            "text-[12px] font-bold tracking-widest px-2.5 py-0.5 rounded-full",
+                            totalPnl >= 0 ? "bg-[#2ebc66]/20 text-[#2ebc66]" : "bg-[#f6465d]/20 text-[#f6465d]"
+                        )}>
+                            {totalPnl >= 0 ? "+" : ""}${totalPnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                    </div>
+
+                    <div className="h-4 w-px bg-[#2b3139]" />
+
+                    {/* Date */}
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span className="text-[11px] font-medium uppercase tracking-wider">{formattedDate}</span>
+                    </div>
+
+                    <div className="h-4 w-px bg-[#2b3139]" />
+
+                    {/* Status */}
+                    <div className="bg-gray-800 text-gray-400 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest border border-gray-700">
+                        Completed
+                    </div>
+
+                    <div className="h-4 w-px bg-[#2b3139]" />
+
+                    {/* Close/Delete Action */}
                     <button className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all">
                         <X className="h-4 w-4" />
                     </button>

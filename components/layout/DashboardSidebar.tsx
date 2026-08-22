@@ -69,7 +69,6 @@ const menuItems: MenuItem[] = [
     icon: <CreditCard className="w-4 h-4" />,
     children: [
       { title: "Funder Accounts", href: "/dashboard/trading-accounts/funder-accounts" },
-      { title: "Account Credentials", href: "/dashboard/trading-accounts/credentials" },
       { title: "User Accounts", href: "/dashboard/trading-accounts/user-accounts" },
     ],
   },

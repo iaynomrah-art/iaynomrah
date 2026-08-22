@@ -97,8 +97,9 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
             }
 
             const getPlatform = (acc: any) => {
-                const creds = acc.credentials;
-                const pkgCreds = acc.package_ref?.credential || acc.package_ref?.credentials;
+                const creds = Array.isArray(acc.credentials) ? acc.credentials[0] : acc.credentials;
+                const pkgCredsObj = acc.package_ref?.credential || acc.package_ref?.credentials;
+                const pkgCreds = Array.isArray(pkgCredsObj) ? pkgCredsObj[0] : pkgCredsObj;
                 return creds?.platform || pkgCreds?.platform;
             }
 
@@ -108,12 +109,13 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
             }
 
             const createRealtimePayload = (acc: any, isPrimary: boolean, operation: string) => {
-                const creds = acc.credentials;
-                const pkgCreds = acc.package_ref?.credential || acc.package_ref?.credentials;
+                const creds = Array.isArray(acc.credentials) ? acc.credentials[0] : acc.credentials;
+                const pkgCredsObj = acc.package_ref?.credential || acc.package_ref?.credentials;
+                const pkgCreds = Array.isArray(pkgCredsObj) ? pkgCredsObj[0] : pkgCredsObj;
                 const platform = getPlatform(acc);
 
                 return {
-                    event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : 'run_tradelocker',
+                    event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : (platform?.toLowerCase().includes('mt5') || platform?.toLowerCase().includes('metatrader')) ? 'run_metatrader5' : 'run_tradelocker',
                     payload: {
                         username: creds?.username || pkgCreds?.username || "",
                         password: creds?.password || pkgCreds?.password || "",
@@ -122,8 +124,8 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                         order_amount: isPrimary ? pair.primary_order_amount : pair.secondary_order_amount,
                         take_profit: isPrimary ? pair.primary_take_profit : pair.secondary_take_profit,
                         stop_loss: formatStopLoss(isPrimary ? pair.primary_stop_loss : pair.secondary_stop_loss, platform),
-                        account_id: creds?.account_id || acc.accounts_id,
-                        db_account_id: acc.accounts_id,
+                        account_id: creds?.platform_id || pkgCreds?.platform_id || "",
+                        db_account_id: acc.id,
                         symbol: String(pair.symbol || "XAUUSD"),
                         operation: operation
                     }
@@ -136,13 +138,18 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
 
-            // 1. Prepare payload for realtime (place order only)
-            const p1Data = createRealtimePayload(pair.primary_account, true, 'place-order');
-            const p2Data = createRealtimePayload(pair.secondary_account, false, 'place-order');
+            // 1. Prepare payload — use 'place-and-terminate' to place + monitor in one shot
+            //    This avoids the WebSocket round-trip delay between place-order and trade-terminator.
+            const p1Data = createRealtimePayload(pair.primary_account, true, 'place-and-terminate');
+            const p2Data = createRealtimePayload(pair.secondary_account, false, 'place-and-terminate');
 
-            // 2. Call orchestrator API to execute order
             const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
-            const executeResponse = await fetch(`${orchestratorUrl}/api/v1/units/pair/execute`, {
+
+            // 2. Update UI to ongoing immediately (optimistic — the order click is near-instant)
+            await updatePairedAccount(pair.id, { trade_status: 'ongoing' });
+
+            // 3. Fire the combined place + monitor operation (fire and forget — it runs until TP/SL)
+            fetch(`${orchestratorUrl}/api/v1/units/pair/execute`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -155,40 +162,9 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
                     p1Payload: p1Data.payload,
                     p2Event: p2Data.event,
                     p2Payload: p2Data.payload,
-                    timeoutMs: 60000
-                })
-            });
-
-            if (!executeResponse.ok) {
-                const errData = await executeResponse.json().catch(() => ({}));
-                const errorMessage = typeof errData.error === 'string' ? errData.error : errData.error?.message;
-                throw new Error(errData.message || errorMessage || "Execution failed on the orchestrator");
-            }
-
-            // 3. Trade placed successfully. Update UI to ongoing immediately.
-            await updatePairedAccount(pair.id, { trade_status: 'ongoing' });
-
-            // 4. Launch trade monitor asynchronously (fire and forget)
-            const p1Term = createRealtimePayload(pair.primary_account, true, 'trade-terminator');
-            const p2Term = createRealtimePayload(pair.secondary_account, false, 'trade-terminator');
-            
-            fetch(`${orchestratorUrl}/api/v1/units/pair/execute`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    unit1Id,
-                    unit2Id,
-                    p1Event: p1Term.event,
-                    p1Payload: p1Term.payload,
-                    p2Event: p2Term.event,
-                    p2Payload: p2Term.payload,
                     fireAndForget: true
                 })
             })
-            .then(() => updatePairedAccount(pair.id, { trade_status: 'done' }))
             .catch(console.error);
 
             toast.success("Trading session started with existing parameters", { id: 'start-trade' })

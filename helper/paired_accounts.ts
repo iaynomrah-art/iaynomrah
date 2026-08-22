@@ -11,7 +11,7 @@ export async function getPairedAccounts() {
     .select(
       `
       *,
-      primary_account:trading_accounts!paired_trading_accounts_primary_account_fkey(
+      primary_account:trading_accounts!paired_trading_accounts_primary_account_id_fkey(
         *, 
         funder_account:funder_account_id(
             *, 
@@ -23,7 +23,7 @@ export async function getPairedAccounts() {
             )
         )
       ),
-      secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(
+      secondary_account:trading_accounts!paired_trading_accounts_secondary_account_id_fkey(
         *, 
         funder_account:funder_account_id(
             *, 
@@ -83,7 +83,7 @@ export async function getPairedAccountById(id: string) {
     .select(
       `
       *,
-      primary_account:trading_accounts!paired_trading_accounts_primary_account_fkey(
+      primary_account:trading_accounts!paired_trading_accounts_primary_account_id_fkey(
         *, 
         funder_account:funder_account_id(
             *, 
@@ -95,7 +95,7 @@ export async function getPairedAccountById(id: string) {
             )
         )
       ),
-      secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(
+      secondary_account:trading_accounts!paired_trading_accounts_secondary_account_id_fkey(
         *, 
         funder_account:funder_account_id(
             *, 
@@ -237,7 +237,7 @@ export async function realTimeGetPairedAccounts() {
     .select(
       `
           *,
-          primary_account:trading_accounts!paired_trading_accounts_primary_account_fkey(
+          primary_account:trading_accounts!paired_trading_accounts_primary_account_id_fkey(
             *, 
             funder_account:funder_account_id(
                 *, 
@@ -249,7 +249,7 @@ export async function realTimeGetPairedAccounts() {
                 )
             )
           ),
-          secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(
+          secondary_account:trading_accounts!paired_trading_accounts_secondary_account_id_fkey(
             *, 
             funder_account:funder_account_id(
                 *, 
@@ -301,3 +301,18 @@ export async function realTimeGetPairedAccounts() {
     };
   });
 }
+
+export async function getPairingHistory() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("paired_trading_accounts")
+    .select("primary_account_id, secondary_account_id");
+
+  if (error) {
+    console.error("Error fetching pairing history:", error);
+    return [];
+  }
+
+  return data;
+}
+

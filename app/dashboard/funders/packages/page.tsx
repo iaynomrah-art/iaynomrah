@@ -19,6 +19,7 @@ const PackagesPage = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedAccountId, setSelectedAccountId] = useState<string>("")
+    const [selectedFunderId, setSelectedFunderId] = useState<string>("")
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedPackage, setSelectedPackage] = useState<any | null>(null)
 
@@ -82,8 +83,9 @@ const PackagesPage = () => {
             (pkg.funders?.name?.toLowerCase() || "").includes(query)
         )
         const matchesAccount = selectedAccountId ? pkg.account_id === selectedAccountId : true;
+        const matchesFunder = selectedFunderId ? pkg.funder_id === selectedFunderId : true;
         
-        return matchesSearch && matchesAccount;
+        return matchesSearch && matchesAccount && matchesFunder;
     })
 
     return (
@@ -98,21 +100,39 @@ const PackagesPage = () => {
                         showSearch={true}
                         onSearchChange={setSearchQuery}
                         extraAction={
-                            <div className="relative">
-                                <select
-                                    suppressHydrationWarning
-                                    value={selectedAccountId}
-                                    onChange={(e) => setSelectedAccountId(e.target.value)}
-                                    className="h-9 rounded-md border border-[#262626] bg-[#0a0a0a] text-white px-3 py-1 text-sm appearance-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all min-w-[150px] pr-8 cursor-pointer hover:bg-[#111]"
-                                >
-                                    <option value="">All Accounts</option>
-                                    {accounts.map(acc => (
-                                        <option key={acc.id} value={acc.id}>
-                                            {acc.first_name} {acc.last_name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                            <div className="flex gap-2">
+                                <div className="relative">
+                                    <select
+                                        suppressHydrationWarning
+                                        value={selectedFunderId}
+                                        onChange={(e) => setSelectedFunderId(e.target.value)}
+                                        className="h-9 rounded-md border border-[#262626] bg-[#0a0a0a] text-white px-3 py-1 text-sm appearance-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all min-w-[150px] pr-8 cursor-pointer hover:bg-[#111]"
+                                    >
+                                        <option value="">All Funders</option>
+                                        {funders.map(funder => (
+                                            <option key={funder.id} value={funder.id}>
+                                                {funder.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                                </div>
+                                <div className="relative">
+                                    <select
+                                        suppressHydrationWarning
+                                        value={selectedAccountId}
+                                        onChange={(e) => setSelectedAccountId(e.target.value)}
+                                        className="h-9 rounded-md border border-[#262626] bg-[#0a0a0a] text-white px-3 py-1 text-sm appearance-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all min-w-[150px] pr-8 cursor-pointer hover:bg-[#111]"
+                                    >
+                                        <option value="">All Accounts</option>
+                                        {accounts.map(acc => (
+                                            <option key={acc.id} value={acc.id}>
+                                                {acc.first_name} {acc.last_name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                                </div>
                             </div>
                         }
                     />
@@ -138,7 +158,7 @@ const PackagesPage = () => {
                 onSuccess={handleModalSuccess}
                 initialData={selectedPackage}
                 funders={funders}
-                credentials={credentials}
+                accounts={accounts}
             />
         </div>
     )

@@ -8,7 +8,7 @@ export async function getFunderAccounts() {
   const { data, error } = await supabase
     .from("funder_account")
     .select(
-      "*, package(*, funders(*), account:accounts(*, units(*)), credential:credentials(*))",
+      "*, package(*, funders(*), account:accounts(*, units(*, franchise(*))), credential:credentials(*))",
     )
     .order("created_at", { ascending: false });
 
@@ -25,7 +25,7 @@ export async function getFunderAccountById(id: string) {
   const { data, error } = await supabase
     .from("funder_account")
     .select(
-      "*, package(*, funders(*), account:accounts(*, units(*)), credential:credentials(*))",
+      "*, package(*, funders(*), account:accounts(*, units(*, franchise(*))), credential:credentials(*))",
     )
     .eq("id", id)
     .single();
@@ -248,4 +248,53 @@ export async function funderAccountsTable() {
     return [];
   }
   return data;
+}
+
+/**
+ * Reset a burned funder account back to idle.
+ * This resets:
+ *   1. funder_account.status → 'idle', burn_reason → null
+ *   2. trading_accounts.daily_starting_equity → current live_equity
+ *      (so the burn trigger won't immediately re-fire on the next equity update)
+ */
+export async function resetBurnedAccount(funderAccountId: string) {
+  const supabase = await createClient();
+
+  // 1. Fetch the linked trading_account to get the current live_equity
+  const { data: ta, error: taFetchError } = await supabase
+    .from("trading_accounts")
+    .select("id, live_equity, funder_account_id")
+    .eq("funder_account_id", funderAccountId)
+    .single();
+
+  if (taFetchError || !ta) {
+    throw new Error("Could not find linked trading account: " + taFetchError?.message);
+  }
+
+  // 2. Reset the funder_account status
+  const { error: faError } = await supabase
+    .from("funder_account")
+    .update({ status: "idle", burn_reason: null })
+    .eq("id", funderAccountId);
+
+  if (faError) {
+    throw new Error("Failed to reset funder account: " + faError.message);
+  }
+
+  // 3. Reset daily_starting_equity to current live_equity so the burn trigger
+  //    won't immediately re-fire on the next equity update.
+  const newDailyStart = ta.live_equity ?? 0;
+
+  const { error: taError } = await supabase
+    .from("trading_accounts")
+    .update({ daily_starting_equity: newDailyStart })
+    .eq("id", ta.id);
+
+  if (taError) {
+    throw new Error("Failed to reset trading account daily baseline: " + taError.message);
+  }
+
+  revalidatePath("/dashboard/trade/make-money");
+  revalidatePath("/dashboard/trading-accounts/funder-accounts");
+  return { success: true };
 }

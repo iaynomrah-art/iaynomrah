@@ -328,8 +328,11 @@ export const UserAccountsForm = ({ initialData, units = [], setAccounts, onSucce
                                 onChange: (e) => {
                                     const selectedUnitId = e.target.value;
                                     const unit = units.find(u => u.id === selectedUnitId);
-                                    if (unit?.is_occupied && unit.id !== initialData?.unit_id) {
-                                        toast.error(`${unit.unit_name} is already occupied. Please select another unit.`);
+                                    
+                                    const isOccupied = unit?.accounts && unit.accounts.length >= 4 && unit.id !== initialData?.unit_id;
+                                    
+                                    if (isOccupied) {
+                                        toast.error(`${unit.unit_name} is already full (max 4 users). Please select another unit.`);
                                         // Reset to original value or empty
                                         setValue("unit_id", initialData?.unit_id || "");
                                     }
@@ -340,14 +343,14 @@ export const UserAccountsForm = ({ initialData, units = [], setAccounts, onSucce
                             <option value="">-- Select Unit --</option>
                             {units
                                 .map((unit) => {
-                                    const isOccupied = unit.is_occupied && unit.id !== initialData?.unit_id;
+                                    const isOccupied = unit?.accounts && unit.accounts.length >= 4 && unit.id !== initialData?.unit_id;
                                     return (
                                         <option
                                             key={unit.id}
                                             value={unit.id}
                                             className={isOccupied ? "text-gray-500" : "text-white"}
                                         >
-                                            {unit.unit_name} {isOccupied ? "(Occupied)" : ""}
+                                            {unit.unit_name} {isOccupied ? "(Full)" : ""}
                                         </option>
                                     );
                                 })}

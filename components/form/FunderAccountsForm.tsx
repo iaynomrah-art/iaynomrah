@@ -153,12 +153,13 @@ export const FunderAccountsForm = ({
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 {/* CREDENTIAL */}
                 <div className="space-y-2">
-                    <Label htmlFor="credential_id" className="text-white text-sm font-medium">CREDENTIAL</Label>
+                    <Label htmlFor="credential_id" className="text-white text-sm font-medium">CREDENTIAL (Auto-selected)</Label>
                     <div className="relative">
                         <select
                             id="credential_id"
                             {...register("credential_id")}
-                            className="flex h-11 w-full rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] text-white px-4 py-2 text-sm appearance-none focus:border-blue-500 transition-all outline-none ring-0 shadow-inner"
+                            disabled
+                            className="flex h-11 w-full rounded-lg border border-[#1a1a1a] bg-[#1a1a1a] text-gray-400 px-4 py-2 text-sm appearance-none cursor-not-allowed shadow-inner"
                         >
                             <option value="">-- Select Credential --</option>
                             {credentials.map((cred) => (

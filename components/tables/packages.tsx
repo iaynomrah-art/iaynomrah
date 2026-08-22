@@ -137,9 +137,9 @@ export const PackagesTable = ({ data, onEdit, onDeleteSuccess }: PackagesTablePr
                                     )}
                                 >
                                     <TableCell className="text-white py-4">
-                                        <div className="flex flex-col gap-1">
+                                        <div className="flex flex-col gap-1.5">
                                             <div className="flex items-center gap-2">
-                                                <span className="font-semibold text-sm">{item.name}</span>
+                                                <span className="font-bold text-sm text-white">{item.name}</span>
                                                 {isBurned ? (
                                                     <span className="px-2 py-0.5 rounded-full text-[9px] font-bold border whitespace-nowrap bg-red-500/10 text-red-500 border-red-500/20 shadow-sm" title="This package is linked to a burned funder account">
                                                         🔥 BURNED
@@ -150,9 +150,24 @@ export const PackagesTable = ({ data, onEdit, onDeleteSuccess }: PackagesTablePr
                                                     </span>
                                                 )}
                                             </div>
-                                            <span className="text-[11px] text-muted-foreground tracking-wide uppercase font-medium">
-                                                {item.funders?.name || "No Funder"}
-                                            </span>
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="flex items-center gap-1.5 leading-none">
+                                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Funder:</span>
+                                                    <span className="text-[11px] text-white font-bold">{item.funders?.name || "No Funder"}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 leading-none mt-0.5">
+                                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Account:</span>
+                                                    <span className="text-[11px] text-blue-400 font-bold">
+                                                        {item.account ? `${item.account.first_name} ${item.account.last_name}` : "Unlinked"}
+                                                    </span>
+                                                </div>
+                                                {item.credential && (
+                                                    <div className="flex items-center gap-1.5 leading-none mt-0.5">
+                                                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Creds:</span>
+                                                        <span className="text-[10px] text-gray-400 font-mono font-medium">{item.credential.username}</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-white py-4 font-mono text-sm tracking-tight">${Number(item.balance || 0).toLocaleString()}</TableCell>

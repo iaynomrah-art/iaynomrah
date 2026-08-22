@@ -186,18 +186,20 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
     }, [pair])
 
     const getPlatform = (acc: any) => {
-        const creds = acc.credentials;
-        const pkgCreds = acc.package_ref?.credential || acc.package_ref?.credentials;
+        const creds = Array.isArray(acc.credentials) ? acc.credentials[0] : acc.credentials;
+        const pkgCredsObj = acc.package_ref?.credential || acc.package_ref?.credentials;
+        const pkgCreds = Array.isArray(pkgCredsObj) ? pkgCredsObj[0] : pkgCredsObj;
         return creds?.platform || pkgCreds?.platform;
     }
 
     const createRealtimePayload = (acc: any, isPrimary: boolean, operation: string) => {
-        const creds = acc.credentials;
-        const pkgCreds = acc.package_ref?.credential || acc.package_ref?.credentials;
+        const creds = Array.isArray(acc.credentials) ? acc.credentials[0] : acc.credentials;
+        const pkgCredsObj = acc.package_ref?.credential || acc.package_ref?.credentials;
+        const pkgCreds = Array.isArray(pkgCredsObj) ? pkgCredsObj[0] : pkgCredsObj;
         const platform = getPlatform(acc);
 
         return {
-            event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : 'run_tradelocker',
+            event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : (platform?.toLowerCase().includes('mt5') || platform?.toLowerCase().includes('metatrader')) ? 'run_metatrader5' : 'run_tradelocker',
             payload: {
                 username: creds?.username || pkgCreds?.username || "",
                 password: creds?.password || pkgCreds?.password || "",
@@ -206,8 +208,8 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
                 order_amount: isPrimary ? params.primary_order_amount : params.secondary_order_amount,
                 take_profit: isPrimary ? params.primary_take_profit : params.secondary_take_profit,
                 stop_loss: isPrimary ? params.primary_stop_loss : params.secondary_stop_loss,
-                account_id: creds?.account_id || acc.accounts_id,
-                db_account_id: acc.accounts_id,
+                account_id: creds?.platform_id || pkgCreds?.platform_id || "",
+                db_account_id: acc.id,
                 symbol: String(params.symbol || "XAUUSD"),
                 operation: operation
             }

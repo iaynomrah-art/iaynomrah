@@ -17,7 +17,7 @@ export async function getCredentials(): Promise<Credential[]> {
       platform,
       platform_id,
       account_id,
-      accounts(*),
+      accounts(*, units(*, franchise(*))),
       package:package(
         id,
         funder_id,
@@ -199,7 +199,7 @@ export async function credentialsTable(): Promise<Credential[]> {
       platform_id,
       server,
       account_id,
-      accounts(*),
+      accounts(*, units(*, franchise(*))),
       package:package(
         id,
         funder_id,

@@ -6,6 +6,7 @@ export interface Credential {
   platform?: string;
   platform_id?: string;
   server?: string;
+  mt5_url?: string;
   name?: string;
   account_id?: string;
   accounts?: any;

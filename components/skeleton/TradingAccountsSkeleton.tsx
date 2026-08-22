@@ -9,6 +9,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 
 export const TradingAccountsTableSkeleton = () => {
     return (
@@ -16,8 +17,9 @@ export const TradingAccountsTableSkeleton = () => {
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-b border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        {['ACCOUNT', 'STATUS', 'L-EQUITY', 'DAILY P&L', 'RDD', 'HIGHEST PROFIT', 'CONSIS', 'R.T-DAYS', 'R.T-PROFIT'].map((header) => (
-                            <TableHead key={header} className="text-muted-foreground font-medium text-[10px] py-4 px-4">
+                        <TableHead className="w-[60px] py-5 px-6"></TableHead>
+                        {['ACCOUNT', 'STATUS', 'L-EQUITY', 'DAILY P&L', 'TOTAL P&L', 'HIGHEST PROFIT'].map((header, idx) => (
+                            <TableHead key={header} className={cn("text-muted-foreground font-medium text-xs py-5", idx >= 2 && "text-right")}>
                                 {header}
                             </TableHead>
                         ))}
@@ -26,11 +28,38 @@ export const TradingAccountsTableSkeleton = () => {
                 <TableBody>
                     {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                         <TableRow key={i} className="border-[#1a1a1a] hover:bg-transparent">
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((j) => (
-                                <TableCell key={j} className="py-4 px-4">
-                                    <Skeleton className="h-3 w-full bg-[#1a1a1a] opacity-50" />
-                                </TableCell>
-                            ))}
+                            <TableCell className="py-4 px-6">
+                                <Skeleton className="h-4 w-4 bg-[#1a1a1a] opacity-50" />
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <div className="space-y-1.5">
+                                    <Skeleton className="h-4 w-24 bg-[#1a1a1a] opacity-50" />
+                                    <Skeleton className="h-3 w-16 bg-[#1a1a1a] opacity-50" />
+                                </div>
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <Skeleton className="h-5 w-16 bg-[#1a1a1a] opacity-50" />
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <div className="flex justify-end">
+                                    <Skeleton className="h-4 w-20 bg-[#1a1a1a] opacity-50" />
+                                </div>
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <div className="flex justify-end">
+                                    <Skeleton className="h-4 w-20 bg-[#1a1a1a] opacity-50" />
+                                </div>
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <div className="flex justify-end">
+                                    <Skeleton className="h-4 w-20 bg-[#1a1a1a] opacity-50" />
+                                </div>
+                            </TableCell>
+                            <TableCell className="py-4">
+                                <div className="flex justify-end">
+                                    <Skeleton className="h-4 w-20 bg-[#1a1a1a] opacity-50" />
+                                </div>
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
@@ -41,7 +70,7 @@ export const TradingAccountsTableSkeleton = () => {
 
 export const TradingAccountsPageSkeleton = () => {
     return (
-        <div className="animate-in fade-in duration-700 flex flex-col lg:flex-row gap-8 mt-4">
+        <div className="animate-in fade-in duration-500 p-6 bg-[#050505] min-h-screen flex flex-col lg:flex-row gap-8">
             {/* Sidebar Skeleton */}
             <aside className="w-full lg:w-64 flex-shrink-0 space-y-8">
                 <div className="space-y-4">
@@ -81,13 +110,17 @@ export const TradingAccountsPageSkeleton = () => {
             </aside>
 
             {/* Main Content Skeleton */}
-            <div className="flex-1 min-w-0 space-y-6">
-                <div className="flex items-center gap-4 h-14">
-                    <Skeleton className="h-8 w-40 bg-blue-500/5 rounded-full" />
-                    <Skeleton className="h-10 w-32 bg-blue-500/10 rounded-lg" />
+            <div className="flex-1 min-w-0 space-y-4">
+                <div className="flex items-center justify-between bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl px-6 py-4">
+                    <div className="flex flex-col gap-1.5">
+                        <Skeleton className="h-4 w-32 bg-[#1a1a1a]" />
+                        <Skeleton className="h-3 w-72 bg-[#1a1a1a]" />
+                    </div>
+                    <Skeleton className="h-9 w-40 bg-[#1a1a1a] rounded-lg" />
                 </div>
                 <TradingAccountsTableSkeleton />
             </div>
         </div>
     )
 }
+

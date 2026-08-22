@@ -9,6 +9,7 @@ interface UnitWithCounts extends Unit {
         allias_color: string;
         text_color: string;
     }[];
+    total_user_accounts?: number;
 }
 
 interface UnitsListProps {
@@ -74,6 +75,7 @@ const UnitsList = ({ units, onEdit, onArchive, onStatusChange, role }: UnitsList
                     onStatusChange={onStatusChange}
                     role={role}
                     mobileNumber={unit.mobile_number}
+                    totalUserAccounts={unit.total_user_accounts || 0}
                 />
             ))}
         </div>

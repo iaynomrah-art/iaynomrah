@@ -14,7 +14,17 @@ export async function getUnits() {
     return [];
   }
 
-  return data;
+  const now = new Date().getTime();
+  return data.map((unit) => {
+    let status = unit.status;
+    if (status !== "disabled" && unit.last_seen) {
+      const isOnline = now - new Date(unit.last_seen).getTime() < 180000; // 3 minutes
+      if (!isOnline) {
+        status = "not connected";
+      }
+    }
+    return { ...unit, status };
+  });
 }
 
 export async function getUnitsWithCounts() {
@@ -97,9 +107,20 @@ export async function getUnitsWithCounts() {
       text_color: data.text_color,
     }));
 
+    const now = new Date().getTime();
+    let status = unit.status;
+    if (status !== "disabled" && unit.last_seen) {
+      const isOnline = now - new Date(unit.last_seen).getTime() < 180000; // 3 minutes
+      if (!isOnline) {
+        status = "not connected";
+      }
+    }
+
     return {
       ...unit,
+      status,
       funder_counts,
+      total_user_accounts: relatedAccounts.length,
     };
   });
 }

@@ -52,6 +52,7 @@ export interface UnitCardProps {
     onEdit?: (id: string) => void;
     role: string | null;
     mobileNumber?: string | null;
+    totalUserAccounts?: number;
 }
 
 export function UnitCard({
@@ -71,7 +72,8 @@ export function UnitCard({
     onArchive,
     onEdit,
     role,
-    mobileNumber
+    mobileNumber,
+    totalUserAccounts = 0
 }: UnitCardProps) {
     const [isPinging, setIsPinging] = useState(false);
     const [isCheckingHealth, setIsCheckingHealth] = useState(true);
@@ -89,7 +91,8 @@ export function UnitCard({
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 5000);
                 
-                const response = await fetch(`https://orchestrator.iaynomrah.cloud/api/v1/units/ping/${guid}`, {
+                const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
+                const response = await fetch(`${orchestratorUrl}/api/v1/units/ping/${guid}`, {
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);
@@ -124,7 +127,8 @@ export function UnitCard({
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-            const response = await fetch(`https://orchestrator.iaynomrah.cloud/api/v1/units/ping/${guid}`, {
+            const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
+            const response = await fetch(`${orchestratorUrl}/api/v1/units/ping/${guid}`, {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
@@ -217,6 +221,16 @@ export function UnitCard({
                         <span className="font-semibold text-white">{mobileNumber}</span>
                     </div>
                 )}
+
+                {/* User Accounts */}
+                <div className="flex flex-col items-center justify-center mb-4 bg-gray-900/40 rounded-lg p-3 border border-gray-800">
+                    <div className="text-sm font-semibold text-gray-200">
+                        {totalUserAccounts} <span className="font-normal text-gray-400">{totalUserAccounts === 1 ? 'Account' : 'Accounts'}</span>
+                    </div>
+                    <a href={`/dashboard/trading-accounts/user-accounts?unit=${id}`} className="text-[11px] text-blue-400 hover:text-blue-300 mt-1 hover:underline">
+                        View Accounts →
+                    </a>
+                </div>
 
                 <div className="border-t border-gray-700 mb-4" />
 

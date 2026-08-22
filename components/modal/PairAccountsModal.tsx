@@ -43,6 +43,8 @@ type Pair = TradingAccount & {
     daily_pnl: number
     rdd: number
     symbol: string
+    sl_type: 'price' | 'dollar'
+    tp_type: 'price' | 'dollar'
 
     // Calculated fields for UI
     loss_profit: number
@@ -250,7 +252,9 @@ export const PairAccountsModal = ({
                 latest_equity: currentEquity,
                 daily_pnl: account.daily_pnl || 0,
                 rdd: account.rdd || 0,
-                symbol: account.package_ref?.symbol || account.package || "XAUUSD",
+                symbol: "XAUUSD", // Forced to XAUUSD
+                sl_type: 'dollar',
+                tp_type: 'dollar',
 
                 loss_profit: lProfit,
                 win_profit: wProfit,
@@ -281,17 +285,47 @@ export const PairAccountsModal = ({
             } else if (field === 'symbol') {
                 updatedPairs = updatedPairs.map(p => ({ ...p, symbol: value.toUpperCase() }))
                 newPair = { ...updatedPairs[index] }
+            } else if (field === 'order_amount') {
+                updatedPairs = updatedPairs.map(p => ({ ...p, order_amount: value }))
+                newPair = { ...updatedPairs[index] }
+            } else if (field === 'tp_type' || field === 'sl_type') {
+                updatedPairs = updatedPairs.map(p => ({ ...p, tp_type: value, sl_type: value }))
+                newPair = { ...updatedPairs[index] }
             }
 
             // Inverse logic for 2 accounts when trade_type changes
-            if (field === 'trade_type' && prev.length === 2) {
+            if (field === 'trade_type') {
                 const otherIndex = index === 0 ? 1 : 0
                 const otherType = value === 'buy' ? 'sell' : 'buy'
 
-                updatedPairs[otherIndex] = {
-                    ...updatedPairs[otherIndex],
-                    trade_type: otherType,
+                // SAFEGUARD: If they are in Price mode and switch direction, their typed prices are mathematically invalid for the new direction.
+                // Revert all to dollar mode and reset to safe limits.
+                if (updatedPairs[0].sl_type === 'price' || updatedPairs[0].tp_type === 'price') {
+                    updatedPairs = updatedPairs.map((p, idx) => {
+                        const safeLimit = getAccountSafeLimit(p)
+                        const sl = idx === 0 ? safeLimit : Number((safeLimit * 1.02).toFixed(2))
+                        const tp = idx === 0 ? safeLimit : Number((safeLimit * 0.98).toFixed(2))
+                        
+                        return {
+                            ...p,
+                            sl_type: 'dollar',
+                            tp_type: 'dollar',
+                            sl_ticks: sl,
+                            tp_ticks: tp
+                        }
+                    })
+                    toast.info("Switched back to Dollar mode to protect against invalid Price levels for the new direction.")
                 }
+
+                if (prev.length === 2) {
+                    updatedPairs[otherIndex] = {
+                        ...updatedPairs[otherIndex],
+                        trade_type: otherType,
+                    }
+                }
+                
+                // Re-fetch editedPair after potential safeguard override
+                newPair = { ...updatedPairs[index] }
             }
 
             // Apply base recalculation to the changed pair first
@@ -304,6 +338,13 @@ export const PairAccountsModal = ({
 
                 let editedPair = updatedPairs[editedIndex]
                 let otherPair = { ...updatedPairs[otherIndex] }
+
+                // If in Price mode, bypass auto-capping and cross-account ratio syncing (since values are literal market prices, not distances).
+                if (editedPair.sl_type === 'price' || editedPair.tp_type === 'price') {
+                    updatedPairs[editedIndex] = recalculateMetrics(editedPair)
+                    updatedPairs[otherIndex] = recalculateMetrics(otherPair)
+                    return updatedPairs
+                }
 
                 const primarySafeLimit = getAccountSafeLimit(editedIndex === 0 ? editedPair : otherPair);
                 const secondarySafeLimit = getAccountSafeLimit(editedIndex === 1 ? editedPair : otherPair);
@@ -439,9 +480,15 @@ export const PairAccountsModal = ({
                     currentPairs.forEach((pair, idx) => {
                         const targetProfit = pair.remaining_target_profit ?? pair.package_ref?.profit_target ?? 0;
                         if (targetProfit > 0) {
-                            const multiplier = (targetProfit / diff) * 2.5;
+                            // Calculate lot size: targetProfit / (diff * 100 for XAUUSD)
+                            // We use a 0.5 multiplier to be conservative (e.g., target 50% of the goal per trade)
+                            let lotSize = (targetProfit / (diff * 100)) * 0.5;
+                            
+                            // Safe cap between 0.01 and max 1.0 lots to avoid blowing up the account
+                            lotSize = Math.max(0.01, Math.min(lotSize, 1.0));
+                            
                             setTimeout(() => {
-                                updatePair(pair.id, 'order_amount', Number(multiplier.toFixed(2)))
+                                updatePair(pair.id, 'order_amount', Number(lotSize.toFixed(2)))
                             }, 150 + (idx * 50));
                         }
                     });
@@ -523,7 +570,12 @@ export const PairAccountsModal = ({
         executePairing()
     }
 
+    const isExecutingRef = React.useRef(false);
+
     const executePairing = async () => {
+        if (isExecutingRef.current) return;
+        isExecutingRef.current = true;
+
         let savedPairId: string | null = null;
         const primary = pairs[0]
         const secondary = pairs[1]
@@ -547,18 +599,20 @@ export const PairAccountsModal = ({
             }
 
             const getPlatform = (acc: Pair) => {
-                const creds = acc.credentials as any;
-                const pkgCreds = (acc.package_ref as any)?.credential || (acc.package_ref as any)?.credentials;
+                const creds = Array.isArray(acc.credentials) ? acc.credentials[0] : (acc.credentials as any);
+                const pkgCredsObj = (acc.package_ref as any)?.credential || (acc.package_ref as any)?.credentials;
+                const pkgCreds = Array.isArray(pkgCredsObj) ? pkgCredsObj[0] : pkgCredsObj;
                 return creds?.platform || pkgCreds?.platform;
             }
 
             const createRealtimePayload = (acc: Pair, operation: string) => {
-                const creds = acc.credentials as any;
-                const pkgCreds = (acc.package_ref as any)?.credential || (acc.package_ref as any)?.credentials;
+                const creds = Array.isArray(acc.credentials) ? acc.credentials[0] : (acc.credentials as any);
+                const pkgCredsObj = (acc.package_ref as any)?.credential || (acc.package_ref as any)?.credentials;
+                const pkgCreds = Array.isArray(pkgCredsObj) ? pkgCredsObj[0] : pkgCredsObj;
                 const platform = getPlatform(acc);
 
                 return {
-                    event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : 'run_tradelocker',
+                    event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : (platform?.toLowerCase().includes('mt5') || platform?.toLowerCase().includes('metatrader')) ? 'run_metatrader5' : 'run_tradelocker',
                     payload: {
                         username: creds?.username || pkgCreds?.username || "",
                         password: creds?.password || pkgCreds?.password || "",
@@ -567,9 +621,11 @@ export const PairAccountsModal = ({
                         order_amount: acc.order_amount,
                         take_profit: acc.tp_ticks,
                         stop_loss: formatStopLoss(acc.sl_ticks, platform),
-                        account_id: creds?.platform_id || creds?.account_id || acc.accounts_id,
-                        db_account_id: acc.accounts_id,
+                        account_id: creds?.platform_id || pkgCreds?.platform_id || "",
+                        db_account_id: acc.id,
                         symbol: String(acc.symbol || "XAUUSD"),
+                        sl_type: acc.sl_type || 'dollar',
+                        tp_type: acc.tp_type || 'dollar',
                         operation: operation
                     }
                 }
@@ -594,10 +650,14 @@ export const PairAccountsModal = ({
                 primary_order_type: primary.trade_type,
                 primary_take_profit: primary.tp_ticks,
                 primary_stop_loss: primary.sl_ticks,
+                primary_sl_type: primary.sl_type,
+                primary_tp_type: primary.tp_type,
                 secondary_order_amount: secondary.order_amount,
                 secondary_order_type: secondary.trade_type,
                 secondary_take_profit: secondary.tp_ticks,
                 secondary_stop_loss: secondary.sl_ticks,
+                secondary_sl_type: secondary.sl_type,
+                secondary_tp_type: secondary.tp_type,
                 unit1Id: unit1Id,
                 unit2Id: unit2Id,
                 p1Event: p1Data.event,
@@ -605,6 +665,37 @@ export const PairAccountsModal = ({
                 p2Event: p2Data.event,
                 p2Payload: p2Data.payload
             };
+
+            if (p1Data.event === 'run_tradelocker' && (!p1Data.payload.username || !p1Data.payload.password)) {
+                toast.error(`Primary Account is missing TradeLocker username or password in the database. Please edit the account credentials and ensure they are linked.`);
+                setIsLoading(false);
+                return;
+            }
+            if (p2Data.event === 'run_tradelocker' && (!p2Data.payload.username || !p2Data.payload.password)) {
+                toast.error(`Secondary Account is missing TradeLocker username or password in the database. Please edit the account credentials and ensure they are linked.`);
+                setIsLoading(false);
+                return;
+            }
+            if (p1Data.event === 'run_metatrader5' && (!p1Data.payload.username || !p1Data.payload.password)) {
+                toast.error(`Primary Account is missing MetaTrader 5 username or password in the database. Please edit the account credentials and ensure they are linked.`);
+                setIsLoading(false);
+                return;
+            }
+            if (p2Data.event === 'run_metatrader5' && (!p2Data.payload.username || !p2Data.payload.password)) {
+                toast.error(`Secondary Account is missing MetaTrader 5 username or password in the database. Please edit the account credentials and ensure they are linked.`);
+                setIsLoading(false);
+                return;
+            }
+            if (!p1Data.payload.account_id) {
+                toast.error(`Primary Account is missing Platform ID in the database. Please edit the account credentials and add the Platform ID.`);
+                setIsLoading(false);
+                return;
+            }
+            if (!p2Data.payload.account_id) {
+                toast.error(`Secondary Account is missing Platform ID in the database. Please edit the account credentials and add the Platform ID.`);
+                setIsLoading(false);
+                return;
+            }
 
             console.log("Orchestrator payload", payload)
 
@@ -658,6 +749,7 @@ export const PairAccountsModal = ({
             });
         } finally {
             setIsLoading(false)
+            isExecutingRef.current = false;
         }
     }
 
@@ -746,25 +838,39 @@ export const PairAccountsModal = ({
 
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
                                         <span className="text-[#4788ff] text-[13px] font-medium">TP</span>
-                                        <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
+                                        <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px] gap-2 items-center">
                                             <input
                                                 type="number"
                                                 value={account.tp_ticks}
                                                 onChange={(e) => updatePair(account.id, 'tp_ticks', Number(e.target.value))}
                                                 className="bg-transparent border-none text-white text-[13px] font-bold text-right focus:outline-none w-full"
                                             />
+                                            <button 
+                                                onClick={() => updatePair(account.id, 'tp_type', account.tp_type === 'dollar' ? 'price' : 'dollar')} 
+                                                className="text-[10px] uppercase font-bold text-[#f0b90b] min-w-[20px] hover:text-white transition-colors"
+                                                title={`Toggle Type (Current: ${account.tp_type})`}
+                                            >
+                                                {account.tp_type === 'dollar' ? '$' : 'Px'}
+                                            </button>
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
                                         <span className="text-[#4788ff] text-[13px] font-medium">SL</span>
-                                        <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px]">
+                                        <div className="flex justify-end border border-[#2b3139] bg-[#0b0e11] px-2 py-0.5 rounded-[4px] gap-2 items-center">
                                             <input
                                                 type="number"
                                                 value={account.sl_ticks}
                                                 onChange={(e) => updatePair(account.id, 'sl_ticks', Number(e.target.value))}
                                                 className="bg-transparent border-none text-white text-[13px] font-bold text-right focus:outline-none w-full"
                                             />
+                                            <button 
+                                                onClick={() => updatePair(account.id, 'sl_type', account.sl_type === 'dollar' ? 'price' : 'dollar')} 
+                                                className="text-[10px] uppercase font-bold text-[#f0b90b] min-w-[20px] hover:text-white transition-colors"
+                                                title={`Toggle Type (Current: ${account.sl_type})`}
+                                            >
+                                                {account.sl_type === 'dollar' ? '$' : 'Px'}
+                                            </button>
                                         </div>
                                     </div>
 

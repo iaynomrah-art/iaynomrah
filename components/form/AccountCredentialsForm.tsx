@@ -150,6 +150,7 @@ export const AccountCredentialsForm = ({
                                     <SelectItem value="cTrader">cTrader</SelectItem>
                                     <SelectItem value="Trade Locker">Trade Locker</SelectItem>
                                     <SelectItem value="Tradeverse">Tradeverse</SelectItem>
+                                    <SelectItem value="MT5">MT5</SelectItem>
                                 </SelectContent>
                             </Select>
                         )}
@@ -168,15 +169,17 @@ export const AccountCredentialsForm = ({
                 </div>
             </div>
 
-            {/* SERVER (Only for Trade Locker) */}
-            {watch("platform")?.toLowerCase().includes("trade locker") && (
+            {/* SERVER (Trade Locker OR MT5) */}
+            {(watch("platform")?.toLowerCase().includes("trade locker") || watch("platform")?.toLowerCase().includes("mt5")) && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <Label htmlFor="server" className="text-white text-sm font-medium uppercase tracking-wider">SERVER (Trade Locker)</Label>
+                    <Label htmlFor="server" className="text-white text-sm font-medium uppercase tracking-wider">
+                        {watch("platform")?.toLowerCase().includes("mt5") ? "MT5 SERVER URL" : "SERVER (Trade Locker)"}
+                    </Label>
                     <Input
                         id="server"
                         {...register("server")}
                         className="bg-[#0d0d0d] border-[#1a1a1a] text-white placeholder:text-gray-500 h-11 focus:border-blue-500 transition-all shadow-inner"
-                        placeholder="e.g. HEROFX"
+                        placeholder={watch("platform")?.toLowerCase().includes("mt5") ? "https://web.metatrader.app/terminal" : "e.g. HEROFX"}
                     />
                 </div>
             )}

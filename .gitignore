@@ -43,3 +43,7 @@ next-env.d.ts
 
 db.sql
 RLS_OLD_CONFIG.txt
+.vscode/
+data.json
+db schema
+*.sql

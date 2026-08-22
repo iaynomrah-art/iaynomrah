@@ -10,7 +10,15 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Pencil, Trash2, Copy, Check } from "lucide-react"
+import { Pencil, Trash2, Copy, Check, Filter } from "lucide-react"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuCheckboxItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { DeleteCredentialModal } from "@/components/modal/Delete/DeleteCredential"
@@ -23,15 +31,16 @@ import { cn } from "@/lib/utils"
 
 interface CredentialsTableProps {
     data: Credential[]
-    funders?: any[] // Keep for now if needed by other components, though unused here
+    franchises?: any[]
 }
 
-export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) => {
+export const CredentialsTable = ({ data, franchises = [] }: CredentialsTableProps) => {
     const [copiedId, setCopiedId] = useState<string | null>(null)
     const [selectedCredential, setSelectedCredential] = useState<{ id: string, name: string } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [activeTab, setActiveTab] = useState<'active' | 'burned'>('active');
+    const [hideBurned, setHideBurned] = useState(true);
+    const [selectedFranchises, setSelectedFranchises] = useState<string[]>([]);
 
     const isCredentialBurned = (credential: Credential) => {
         return credential.package?.some((pkg: any) => 
@@ -39,10 +48,40 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
         ) || false;
     };
 
+    const getFranchiseName = (credential: Credential) => {
+        const acc = credential.accounts;
+        if (acc) {
+            const account = Array.isArray(acc) ? acc[0] : acc;
+            if ((account as any)?.units?.franchise?.name) {
+                return (account as any).units.franchise.name;
+            }
+        }
+        const pkg = credential.package?.[0];
+        if (pkg) {
+            const pkgAccounts = pkg.accounts;
+            const pkgAcc = Array.isArray(pkgAccounts) ? pkgAccounts[0] : pkgAccounts;
+            if ((pkgAcc as any)?.units?.franchise?.name) {
+                return (pkgAcc as any).units.franchise.name;
+            }
+        }
+        return "";
+    };
+
+    const uniqueFranchises = franchises && franchises.length > 0 
+        ? franchises.map(f => f.name).sort() 
+        : Array.from(new Set(data.map(item => getFranchiseName(item)).filter(Boolean))).sort() as string[];
+
     const filteredData = data.filter(credential => {
         const burned = isCredentialBurned(credential);
-        return activeTab === 'active' ? !burned : burned;
+        if (hideBurned && burned) return false;
+
+        const franchiseName = getFranchiseName(credential);
+        const matchesFranchise = selectedFranchises.length === 0 || selectedFranchises.includes(franchiseName);
+
+        return matchesFranchise;
     });
+
+    const activeFilterCount = selectedFranchises.length + (!hideBurned ? 1 : 0);
 
     const handleCopy = async (password: string, id: string) => {
         try {
@@ -79,30 +118,52 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
     return (
         <div className="w-full">
             <div className="flex items-center gap-2 mb-6 border-b border-[#1a1a1a] pb-4">
-                <Button
-                    variant="ghost"
-                    onClick={() => setActiveTab('active')}
-                    className={cn(
-                        "h-8 px-4 text-xs font-semibold tracking-wider uppercase rounded-full transition-all duration-300",
-                        activeTab === 'active' 
-                            ? "bg-white text-black hover:bg-gray-200" 
-                            : "text-muted-foreground hover:text-white hover:bg-[#1a1a1a]"
-                    )}
-                >
-                    Active
-                </Button>
-                <Button
-                    variant="ghost"
-                    onClick={() => setActiveTab('burned')}
-                    className={cn(
-                        "h-8 px-4 text-xs font-semibold tracking-wider uppercase rounded-full transition-all duration-300",
-                        activeTab === 'burned' 
-                            ? "bg-red-500 text-white hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.3)]" 
-                            : "text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-                    )}
-                >
-                    Burned
-                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="h-9 bg-[#0d0d0d] border-[#1a1a1a] text-gray-300 hover:bg-[#111] hover:text-white transition-all">
+                            <Filter className="h-4 w-4 mr-2" />
+                            Filters
+                            {activeFilterCount > 0 && (
+                                <span className="ml-2 rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">
+                                    {activeFilterCount}
+                                </span>
+                            )}
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56 bg-[#0d0d0d] border-[#1a1a1a] text-gray-300">
+                        <DropdownMenuLabel>Visibility</DropdownMenuLabel>
+                        <DropdownMenuCheckboxItem
+                            checked={!hideBurned}
+                            onCheckedChange={(checked) => setHideBurned(!checked)}
+                            onSelect={(e) => e.preventDefault()}
+                            className="focus:bg-[#1a1a1a] focus:text-white"
+                        >
+                            Show Burned Credentials
+                        </DropdownMenuCheckboxItem>
+                        
+                        {uniqueFranchises.length > 0 && (
+                            <>
+                                <DropdownMenuSeparator className="bg-[#1a1a1a]" />
+                                <DropdownMenuLabel>Franchises</DropdownMenuLabel>
+                                {uniqueFranchises.map((f) => (
+                                    <DropdownMenuCheckboxItem
+                                        key={f}
+                                        checked={selectedFranchises.includes(f)}
+                                        onCheckedChange={(checked) => {
+                                            setSelectedFranchises(prev => 
+                                                checked ? [...prev, f] : prev.filter(x => x !== f)
+                                            );
+                                        }}
+                                        onSelect={(e) => e.preventDefault()}
+                                        className="focus:bg-[#1a1a1a] focus:text-white"
+                                    >
+                                        {f}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                            </>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
@@ -119,7 +180,7 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
                     {filteredData.length === 0 ? (
                         <TableRow className="border-[#1a1a1a]">
                             <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                                {activeTab === 'active' ? "No active credentials found." : "No burned credentials found."}
+                                {hideBurned ? "No active credentials found." : "No credentials found matching the selected filters."}
                             </TableCell>
                         </TableRow>
                     ) : (
@@ -173,7 +234,9 @@ export const CredentialsTable = ({ data, funders = [] }: CredentialsTableProps) 
                                 </TableCell>
                                 <TableCell className="text-white py-4 font-mono text-sm">
                                     <div className="flex items-center gap-2 group">
-                                        <span>********</span>
+                                        <span className={!credential.password ? "text-red-500 font-bold text-xs" : ""}>
+                                            {credential.password ? "********" : "NO PASSWORD"}
+                                        </span>
                                         <Button
                                             variant="ghost"
                                             size="icon"
