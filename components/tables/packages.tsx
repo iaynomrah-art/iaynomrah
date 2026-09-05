@@ -123,10 +123,15 @@ export const PackagesTable = ({ data, onEdit, onDeleteSuccess }: PackagesTablePr
                         filteredData.map((item) => {
                             const isBurned = item.funder_account?.some((fa: any) => fa.status === 'burned');
                             const balance = Number(item.balance || 0);
-                            const dailyLossValue = item.max_daily_loss ? (balance * (Number(item.max_daily_loss) / 100)) : null;
-                            const totalLossValue = item.max_total_loss ? (balance * (Number(item.max_total_loss) / 100)) : null;
-                            const dailyProfitValue = item.daily_profit_target ? (balance * (Number(item.daily_profit_target) / 100)) : null;
-                            const totalProfitValue = item.profit_target ? (balance * (Number(item.profit_target) / 100)) : null;
+                            const dailyLossValue = item.max_daily_loss ? Number(item.max_daily_loss) : null;
+                            const totalLossValue = item.max_total_loss ? Number(item.max_total_loss) : null;
+                            const dailyProfitValue = item.daily_profit_target ? Number(item.daily_profit_target) : null;
+                            const totalProfitValue = item.profit_target ? Number(item.profit_target) : null;
+
+                            const dailyLossPercent = dailyLossValue !== null && balance > 0 ? Number(((dailyLossValue / balance) * 100).toFixed(2)) : 0;
+                            const totalLossPercent = totalLossValue !== null && balance > 0 ? Number(((totalLossValue / balance) * 100).toFixed(2)) : 0;
+                            const dailyProfitPercent = dailyProfitValue !== null && balance > 0 ? Number(((dailyProfitValue / balance) * 100).toFixed(2)) : 0;
+                            const totalProfitPercent = totalProfitValue !== null && balance > 0 ? Number(((totalProfitValue / balance) * 100).toFixed(2)) : 0;
 
                             return (
                                 <TableRow 
@@ -187,14 +192,14 @@ export const PackagesTable = ({ data, onEdit, onDeleteSuccess }: PackagesTablePr
                                             <div className="flex items-center gap-4 text-xs">
                                                 <span className="text-muted-foreground w-10">Daily</span>
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="font-mono text-red-400 font-medium">{item.max_daily_loss || 0}%</span>
+                                                    <span className="font-mono text-red-400 font-medium">{dailyLossPercent}%</span>
                                                     {dailyLossValue !== null && <span className="font-mono text-muted-foreground text-[10px]">(${dailyLossValue.toLocaleString()})</span>}
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-4 text-xs">
                                                 <span className="text-muted-foreground w-10">Total</span>
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="font-mono text-red-400 font-medium">{item.max_total_loss || 0}%</span>
+                                                    <span className="font-mono text-red-400 font-medium">{totalLossPercent}%</span>
                                                     {totalLossValue !== null && <span className="font-mono text-muted-foreground text-[10px]">(${totalLossValue.toLocaleString()})</span>}
                                                 </div>
                                             </div>
@@ -205,14 +210,14 @@ export const PackagesTable = ({ data, onEdit, onDeleteSuccess }: PackagesTablePr
                                             <div className="flex items-center gap-4 text-xs">
                                                 <span className="text-muted-foreground w-10">Daily</span>
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="font-mono text-emerald-400 font-medium">{item.daily_profit_target || 0}%</span>
+                                                    <span className="font-mono text-emerald-400 font-medium">{dailyProfitPercent}%</span>
                                                     {dailyProfitValue !== null && <span className="font-mono text-muted-foreground text-[10px]">(${dailyProfitValue.toLocaleString()})</span>}
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-4 text-xs">
                                                 <span className="text-muted-foreground w-10">Total</span>
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="font-mono text-emerald-400 font-medium">{item.profit_target || 0}%</span>
+                                                    <span className="font-mono text-emerald-400 font-medium">{totalProfitPercent}%</span>
                                                     {totalProfitValue !== null && <span className="font-mono text-muted-foreground text-[10px]">(${totalProfitValue.toLocaleString()})</span>}
                                                 </div>
                                             </div>

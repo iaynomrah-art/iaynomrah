@@ -88,9 +88,6 @@ export async function createFunderAccount(formData: any) {
       .eq("id", formData.package_id)
       .single();
 
-      packageData: packageData ? { id: packageData.id, name: packageData.name, funder_id: packageData.funder_id, credential_id: packageData.credential_id, funders: packageData.funders } : null,
-      packageError: packageError ? { message: packageError.message, details: packageError.details, hint: packageError.hint } : null,
-    });
 
     if (!packageError && packageData) {
       // Create associated trading account - use minimal insert first (FK only)

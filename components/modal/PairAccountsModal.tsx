@@ -324,8 +324,8 @@ export const PairAccountsModal = ({
                     }
                 }
                 
-                // Re-fetch editedPair after potential safeguard override
-                newPair = { ...updatedPairs[index] }
+                // Re-fetch editedPair after potential safeguard override, but preserve the new trade_type
+                newPair = { ...updatedPairs[index], trade_type: value }
             }
 
             // Apply base recalculation to the changed pair first
@@ -374,6 +374,9 @@ export const PairAccountsModal = ({
                         editedPair.sl_ticks = potentialSL;
                         otherPair.sl_ticks = Number((potentialSL * 1.02).toFixed(2));
                     }
+                    if (field === 'trade_type') {
+                        otherPair.trade_type = editedPair.trade_type === 'buy' ? 'sell' : 'buy';
+                    }
                 } else {
                     // We edited the Secondary account (Index 1). Primary (Index 0) gets the better odds.
                     if (field === 'tp_ticks' || field === 'win_price' || field === 'trade_type') {
@@ -391,6 +394,9 @@ export const PairAccountsModal = ({
                         }
                         editedPair.sl_ticks = potentialSL;
                         otherPair.sl_ticks = Number((potentialSL / 1.02).toFixed(2));
+                    }
+                    if (field === 'trade_type') {
+                        otherPair.trade_type = editedPair.trade_type === 'buy' ? 'sell' : 'buy';
                     }
                 }
 
@@ -437,7 +443,7 @@ export const PairAccountsModal = ({
             }
 
             toast.success(`AI Suggestion: ${data.summary}. Applying ${data.suggestion.toUpperCase()} to Primary.`)
-            updatePair(pairs[0].id, 'trade_type', data.suggestion)
+            updatePair(pairs[0].id, 'trade_type', data.suggestion.toLowerCase() as 'buy' | 'sell')
 
             // Apply direct target and stop values to position the device
             if (data.target) {
@@ -639,8 +645,13 @@ export const PairAccountsModal = ({
             const token = session?.access_token;
             const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
 
-            const p1Data = createRealtimePayload(primary, 'input-order');
-            const p2Data = createRealtimePayload(secondary, 'input-order');
+            const getOperation = (acc: any, baseOp: string) => {
+                const automation = acc.package_ref?.funders?.automation || acc.funder?.automation || 'API';
+                return automation === 'GUI' ? `${baseOp}-gui` : baseOp;
+            };
+
+            const p1Data = createRealtimePayload(primary, getOperation(primary, 'input-order'));
+            const p2Data = createRealtimePayload(secondary, getOperation(secondary, 'input-order'));
 
             const payload = {
                 primary_id: primary.id,
@@ -663,7 +674,8 @@ export const PairAccountsModal = ({
                 p1Event: p1Data.event,
                 p1Payload: p1Data.payload,
                 p2Event: p2Data.event,
-                p2Payload: p2Data.payload
+                p2Payload: p2Data.payload,
+                fireAndForget: true
             };
 
             if (p1Data.event === 'run_tradelocker' && (!p1Data.payload.username || !p1Data.payload.password)) {

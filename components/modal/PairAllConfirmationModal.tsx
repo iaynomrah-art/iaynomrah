@@ -329,28 +329,38 @@ export const PairAllConfirmationModal = ({
                     }
                 }
 
-                const p1Data = createRealtimePayload(primary, currentPair.primary_order_type, currentPair.primary_order_amount, currentPair.primary_take_profit, currentPair.primary_stop_loss, 'input-order')
-                const p2Data = createRealtimePayload(secondary, currentPair.secondary_order_type, currentPair.secondary_order_amount, currentPair.secondary_take_profit, currentPair.secondary_stop_loss, 'input-order')
+                const getOperation = (acc: any, baseOp: string) => {
+                    const automation = acc.package_ref?.funders?.automation || acc.funder?.automation || 'API';
+                    return automation === 'GUI' ? `${baseOp}-gui` : baseOp;
+                };
+
+                const p1Data = createRealtimePayload(primary, currentPair.primary_order_type, currentPair.primary_order_amount, currentPair.primary_take_profit, currentPair.primary_stop_loss, getOperation(primary, 'input-order'))
+                const p2Data = createRealtimePayload(secondary, currentPair.secondary_order_type, currentPair.secondary_order_amount, currentPair.secondary_take_profit, currentPair.secondary_stop_loss, getOperation(secondary, 'input-order'))
 
                 const payload = {
-                    primary_id: primary.id,
-                    secondary_id: secondary.id,
-                    symbol: currentPair.symbol,
+                    primary_id: currentPair.primary.id,
+                    secondary_id: currentPair.secondary.id,
+                    symbol: currentPair.symbol || "XAUUSD",
                     primary_order_amount: currentPair.primary_order_amount,
                     primary_order_type: currentPair.primary_order_type,
                     primary_take_profit: currentPair.primary_take_profit,
                     primary_stop_loss: currentPair.primary_stop_loss,
+                    primary_sl_type: 'dollar',
+                    primary_tp_type: 'dollar',
                     secondary_order_amount: currentPair.secondary_order_amount,
                     secondary_order_type: currentPair.secondary_order_type,
                     secondary_take_profit: currentPair.secondary_take_profit,
                     secondary_stop_loss: currentPair.secondary_stop_loss,
+                    secondary_sl_type: 'dollar',
+                    secondary_tp_type: 'dollar',
                     unit1Id: unit1Id,
                     unit2Id: unit2Id,
                     p1Event: p1Data.event,
                     p1Payload: p1Data.payload,
                     p2Event: p2Data.event,
-                    p2Payload: p2Data.payload
-                }
+                    p2Payload: p2Data.payload,
+                    fireAndForget: true
+                };
 
                 if (p1Data.event === 'run_tradelocker' && (!p1Data.payload.username || !p1Data.payload.password)) {
                     throw new Error(`Primary Account (${primary.funder_account_id || primary.id}) is missing TradeLocker username or password in the database. Please edit the account credentials and ensure they are linked.`);

@@ -109,7 +109,7 @@ export function TradeNotificationListener() {
       const { data: pairDetails } = await supabase
         .from('paired_trading_accounts')
         .select(`
-          primary_account:trading_accounts!paired_trading_accounts_primary_account_fkey(
+          primary_account:trading_accounts!paired_trading_accounts_primary_account_id_fkey(
             funder_account:funder_account_id(
               package_data:package(
                 name,
@@ -117,7 +117,7 @@ export function TradeNotificationListener() {
               )
             )
           ),
-          secondary_account:trading_accounts!paired_trading_accounts_secondary_account_fkey(
+          secondary_account:trading_accounts!paired_trading_accounts_secondary_account_id_fkey(
             funder_account:funder_account_id(
               package_data:package(
                 name,

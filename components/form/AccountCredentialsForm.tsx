@@ -173,13 +173,13 @@ export const AccountCredentialsForm = ({
             {(watch("platform")?.toLowerCase().includes("trade locker") || watch("platform")?.toLowerCase().includes("mt5")) && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
                     <Label htmlFor="server" className="text-white text-sm font-medium uppercase tracking-wider">
-                        {watch("platform")?.toLowerCase().includes("mt5") ? "MT5 SERVER URL" : "SERVER (Trade Locker)"}
+                        SERVER
                     </Label>
                     <Input
                         id="server"
                         {...register("server")}
                         className="bg-[#0d0d0d] border-[#1a1a1a] text-white placeholder:text-gray-500 h-11 focus:border-blue-500 transition-all shadow-inner"
-                        placeholder={watch("platform")?.toLowerCase().includes("mt5") ? "https://web.metatrader.app/terminal" : "e.g. HEROFX"}
+                        placeholder={watch("platform")?.toLowerCase().includes("mt5") ? "e.g. MetaQuotes-Demo" : "e.g. HEROFX"}
                     />
                 </div>
             )}
@@ -206,7 +206,7 @@ export const AccountCredentialsForm = ({
                             type={showPassword ? "text" : "password"}
                             {...register("password")}
                             className="bg-[#0d0d0d] border-[#1a1a1a] text-white placeholder:text-gray-500 h-11 pr-12 focus:border-blue-500 transition-all shadow-inner"
-                            placeholder="Enter platform password"
+                            placeholder={isUpdate ? "••••••••" : "Enter platform password"}
                         />
                         <button
                             type="button"

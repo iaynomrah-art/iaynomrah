@@ -30,6 +30,7 @@ interface AccountColumnProps {
     params: any;
     setParams: (val: any) => void;
     handleUpdateParameters: (newParams?: any) => Promise<void>;
+    pair: any;
 }
 
 const AccountColumn = ({
@@ -37,9 +38,31 @@ const AccountColumn = ({
     isPrimary,
     params,
     setParams,
-    handleUpdateParameters
+    handleUpdateParameters,
+    pair
 }: AccountColumnProps) => {
     const orderType = isPrimary ? params.primary_order_type : params.secondary_order_type;
+
+    const entryTime = isPrimary ? pair.primary_execution_time : pair.secondary_execution_time;
+    const formatTime = (t: any) => t ? new Date(t).toLocaleTimeString() : "Pending";
+    
+    const getDelay = (time1: any, time2: any) => {
+        if (!time1 || !time2) return null;
+        const diff = (new Date(time2).getTime() - new Date(time1).getTime()) / 1000;
+        return diff > 0 ? `+${diff.toFixed(2)}s` : `${diff.toFixed(2)}s`;
+    };
+
+    const getHoldDuration = (start: any) => {
+        if (!start) return "N/A";
+        const diffMs = new Date().getTime() - new Date(start).getTime();
+        if (diffMs < 0) return "0s";
+        const seconds = Math.floor((diffMs / 1000) % 60);
+        const minutes = Math.floor((diffMs / (1000 * 60)) % 60);
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+        if (minutes > 0) return `${minutes}m ${seconds}s`;
+        return `${seconds}s`;
+    };
 
     return (
         <div className="flex flex-col bg-[#161a1e] w-full">
@@ -68,6 +91,13 @@ const AccountColumn = ({
                 <Row label="Latest Equity" value={`$${(account.live_equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
                 <Row label="Daily P&L" value={`$${(account.daily_pnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={(account.daily_pnl || 0) >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
                 <Row label="RDD" value={`$${(account.rdd || 0).toLocaleString()}`} />
+
+                {/* Execution Info */}
+                <Row label="Entry Time" value={formatTime(entryTime)} />
+                <Row label="Hold Duration" value={getHoldDuration(entryTime)} color="text-white" />
+                {!isPrimary && pair.primary_execution_time && pair.secondary_execution_time && (
+                    <Row label="Entry Delay" value={getDelay(pair.primary_execution_time, pair.secondary_execution_time)!} color="text-[#f0b90b] font-bold" />
+                )}
 
                 {/* Editable Parameters */}
                 <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
@@ -156,6 +186,29 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
     const [isForceClosing, setIsForceClosing] = useState(false)
     const [isForceCloseModalOpen, setIsForceCloseModalOpen] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
+    const [elapsedTime, setElapsedTime] = useState<string>("00:00:00")
+
+    // Live duration timer
+    useEffect(() => {
+        if (!pair.created_at) return;
+        
+        const formatDuration = (ms: number) => {
+            if (ms < 0) return "00:00:00";
+            const seconds = Math.floor((ms / 1000) % 60);
+            const minutes = Math.floor((ms / (1000 * 60)) % 60);
+            const hours = Math.floor(ms / (1000 * 60 * 60));
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        };
+
+        const start = new Date(pair.created_at).getTime();
+        const interval = setInterval(() => {
+            const now = new Date().getTime();
+            setElapsedTime(formatDuration(now - start));
+        }, 1000);
+        
+        setElapsedTime(formatDuration(new Date().getTime() - start));
+        return () => clearInterval(interval);
+    }, [pair.created_at]);
 
     // Local state for editable parameters
     const [params, setParams] = useState({
@@ -249,8 +302,13 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
                 throw new Error("One or both units are missing a Unit GUID. Cannot connect to trading PCs.")
             }
 
-            const p1Data = createRealtimePayload(pair.primary_account, true, 'trade-terminator');
-            const p2Data = createRealtimePayload(pair.secondary_account, false, 'trade-terminator');
+            const getOperation = (acc: any, baseOp: string) => {
+                const automation = acc.package_ref?.funders?.automation || acc.funder?.automation || 'API';
+                return automation === 'GUI' ? `${baseOp}-gui` : baseOp;
+            };
+
+            const p1Data = createRealtimePayload(pair.primary_account, true, getOperation(pair.primary_account, 'trade-terminator'));
+            const p2Data = createRealtimePayload(pair.secondary_account, false, getOperation(pair.secondary_account, 'trade-terminator'));
 
             toast.loading("Sending recovery signal...", { id: 'recover-trade' })
 
@@ -303,8 +361,13 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
                 throw new Error("One or both units are missing a Unit GUID. Cannot connect to trading PCs.")
             }
 
-            const p1Data = createRealtimePayload(pair.primary_account, true, 'close-position');
-            const p2Data = createRealtimePayload(pair.secondary_account, false, 'close-position');
+            const getOperation = (acc: any, baseOp: string) => {
+                const automation = acc.package_ref?.funders?.automation || acc.funder?.automation || 'API';
+                return automation === 'GUI' ? `${baseOp}-gui` : baseOp;
+            };
+
+            const p1Data = createRealtimePayload(pair.primary_account, true, getOperation(pair.primary_account, 'close-position'));
+            const p2Data = createRealtimePayload(pair.secondary_account, false, getOperation(pair.secondary_account, 'close-position'));
 
             toast.loading("Sending force close signal...", { id: 'force-close' })
 
@@ -408,6 +471,9 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    <div className="bg-[#1a1a1a] text-white px-2.5 py-1 rounded-full text-[11px] font-bold tracking-widest border border-[#2b3139] shadow-inner">
+                        ⏱ {elapsedTime}
+                    </div>
                     {isSaving && (
                         <div className="flex items-center gap-2 text-[10px] text-muted-foreground animate-pulse">
                             <Save className="h-3 w-3" />
@@ -442,6 +508,7 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
                             params={params}
                             setParams={setParams}
                             handleUpdateParameters={handleUpdateParameters}
+                            pair={pair}
                         />
                         <AccountColumn
                             account={pair.secondary_account}
@@ -449,6 +516,7 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
                             params={params}
                             setParams={setParams}
                             handleUpdateParameters={handleUpdateParameters}
+                            pair={pair}
                         />
                     </div>
 

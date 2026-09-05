@@ -20,6 +20,7 @@ const PackagesPage = () => {
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedAccountId, setSelectedAccountId] = useState<string>("")
     const [selectedFunderId, setSelectedFunderId] = useState<string>("")
+    const [selectedPlatform, setSelectedPlatform] = useState<string>("")
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedPackage, setSelectedPackage] = useState<any | null>(null)
 
@@ -84,9 +85,12 @@ const PackagesPage = () => {
         )
         const matchesAccount = selectedAccountId ? pkg.account_id === selectedAccountId : true;
         const matchesFunder = selectedFunderId ? pkg.funder_id === selectedFunderId : true;
+        const matchesPlatform = selectedPlatform ? pkg.credential?.platform === selectedPlatform : true;
         
-        return matchesSearch && matchesAccount && matchesFunder;
+        return matchesSearch && matchesAccount && matchesFunder && matchesPlatform;
     })
+
+    const platforms = Array.from(new Set(packages.map(pkg => pkg.credential?.platform).filter(Boolean))) as string[];
 
     return (
         <div suppressHydrationWarning className="p-6 bg-[#050505] h-full">
@@ -112,6 +116,22 @@ const PackagesPage = () => {
                                         {funders.map(funder => (
                                             <option key={funder.id} value={funder.id}>
                                                 {funder.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                                </div>
+                                <div className="relative">
+                                    <select
+                                        suppressHydrationWarning
+                                        value={selectedPlatform}
+                                        onChange={(e) => setSelectedPlatform(e.target.value)}
+                                        className="h-9 rounded-md border border-[#262626] bg-[#0a0a0a] text-white px-3 py-1 text-sm appearance-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all min-w-[150px] pr-8 cursor-pointer hover:bg-[#111]"
+                                    >
+                                        <option value="">All Platforms</option>
+                                        {platforms.map(platform => (
+                                            <option key={platform} value={platform}>
+                                                {platform}
                                             </option>
                                         ))}
                                     </select>

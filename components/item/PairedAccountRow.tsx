@@ -140,8 +140,13 @@ export default function PairedAccountRow({ pair }: { pair: any }) {
 
             // 1. Prepare payload — use 'place-and-terminate' to place + monitor in one shot
             //    This avoids the WebSocket round-trip delay between place-order and trade-terminator.
-            const p1Data = createRealtimePayload(pair.primary_account, true, 'place-and-terminate');
-            const p2Data = createRealtimePayload(pair.secondary_account, false, 'place-and-terminate');
+            const getOperation = (acc: any, baseOp: string) => {
+                const automation = acc.package_ref?.funders?.automation || acc.funder?.automation || 'API';
+                return automation === 'GUI' ? `${baseOp}-gui` : baseOp;
+            };
+
+            const p1Data = createRealtimePayload(pair.primary_account, true, getOperation(pair.primary_account, 'place-and-terminate'));
+            const p2Data = createRealtimePayload(pair.secondary_account, false, getOperation(pair.secondary_account, 'place-and-terminate'));
 
             const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
 

@@ -8,6 +8,17 @@ import Row from "@/components/ui/row"
 export default function TradeHistoryRow({ pair }: { pair: any }) {
     const [isOpen, setIsOpen] = useState(false)
 
+    const formatDuration = (ms: number) => {
+        if (ms < 0) return "0s";
+        const seconds = Math.floor((ms / 1000) % 60);
+        const minutes = Math.floor((ms / (1000 * 60)) % 60);
+        const hours = Math.floor(ms / (1000 * 60 * 60));
+        
+        if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+        if (minutes > 0) return `${minutes}m ${seconds}s`;
+        return `${seconds}s`;
+    };
+
     const AccountColumn = ({
         account,
         isPrimary
@@ -21,6 +32,21 @@ export default function TradeHistoryRow({ pair }: { pair: any }) {
         const tradePnl = (tradeStartBalance != null && tradeFinalBalance != null)
             ? (tradeFinalBalance - tradeStartBalance)
             : 0;
+
+        const entryTime = isPrimary ? pair.primary_execution_time : pair.secondary_execution_time;
+        const closeTime = isPrimary ? pair.primary_close_time : pair.secondary_close_time;
+        
+        const formatTime = (t: any) => t ? new Date(t).toLocaleTimeString() : "N/A";
+        const getDelay = (time1: any, time2: any) => {
+            if (!time1 || !time2) return null;
+            const diff = (new Date(time2).getTime() - new Date(time1).getTime()) / 1000;
+            return diff > 0 ? `+${diff.toFixed(2)}s` : `${diff.toFixed(2)}s`;
+        };
+        
+        const getHoldDuration = (start: any, end: any) => {
+            if (!start || !end) return "N/A";
+            return formatDuration(new Date(end).getTime() - new Date(start).getTime());
+        };
 
         return (
             <div className="flex flex-col bg-[#161a1e] w-full">
@@ -48,6 +74,16 @@ export default function TradeHistoryRow({ pair }: { pair: any }) {
                     <Row label="Session Start Balance" value={`$${(tradeStartBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
                     <Row label="Session End Balance" value={`$${(tradeFinalBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
                     <Row label="Session P&L" value={`$${tradePnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} color={tradePnl >= 0 ? "text-[#2ebc66]" : "text-[#f6465d]"} />
+
+                    <Row label="Entry Time" value={formatTime(entryTime)} />
+                    {!isPrimary && pair.primary_execution_time && pair.secondary_execution_time && (
+                        <Row label="Entry Delay" value={getDelay(pair.primary_execution_time, pair.secondary_execution_time)!} color="text-[#f0b90b] font-bold" />
+                    )}
+                    <Row label="Close Time" value={formatTime(closeTime)} />
+                    {!isPrimary && pair.primary_close_time && pair.secondary_close_time && (
+                        <Row label="Exit Delay" value={getDelay(pair.primary_close_time, pair.secondary_close_time)!} color="text-[#f0b90b] font-bold" />
+                    )}
+                    <Row label="Hold Duration" value={getHoldDuration(entryTime, closeTime)} color="text-white" />
 
                     <Row label="Symbol" value={pair.symbol || "XAUUSD"} color="text-white font-bold" />
                     <Row
@@ -87,6 +123,10 @@ export default function TradeHistoryRow({ pair }: { pair: any }) {
     const secondaryPnl = (pair.secondary_final_balance != null && pair.secondary_starting_balance != null)
         ? (pair.secondary_final_balance - pair.secondary_starting_balance) : 0;
     const totalPnl = primaryPnl + secondaryPnl;
+    
+    const tradeDuration = (pair.created_at && pair.updated_at) 
+        ? formatDuration(new Date(pair.updated_at).getTime() - new Date(pair.created_at).getTime()) 
+        : "N/A";
 
     return (
         <div className="border border-[#1a1a1a] rounded-xl overflow-hidden bg-[#0d0d0d] shadow-sm opacity-80 hover:opacity-100 transition-opacity">
@@ -130,6 +170,15 @@ export default function TradeHistoryRow({ pair }: { pair: any }) {
                     <div className="flex items-center gap-2 text-muted-foreground">
                         <Calendar className="h-3.5 w-3.5" />
                         <span className="text-[11px] font-medium uppercase tracking-wider">{formattedDate}</span>
+                    </div>
+
+                    <div className="h-4 w-px bg-[#2b3139]" />
+
+                    {/* Duration */}
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <span className="text-[11px] font-bold uppercase tracking-wider bg-[#1a1a1a] px-2 py-0.5 rounded border border-[#2b3139]">
+                            ⏱ {tradeDuration}
+                        </span>
                     </div>
 
                     <div className="h-4 w-px bg-[#2b3139]" />

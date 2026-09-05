@@ -69,38 +69,6 @@ export async function createCredential(formData: any) {
     return { error: credError.message };
   }
 
-  // Auto-link this credential to all packages that belong to the selected account
-  if (account_id) {
-    // First, try linking by package.account_id
-    const { data: linkedPackages, error: linkError } = await supabase
-      .from("package")
-      .update({ credential_id: credential.id })
-      .eq("account_id", account_id)
-      .select("id");
-
-    if (linkError) {
-      console.error("Error auto-linking credential to packages:", linkError);
-    }
-
-    // Fallback: if no packages were linked (account_id not set on packages yet),
-    // find packages through funder_account.user → funder_account.package_id
-    if (!linkedPackages || linkedPackages.length === 0) {
-      const { data: funderAccounts } = await supabase
-        .from("funder_account")
-        .select("package_id")
-        .eq("user", account_id);
-
-      if (funderAccounts && funderAccounts.length > 0) {
-        const packageIds = funderAccounts.map((fa: any) => fa.package_id).filter(Boolean);
-        if (packageIds.length > 0) {
-          await supabase
-            .from("package")
-            .update({ credential_id: credential.id, account_id: account_id })
-            .in("id", packageIds);
-        }
-      }
-    }
-  }
 
   revalidatePath("/dashboard/trading-accounts/credentials");
   revalidatePath("/dashboard/funders/packages");
@@ -124,43 +92,6 @@ export async function updateCredential(id: string, formData: any) {
     return { error: credError.message };
   }
 
-  // Auto-link this credential to all packages that belong to the selected account
-  if (account_id) {
-    // First, unlink this credential from any old packages it was previously assigned to
-    await supabase
-      .from("package")
-      .update({ credential_id: null })
-      .eq("credential_id", id);
-
-    // Then, link by package.account_id
-    const { data: linkedPackages, error: linkError } = await supabase
-      .from("package")
-      .update({ credential_id: id })
-      .eq("account_id", account_id)
-      .select("id");
-
-    if (linkError) {
-      console.error("Error auto-linking credential to packages on update:", linkError);
-    }
-
-    // Fallback: if no packages were linked, find packages through funder_account
-    if (!linkedPackages || linkedPackages.length === 0) {
-      const { data: funderAccounts } = await supabase
-        .from("funder_account")
-        .select("package_id")
-        .eq("user", account_id);
-
-      if (funderAccounts && funderAccounts.length > 0) {
-        const packageIds = funderAccounts.map((fa: any) => fa.package_id).filter(Boolean);
-        if (packageIds.length > 0) {
-          await supabase
-            .from("package")
-            .update({ credential_id: id, account_id: account_id })
-            .in("id", packageIds);
-        }
-      }
-    }
-  }
 
   revalidatePath("/dashboard/trading-accounts/credentials");
   revalidatePath("/dashboard/funders/packages");

@@ -22,6 +22,7 @@ const funderSchema = z.object({
     timezone: z.string().optional(),
     allias_color: z.string().optional(),
     text_color: z.enum(["white", "black"]),
+    automation: z.enum(["API", "GUI"]),
 })
 
 type FunderFormValues = z.infer<typeof funderSchema>
@@ -69,6 +70,7 @@ export const FunderForm = ({ initialData, onSuccess, onCancel }: FunderFormProps
             timezone: "Asia/Hong_Kong",
             text_color: (initialData?.text_color === "black" ? "black" : "white") as "white" | "black",
             allias_color: initialData?.allias_color || "#1c64f2",
+            automation: (initialData?.automation as "API" | "GUI") || "API",
         },
     })
 
@@ -90,6 +92,7 @@ export const FunderForm = ({ initialData, onSuccess, onCancel }: FunderFormProps
                     reset_time: reset_time,
                     allias_color: data.allias_color || "#1c64f2",
                     text_color: data.text_color,
+                    automation: data.automation,
                 }
                 await updateFunder(initialData.id, payload)
                 toast.success("Funder updated successfully")
@@ -100,6 +103,7 @@ export const FunderForm = ({ initialData, onSuccess, onCancel }: FunderFormProps
                     reset_time: reset_time,
                     allias_color: data.allias_color || "#1c64f2",
                     text_color: data.text_color,
+                    automation: data.automation,
                 }
                 await createFunder(payload)
                 toast.success("Funder created successfully")
@@ -197,6 +201,24 @@ export const FunderForm = ({ initialData, onSuccess, onCancel }: FunderFormProps
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="automation" className="text-white">
+                    Automation Mode <span className="text-red-400">*</span>
+                </Label>
+                <div className="relative">
+                    <select
+                        id="automation"
+                        {...register("automation")}
+                        className="flex h-10 w-full rounded-md border border-gray-700 bg-gray-800 text-white px-3 py-1 text-sm appearance-none focus:border-blue-500 transition-colors"
+                    >
+                        <option value="API">API</option>
+                        <option value="GUI">GUI</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+                {errors.automation && <p className="text-xs text-red-500">{errors.automation.message}</p>}
             </div>
 
             <div className="space-y-4">

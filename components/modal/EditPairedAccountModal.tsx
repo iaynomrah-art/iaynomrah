@@ -259,8 +259,13 @@ export const EditPairedAccountModal = ({
             toast.loading("Executing trades on both devices... (this may take up to 60 seconds)", { id: 'edit-trade' })
 
             // 1. Prepare payload — use 'auto-place-and-terminate' to place + monitor in one shot
-            const p1Data = createRealtimePayload(pair.primary_account, true, 'auto-place-and-terminate');
-            const p2Data = createRealtimePayload(pair.secondary_account, false, 'auto-place-and-terminate');
+            const getOperation = (acc: any, baseOp: string) => {
+                const automation = acc.package_ref?.funders?.automation || acc.funder?.automation || 'API';
+                return automation === 'GUI' ? `${baseOp}-gui` : baseOp;
+            };
+
+            const p1Data = createRealtimePayload(pair.primary_account, true, getOperation(pair.primary_account, 'auto-place-and-terminate'));
+            const p2Data = createRealtimePayload(pair.secondary_account, false, getOperation(pair.secondary_account, 'auto-place-and-terminate'));
 
             // 2. Update DB with params and set to ongoing immediately (optimistic)
             await updatePairedAccount(pair.id, {

@@ -1,10 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { CreatePairedAccountDTO, UpdatePairedAccountDTO } from "@/types/paired";
 
 export async function getPairedAccounts() {
+  noStore();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("paired_trading_accounts")
@@ -231,6 +232,7 @@ export async function deletePairedAccount(id: string) {
 }
 
 export async function realTimeGetPairedAccounts() {
+  noStore();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("paired_trading_accounts")

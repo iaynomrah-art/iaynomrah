@@ -24,7 +24,8 @@ async function syncMissingTradingAccounts() {
     .from("trading_accounts")
     .select("funder_account_id");
 
-  const missing = allFunderAccounts.filter((fa: any) => !fa.trading_accounts || fa.trading_accounts.length === 0);
+  const linkedIds = new Set((existingTAs || []).map((ta: any) => ta.funder_account_id));
+  const missing = allFunderAccounts.filter((fa: any) => !linkedIds.has(fa.id));
 
   if (missing.length === 0) return;
 

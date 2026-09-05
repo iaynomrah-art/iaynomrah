@@ -96,7 +96,7 @@ export const PackageForm = ({ initialData, funders, accounts = [], onSuccess, on
             platform_id: initialData?.credential?.platform_id || "",
             server: initialData?.credential?.server || "",
             username: initialData?.credential?.username || "",
-            password: "",
+            password: initialData?.credential?.password || "",
             name: initialData?.name || "",
             equity: initialData?.balance?.toString() || (initialData ? "" : "1000000"),
             phase: initialData?.phase?.toLowerCase() || "phase 1",
@@ -174,16 +174,13 @@ export const PackageForm = ({ initialData, funders, accounts = [], onSuccess, on
             }
             if (data.password) {
                 credPayload.password = data.password;
+            } else if (isUpdate && initialData?.credential?.password) {
+                credPayload.password = initialData.credential.password;
             }
 
             if (isUpdate) {
-                if (initialData.credential_id) {
-                    await updateCredential(initialData.credential_id, credPayload);
-                    payload.credential_id = initialData.credential_id;
-                } else {
-                    const credRes: any = await createCredential(credPayload);
-                    payload.credential_id = credRes?.data?.[0]?.id || credRes?.[0]?.id || credRes?.id;
-                }
+                const credRes: any = await createCredential(credPayload);
+                payload.credential_id = credRes?.data?.[0]?.id || credRes?.[0]?.id || credRes?.id;
                 await updatePackage(initialData.id, payload)
                 toast.success("Package updated successfully")
             } else {
@@ -457,13 +454,13 @@ export const PackageForm = ({ initialData, funders, accounts = [], onSuccess, on
                     {(platform?.toLowerCase().includes("trade locker") || platform?.toLowerCase().includes("mt5")) && (
                         <div className="space-y-2 col-span-1 md:col-span-2">
                             <Label htmlFor="server" className="text-white">
-                                {platform?.toLowerCase().includes("mt5") ? "MT5 Server URL" : "Server"}
+                                Server
                             </Label>
                             <Input
                                 id="server"
                                 {...register("server")}
                                 className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
-                                placeholder={platform?.toLowerCase().includes("mt5") ? "https://web.metatrader.app/terminal" : "e.g. HEROFX"}
+                                placeholder={platform?.toLowerCase().includes("mt5") ? "e.g. MetaQuotes-Demo" : "e.g. HEROFX"}
                             />
                         </div>
                     )}
@@ -491,7 +488,7 @@ export const PackageForm = ({ initialData, funders, accounts = [], onSuccess, on
                                 type={showPassword ? "text" : "password"}
                                 {...register("password")}
                                 className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 pr-10"
-                                placeholder={isUpdate ? "Leave blank to keep unchanged" : "Enter password"}
+                                placeholder={isUpdate ? "••••••••" : "Enter password"}
                             />
                             <button
                                 type="button"

@@ -41,10 +41,10 @@ const formatResetTime = (time?: string | null) => {
     }
 
     if (hours && minutes) {
-        return `${hours}:${minutes} GMT+08:00 (Hong Kong)`;
+        return `${hours}:${minutes} GMT+08:00 (Manila)`;
     }
 
-    return `${time} GMT+08:00 (Hong Kong)`;
+    return `${time} GMT+08:00 (Manila)`;
 }
 
 interface FundersTableProps {
