@@ -101,8 +101,12 @@ export const useTradingFilter = (data: TradingAccount[]) => {
         const dailyStartingEquity = item.daily_starting_equity || balance
         const dailyDrawdown = Math.max(0, dailyStartingEquity - liveEquity)
         if (maxDailyLoss > 0 && dailyDrawdown >= maxDailyLoss) return true
-        const totalDrawdown = Math.max(0, balance - liveEquity)
-        if (maxTotalLoss > 0 && totalDrawdown >= maxTotalLoss) return true
+        // Only check total drawdown if live_equity <= balance (package balance is valid)
+        // If live_equity > balance, the package balance field is misconfigured — skip this check
+        if (maxTotalLoss > 0 && balance > 0 && liveEquity <= balance) {
+            const totalDrawdown = Math.max(0, balance - liveEquity)
+            if (totalDrawdown >= maxTotalLoss) return true
+        }
         return false
     }
 

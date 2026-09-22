@@ -389,8 +389,12 @@ const TradingAccountsPage = () => {
         const dailyStartingEquity = acc.daily_starting_equity || balance
         const dailyDrawdownValue = Math.max(0, dailyStartingEquity - liveEquity)
         if (maxDailyLoss > 0 && dailyDrawdownValue >= maxDailyLoss) return true
-        const totalDrawdownValue = Math.max(0, balance - liveEquity)
-        if (maxTotalLoss > 0 && totalDrawdownValue >= maxTotalLoss) return true
+        // Only check total drawdown if live_equity <= balance (package balance is valid)
+        // If live_equity > balance, the package balance field is misconfigured — skip this check
+        if (maxTotalLoss > 0 && balance > 0 && liveEquity <= balance) {
+            const totalDrawdownValue = Math.max(0, balance - liveEquity)
+            if (totalDrawdownValue >= maxTotalLoss) return true
+        }
         return false
     }
 

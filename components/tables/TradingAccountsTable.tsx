@@ -319,10 +319,11 @@ export const TradingAccountsTable = ({ data, type, selectedIds = [], onSelection
                                         dailyDrawdownPercent = Math.min(100, (dailyDrawdownValue / maxDailyLoss) * 100)
                                     }
 
-                                    // Total Drawdown
-                                    const totalDrawdownValue = Math.max(0, balance - liveEquity)
+                                    // Total Drawdown — only valid when live_equity <= balance
+                                    // If live_equity > balance, the package balance is misconfigured; skip total drawdown check
+                                    const totalDrawdownValue = (balance > 0 && liveEquity <= balance) ? Math.max(0, balance - liveEquity) : 0
                                     let totalDrawdownPercent = 0
-                                    if (maxTotalLoss > 0) {
+                                    if (maxTotalLoss > 0 && balance > 0 && liveEquity <= balance) {
                                         totalDrawdownPercent = Math.min(100, (totalDrawdownValue / maxTotalLoss) * 100)
                                     }
 

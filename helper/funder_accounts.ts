@@ -146,6 +146,12 @@ export async function createFunderAccount(formData: any) {
           .eq("id", funderAccountData.id);
       } else {
       }
+
+      // Mark the package as used so it cannot be linked to another funder account
+      await supabase
+        .from("package")
+        .update({ is_used: true })
+        .eq("id", formData.package_id);
     } else {
       console.error("[createFunderAccount] Package fetch FAILED, skipping trading account creation");
     }
