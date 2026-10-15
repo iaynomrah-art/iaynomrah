@@ -21,6 +21,15 @@ export type CreateUnit = Omit<
 >;
 export type UpdateUnit = Partial<CreateUnit>;
 
+// Stored in unit_router_credentials; super-admin only (lib/router-actions.ts)
+export interface RouterCredentials {
+  router_username: string | null;
+  router_password: string | null;
+  gomo_email: string | null;
+  gomo_password: string | null;
+  updated_at: string | null;
+}
+
 export type UnitStatus =
   | "enabled"
   | "disabled"

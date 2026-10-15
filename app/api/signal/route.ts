@@ -48,13 +48,19 @@ function transformResponse(data: any) {
         suggestion = 'sell';
     }
 
-    const summary = data.action || data.ai_reasoning || data.technical_basis || action;
+    const summary = data.reasoning || data.action || data.ai_reasoning || data.technical_basis || action;
 
-    return NextResponse.json({ 
-        suggestion, 
+    return NextResponse.json({
+        suggestion,
         summary,
         target: data.target,
         stop: data.stop,
-        data 
+        // The orchestrator's record of this signal. Pass signal_id when pairing so
+        // the trade links to the explanation that was actually generated.
+        signal_id: data.signal_id ?? null,
+        reasoning: data.reasoning ?? null,
+        confidence: data.confidence ?? null,
+        source: data.source ?? null,
+        data
     });
 }

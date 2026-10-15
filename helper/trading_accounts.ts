@@ -53,10 +53,22 @@ async function syncMissingTradingAccounts() {
 }
 
 export async function getTradingAccounts(type?: string) {
+  try {
+    return await getTradingAccountsInner(type);
+  } catch (e: any) {
+    console.error("[getTradingAccounts] FAILED:", e?.message, e?.stack);
+    throw e;
+  }
+}
+
+async function getTradingAccountsInner(type?: string) {
+  const t0 = Date.now();
+  console.log("[getTradingAccounts] start");
   const supabase = await createClient();
 
   // Backfill any funder_accounts missing from trading_accounts
   await syncMissingTradingAccounts();
+  console.log("[getTradingAccounts] sync done", Date.now() - t0, "ms");
 
   // Repair: fix any trading_accounts with 0/null live_equity from package balance
   const { data: zeroEquity } = await supabase
@@ -85,6 +97,7 @@ export async function getTradingAccounts(type?: string) {
     }
   }
 
+  console.log("[getTradingAccounts] repair done", Date.now() - t0, "ms");
   let query = supabase.from("trading_accounts").select(`
     *,
     funder_account:funder_account_id(
@@ -121,6 +134,7 @@ export async function getTradingAccounts(type?: string) {
     };
   });
 
+  console.log("[getTradingAccounts] done", flattened.length, "rows", Date.now() - t0, "ms");
   return flattened;
 }
 

@@ -300,22 +300,26 @@ const TradingAccountsPage = () => {
     const [proposedPairs, setProposedPairs] = useState<PairConfig[]>([])
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [pairedAccounts, setPairedAccounts] = useState<any[]>([])
+    const [fetchErrorMsg, setFetchErrorMsg] = useState<string | null>(null)
 
     const fetchData = async () => {
         try {
+            const named = <T,>(name: string, p: Promise<T>) =>
+                p.catch((e: any) => { throw new Error(`${name}: ${e?.message || e}`) })
             const [accountsResult, fundersResult, packagesResult, pairedResult] = await Promise.all([
-                getTradingAccounts(),
-                getFunders(),
-                getPackages(),
-                getPairedAccounts()
+                named("getTradingAccounts", getTradingAccounts()),
+                named("getFunders", getFunders()),
+                named("getPackages", getPackages()),
+                named("getPairedAccounts", getPairedAccounts())
             ])
             setData(accountsResult)
             setFunders(fundersResult)
             const unused = (packagesResult || []).filter((pkg: any) => !pkg.is_used)
             setUnusedPackages(unused)
             setPairedAccounts(pairedResult)
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to fetch data:", error)
+            setFetchErrorMsg(error?.message || String(error))
         } finally {
             setIsLoading(false)
         }
@@ -544,6 +548,13 @@ const TradingAccountsPage = () => {
                 resetFilters={resetFilters}
                 activeFilterCount={activeFilterCount}
             />
+
+            {fetchErrorMsg && (
+                <div className="bg-red-500/20 text-red-500 p-4 m-4 rounded-lg text-sm border border-red-500">
+                    <strong className="block mb-1">Fatal Error Fetching Data:</strong>
+                    <code>{fetchErrorMsg}</code>
+                </div>
+            )}
 
             {/* ── Top Bar ── */}
             <div className="sticky top-0 z-30 bg-[#050505]/95 backdrop-blur border-b border-[#111] px-6 py-4">

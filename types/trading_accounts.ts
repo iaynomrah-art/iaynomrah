@@ -35,6 +35,7 @@ export interface TradingAccount {
   remaining_target_profit?: number | null;
   challenge_type?: string | null;
   funder_account_id?: string | null;
+  min_stop_distance?: number | null;
 
   // Joined fields
   package_ref?: Package | null;

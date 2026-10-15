@@ -4,13 +4,22 @@ import React, { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Unit, UnitStatus } from "@/types/units"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Unit, UnitStatus, RouterCredentials } from "@/types/units"
 import { Franchise } from "@/types/franchise"
 import { getFranchises } from "@/helper/franchise"
 import { createUnit, updateUnit, getUnits } from "@/helper/units"
+import { getRouterCredentials, saveRouterCredentials } from "@/lib/router-actions"
 import { toast } from "sonner"
-import { Loader2, ExternalLink, Pencil, AlertTriangle } from "lucide-react"
+import { Loader2, ExternalLink, Pencil, AlertTriangle, Server, Router, Eye, EyeOff, Copy, Check } from "lucide-react"
 import Link from "next/link"
+
+const ROUTER_ADMIN_URL = "http://192.168.254.254"
+const GOMO_LOGIN_URL = "https://www.gomo.ph/login"
+
+type RouterForm = Omit<RouterCredentials, "updated_at">
+const EMPTY_ROUTER: RouterForm = { router_username: "", router_password: "", gomo_email: "", gomo_password: "" }
 
 interface UnitFormProps {
     initialData?: Unit | null
@@ -28,6 +37,34 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
     const [showConfirm, setShowConfirm] = useState(false)
     const [franchises, setFranchises] = useState<Franchise[]>(initialFranchises || [])
     const [units, setUnits] = useState<Unit[]>(initialUnits || [])
+    const [tab, setTab] = useState("unit")
+    const [router, setRouter] = useState<RouterForm>(EMPTY_ROUTER)
+    const [routerSaved, setRouterSaved] = useState<RouterForm>(EMPTY_ROUTER)
+    const [routerLoading, setRouterLoading] = useState(isEditing)
+    const [routerError, setRouterError] = useState<string | null>(null)
+
+    // Router logins live in a super-admin-only table, loaded separately from the unit
+    useEffect(() => {
+        if (!initialData) return
+        let cancelled = false
+        getRouterCredentials(initialData.id).then((result) => {
+            if (cancelled) return
+            setRouterLoading(false)
+            if (result.error) {
+                setRouterError(result.error)
+                return
+            }
+            const loaded: RouterForm = {
+                router_username: result.data?.router_username || "",
+                router_password: result.data?.router_password || "",
+                gomo_email: result.data?.gomo_email || "",
+                gomo_password: result.data?.gomo_password || "",
+            }
+            setRouter(loaded)
+            setRouterSaved(loaded)
+        })
+        return () => { cancelled = true }
+    }, [initialData])
 
     const [formData, setFormData] = useState({
         unit_name: initialData?.unit_name || "",
@@ -78,13 +115,29 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
                 mobile_number: formData.mobile_number.trim() === "" ? null : formData.mobile_number.trim()
             }
 
+            let unitId: string | undefined
             if (isEditing && initialData) {
                 await updateUnit(initialData.id, payload)
-                toast.success("Unit updated successfully")
+                unitId = initialData.id
             } else {
-                await createUnit(payload)
-                toast.success("Unit created successfully")
+                const created = await createUnit(payload)
+                unitId = created?.[0]?.id
             }
+
+            const routerChanged = (Object.keys(router) as (keyof RouterForm)[])
+                .some((k) => (router[k] || "").trim() !== (routerSaved[k] || "").trim())
+            if (routerChanged && unitId && !routerError) {
+                const result = await saveRouterCredentials(unitId, router)
+                if (result.error) {
+                    // The unit itself is saved; keep the form open so the router details aren't lost
+                    toast.error(`Unit saved, but router details weren't: ${result.error}`)
+                    setTab("router")
+                    return
+                }
+                setRouterSaved(router)
+            }
+
+            toast.success(isEditing ? "Unit updated successfully" : "Unit created successfully")
             onSuccess()
         } catch (error: any) {
             console.error("Error saving unit:", error)
@@ -98,6 +151,13 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
+        // Fields on the inactive tab aren't rendered, so the browser can't check them
+        if (!formData.unit_name.trim() || !formData.franchise_id) {
+            toast.error("Unit name and franchise are required")
+            setTab("unit")
+            return
+        }
+
         const trimmedNumber = formData.mobile_number.trim()
         const finalMobileNumber = trimmedNumber === "" ? null : trimmedNumber
 
@@ -105,6 +165,7 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
             const phMobileRegex = /^(09|\+639)\d{9}$/
             if (!phMobileRegex.test(finalMobileNumber)) {
                 toast.error("Invalid mobile number format. Use 09xxxxxxxxx or +639xxxxxxxxx")
+                setTab("router")
                 return
             }
 
@@ -116,6 +177,7 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
 
             if (isDuplicate) {
                 toast.error("This mobile number is already assigned to another active unit.")
+                setTab("router")
                 return
             }
         }
@@ -131,7 +193,21 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4">
+            <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+                <TabsList className="bg-[#111111] border border-gray-800 p-1 w-full">
+                    <TabsTrigger value="unit" className="flex-1 text-gray-400 hover:text-gray-200 data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+                        <Server className="h-4 w-4 mr-2" />
+                        Unit
+                    </TabsTrigger>
+                    <TabsTrigger value="router" className="flex-1 text-gray-400 hover:text-gray-200 data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+                        <Router className="h-4 w-4 mr-2" />
+                        Router
+                    </TabsTrigger>
+                </TabsList>
+
+            {/* Fixed height so the dialog doesn't jump between tabs; scrolls on short screens */}
+            <div className="h-[540px] max-h-[60vh] overflow-y-auto pr-1 -mr-1">
+            <TabsContent value="unit" className="space-y-4 mt-0">
                 <div className="space-y-2">
                     <Label htmlFor="unit_name">Unit Name</Label>
                     <div className="flex gap-2">
@@ -182,24 +258,6 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
                     </select>
                 </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="mobile_number">Mobile Number (Optional)</Label>
-                    <Input
-                        id="mobile_number"
-                        type="tel"
-                        placeholder="e.g. 09171234567 or +639171234567"
-                        value={formData.mobile_number}
-                        onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
-                        disabled={isLoading}
-                        className="bg-[#050505] border-[#1a1a1a] focus:border-blue-500/50 disabled:cursor-not-allowed text-white"
-                    />
-                    <p className="text-[10px] text-muted-foreground">
-                        Must be a unique Philippine mobile number (0917xxxxxxx or +63917xxxxxxx). Can be left blank.
-                    </p>
-                </div>
-
-
-
                 {isEditing && (
                     <div className="space-y-2">
                         <Label htmlFor="status">Status</Label>
@@ -217,7 +275,48 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
                         </select>
                     </div>
                 )}
+            </TabsContent>
+
+            <TabsContent value="router" className="space-y-5 mt-0">
+                <section className="space-y-3">
+                    <SectionHeading title="GOMO account" url={GOMO_LOGIN_URL} />
+                    <div className="space-y-2">
+                        <RouterField id="mobile_number" label="Mobile Number (Optional)" placeholder="e.g. 09171234567 or +639171234567"
+                            value={formData.mobile_number} disabled={isLoading}
+                            onChange={(v) => setFormData({ ...formData, mobile_number: v })} />
+                        <p className="text-[10px] text-muted-foreground">
+                            The unit&apos;s SIM. Must be a unique Philippine mobile number (0917xxxxxxx or +63917xxxxxxx). Can be left blank.
+                        </p>
+                    </div>
+                    {routerError ? null : (
+                        <>
+                            <RouterField id="gomo_email" label="Email" value={router.gomo_email} loading={routerLoading} disabled={isLoading}
+                                onChange={(v) => setRouter({ ...router, gomo_email: v })} />
+                            <RouterField id="gomo_password" label="PIN" secret value={router.gomo_password} loading={routerLoading} disabled={isLoading}
+                                onChange={(v) => setRouter({ ...router, gomo_password: v })} />
+                        </>
+                    )}
+                </section>
+
+                <section className="space-y-3">
+                    <SectionHeading title="Router admin panel" url={ROUTER_ADMIN_URL} />
+                    {routerError ? (
+                        <p className="text-xs text-amber-400">{routerError}</p>
+                    ) : (
+                        <>
+                            <RouterField id="router_username" label="Username" placeholder="e.g. admin" value={router.router_username} loading={routerLoading} disabled={isLoading}
+                                onChange={(v) => setRouter({ ...router, router_username: v })} />
+                            <RouterField id="router_password" label="Password" secret value={router.router_password} loading={routerLoading} disabled={isLoading}
+                                onChange={(v) => setRouter({ ...router, router_password: v })} />
+                            <p className="text-[10px] text-muted-foreground">
+                                The admin panel only opens from a PC connected to this unit&apos;s router.
+                            </p>
+                        </>
+                    )}
+                </section>
+            </TabsContent>
             </div>
+            </Tabs>
 
             {showConfirm ? (
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-md p-4 mt-6">
@@ -274,5 +373,95 @@ export function UnitForm({ initialData, onSuccess, franchises: initialFranchises
                 </div>
             )}
         </form>
+    )
+}
+
+function SectionHeading({ title, url }: { title: string; url: string }) {
+    return (
+        <div className="flex items-center justify-between gap-2">
+            <h4 className="text-sm font-semibold text-gray-200">{title}</h4>
+            <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-blue-400 hover:text-blue-300 hover:underline inline-flex items-center gap-1 font-mono"
+            >
+                {url.replace(/^https?:\/\//, "")}
+                <ExternalLink className="h-3 w-3" />
+            </a>
+        </div>
+    )
+}
+
+function RouterField({ id, label, value, onChange, secret, placeholder, disabled, loading }: {
+    id: string
+    label: string
+    value: string | null
+    onChange: (value: string) => void
+    secret?: boolean
+    placeholder?: string
+    disabled?: boolean
+    loading?: boolean
+}) {
+    const [revealed, setRevealed] = useState(false)
+    const [copied, setCopied] = useState(false)
+
+    const copy = async () => {
+        if (!value) return
+        try {
+            await navigator.clipboard.writeText(value)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 1500)
+        } catch {
+            toast.error("Failed to copy")
+        }
+    }
+
+    if (loading) {
+        return (
+            <div className="space-y-2">
+                <Label>{label}</Label>
+                <Skeleton className="h-10 w-full bg-[#1a1a1a]" />
+            </div>
+        )
+    }
+
+    return (
+        <div className="space-y-2">
+            <Label htmlFor={id}>{label}</Label>
+            <div className="relative">
+                <Input
+                    id={id}
+                    type={secret && !revealed ? "password" : "text"}
+                    autoComplete={secret ? "new-password" : "off"}
+                    placeholder={placeholder}
+                    value={value || ""}
+                    onChange={(e) => onChange(e.target.value)}
+                    disabled={disabled}
+                    className={`bg-[#050505] border-[#1a1a1a] focus:border-blue-500/50 disabled:opacity-50 text-white font-mono ${secret ? "pr-16" : "pr-10"}`}
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    {secret && (
+                        <button
+                            type="button"
+                            title={revealed ? "Hide" : "Show"}
+                            onClick={() => setRevealed(!revealed)}
+                            className="p-1 text-gray-500 hover:text-white"
+                        >
+                            {revealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        title="Copy"
+                        onClick={copy}
+                        disabled={!value}
+                        className="p-1 text-gray-500 hover:text-white disabled:opacity-30 disabled:hover:text-gray-500"
+                    >
+                        {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                </div>
+            </div>
+        </div>
     )
 }

@@ -32,6 +32,7 @@ export type PairedTradingAccount = {
   trade_status: TradeStatus;
   is_active: boolean;
   notes: string | null;
+  duration_seconds?: number | null;
 };
 
 // Aliases for compatibility if needed

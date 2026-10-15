@@ -44,14 +44,27 @@ export async function updateSession(request: NextRequest) {
 
   // IMPORTANT: If you remove getClaims() and you use server-side rendering
   // with the Supabase client, your users may be randomly logged out.
-  const { data } = await supabase.auth.getClaims();
-  const user = data?.claims;
+  let user;
+  try {
+    const { data } = await supabase.auth.getClaims();
+    user = data?.claims;
+  } catch (error) {
+    // Supabase unreachable (e.g. connect timeout). Don't let the request through
+    // unauthenticated, and don't redirect to login (the session is probably fine).
+    console.error("[proxy] Couldn't reach Supabase to check the session:", error);
+    return new NextResponse(
+      "Can't reach the database right now. Please wait a moment and refresh the page.",
+      { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8", "Retry-After": "5" } },
+    );
+  }
 
   if (
     request.nextUrl.pathname !== "/" &&
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
+    !request.nextUrl.pathname.startsWith("/auth") &&
+    // The owner portal has its own login (portal_logins), not Supabase Auth
+    !request.nextUrl.pathname.startsWith("/portal")
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();

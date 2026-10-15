@@ -138,7 +138,8 @@ export function DashboardSidebar() {
                                   href={subItem.href}
                                   className={cn(
                                     "text-gray-400 hover:text-white transition-colors py-2.5 text-xs font-medium",
-                                    pathname === subItem.href && "text-white font-bold"
+                                    pathname === subItem.href && "text-white font-bold",
+                                    "data-[active=true]:text-white data-[active=true]:bg-[#1a1a1a]"
                                   )}
                                 >
                                   {subItem.title}
@@ -161,7 +162,9 @@ export function DashboardSidebar() {
                     tooltip={item.title}
                     className={cn(
                       "text-gray-400 hover:text-white hover:bg-[#1a1a1a] transition-all duration-200 px-4 py-6",
-                      isActive && "text-blue-400 bg-blue-400/5 font-bold"
+                      isActive && "text-blue-400 bg-blue-400/5 font-bold",
+                      // The shared active style uses light-theme colors (near-black text)
+                      "data-[active=true]:text-blue-400 data-[active=true]:bg-blue-400/5"
                     )}
                   >
                     <Link href={item.href || "#"}>

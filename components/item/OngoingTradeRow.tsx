@@ -376,20 +376,22 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
             const token = session?.access_token;
             const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
 
-            const executeResponse = await fetch(`${orchestratorUrl}/api/v1/units/pair/execute`, {
+            // Signals the running terminators to close their legs; the close-position
+            // payloads are only used for a leg with no terminator running.
+            const executeResponse = await fetch(`${orchestratorUrl}/api/v1/units/pair/force-close`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
                 body: JSON.stringify({
+                    pairId: pair.id,
                     unit1Id,
                     unit2Id,
                     p1Event: p1Data.event,
                     p1Payload: p1Data.payload,
                     p2Event: p2Data.event,
-                    p2Payload: p2Data.payload,
-                    timeoutMs: 60000
+                    p2Payload: p2Data.payload
                 })
             });
 

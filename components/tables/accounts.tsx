@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import {
     Table,
     TableBody,
@@ -16,6 +16,8 @@ import { deleteAccount } from "@/helper/accounts"
 import { toast } from "sonner"
 import Link from "next/link"
 import { EditUserAccountDialog } from "@/components/modal/Edit/EditUserAccountDialog"
+import { PortalAccessDialog } from "@/components/modal/PortalAccessDialog"
+import { getPortalAccessStatuses, type PortalAccessStatus } from "@/lib/portal-actions"
 import { Badge } from "@/components/ui/badge"
 import { User, MapPin, Phone, ShieldCheck } from "lucide-react"
 export { AccountsTableSkeleton } from "@/components/skeleton/AccountTableSkeleton"
@@ -45,6 +47,13 @@ export const AccountsTable = ({ data, units = [], setAccounts }: AccountsTablePr
     const [selectedAccount, setSelectedAccount] = useState<{ id: string, name: string } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [portalStatuses, setPortalStatuses] = useState<Record<string, PortalAccessStatus>>({});
+
+    useEffect(() => {
+        getPortalAccessStatuses()
+            .then(setPortalStatuses)
+            .catch((error) => console.error("Failed to load portal access statuses:", error));
+    }, []);
 
     const handleDeleteClick = (id: string, firstName: string, lastName: string) => {
         setSelectedAccount({ id, name: `${firstName} ${lastName}` });
@@ -79,7 +88,7 @@ export const AccountsTable = ({ data, units = [], setAccounts }: AccountsTablePr
             <Table>
                 <TableHeader className="bg-[#0d0d0d] border-[#1a1a1a]">
                     <TableRow className="border-[#1a1a1a] hover:bg-transparent">
-                        <TableHead className="w-[100px] text-muted-foreground font-medium text-sm py-4">ACTIONS</TableHead>
+                        <TableHead className="w-[130px] text-muted-foreground font-medium text-sm py-4">ACTIONS</TableHead>
                         <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap py-4">USER</TableHead>
                         <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap py-4">SERVER UNIT</TableHead>
                         <TableHead className="text-muted-foreground font-medium text-sm whitespace-nowrap py-4">CONTACT & ADDRESS</TableHead>
@@ -99,6 +108,18 @@ export const AccountsTable = ({ data, units = [], setAccounts }: AccountsTablePr
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-2">
                                         <EditUserAccountDialog account={account} units={units} setAccounts={setAccounts} />
+                                        <PortalAccessDialog
+                                            account={account}
+                                            status={portalStatuses[account.id] ?? null}
+                                            onChange={(status) =>
+                                                setPortalStatuses(prev => {
+                                                    const next = { ...prev };
+                                                    if (status) next[account.id] = status;
+                                                    else delete next[account.id];
+                                                    return next;
+                                                })
+                                            }
+                                        />
                                         <Button
                                             variant="ghost"
                                             size="icon"

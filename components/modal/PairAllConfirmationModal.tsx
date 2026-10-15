@@ -62,6 +62,8 @@ export const PairAllConfirmationModal = ({
     const [executionIndex, setExecutionIndex] = useState(-1)
     const [executionProgress, setExecutionProgress] = useState(0)
     const [isSuggestingMap, setIsSuggestingMap] = useState<Record<string, boolean>>({})
+    // AI signal applied to each pair's primary, sent with the pair so the trade links to its recorded explanation
+    const [signalMap, setSignalMap] = useState<Record<string, { id: string; direction: string }>>({})
     const [isSuggestingAll, setIsSuggestingAll] = useState(false)
 
     useEffect(() => {
@@ -228,6 +230,12 @@ export const PairAllConfirmationModal = ({
 
             toast.success(`AI Verdict for ${symbol}: ${data.suggestion.toUpperCase()} (${data.summary})`)
             updatePairField(pairId, 'primary_order_type', data.suggestion)
+            setSignalMap(prev => {
+                const next = { ...prev }
+                if (data.signal_id) next[pairId] = { id: data.signal_id, direction: data.suggestion }
+                else delete next[pairId]
+                return next
+            })
         } catch (err: any) {
             toast.error(err.message || 'Error fetching signal')
         } finally {
@@ -359,6 +367,10 @@ export const PairAllConfirmationModal = ({
                     p1Payload: p1Data.payload,
                     p2Event: p2Data.event,
                     p2Payload: p2Data.payload,
+                    // Only when the primary still has the AI's direction (it may have been changed or swapped)
+                    signal_id: signalMap[currentPair.id] && currentPair.primary_order_type === signalMap[currentPair.id].direction
+                        ? signalMap[currentPair.id].id
+                        : null,
                     fireAndForget: true
                 };
 

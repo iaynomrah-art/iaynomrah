@@ -55,6 +55,101 @@ type Pair = TradingAccount & {
     win_price: number
 }
 
+type QuoteResult = {
+    price?: number
+    sl?: number
+    tp?: number
+    sl_points?: number
+    tp_points?: number
+    valid?: boolean
+    adjustments?: { field: string; from: number; to: number }[]
+    clearance_reason?: string | null
+    min_stop_points?: number
+    min_stop_distance?: number
+    error?: string
+    unsupported?: boolean
+}
+
+// Compact visual "ruler": current price, SL/TP markers, and the broker's
+// minimum-stop zone shaded around price, so you can see at a glance whether a
+// stop is sitting inside the zone that would get it auto-adjusted or rejected.
+//
+// `livePrice` comes from a fast, local-worker-independent market feed (polled
+// every ~2s) and drives the moving price marker between the slower authoritative
+// checks against the actual MT5 terminal (which alone knows the broker's real
+// minimum-stop rule, min_stop_distance). SL/TP are re-anchored to livePrice by
+// preserving their fixed offset from the last authoritative price, since a
+// dollar-risk stop's distance from entry doesn't change with price — only its
+// absolute level does, once "entry" itself is wherever price is right now.
+function LiveQuoteRuler({ quote, hasSl, hasTp, livePrice }: { quote: QuoteResult; hasSl: boolean; hasTp: boolean; livePrice?: number }) {
+    if (quote.price === undefined) return null
+
+    const anchorPrice = quote.price
+    const price = livePrice ?? anchorPrice
+    const slOffset = hasSl && quote.sl !== undefined ? anchorPrice - quote.sl : undefined
+    const tpOffset = hasTp && quote.tp !== undefined ? quote.tp - anchorPrice : undefined
+    const sl = slOffset !== undefined ? price - slOffset : undefined
+    const tp = tpOffset !== undefined ? price + tpOffset : undefined
+    const minDist = quote.min_stop_distance ?? 0
+    const isLive = livePrice !== undefined
+
+    // Live re-check of "is this stop inside the too-close zone right now" — a
+    // simple distance comparison, not the full tolerance/auto-widen logic (that
+    // stays server-side); this is a fast-moving estimate, the badge below the
+    // ruler is still the authoritative last-checked verdict.
+    const slInZone = sl !== undefined && minDist > 0 && Math.abs(price - sl) < minDist
+    const tpInZone = tp !== undefined && minDist > 0 && Math.abs(price - tp) < minDist
+
+    const candidateDistances = [
+        minDist,
+        sl !== undefined ? Math.abs(price - sl) : 0,
+        tp !== undefined ? Math.abs(price - tp) : 0,
+    ]
+    // Guarantee a sane minimum span so the ruler never collapses to zero width
+    // when SL/TP aren't set yet.
+    const maxDistance = Math.max(...candidateDistances, price * 0.0005)
+    const halfSpan = maxDistance * 1.25
+    const rangeMin = price - halfSpan
+    const rangeMax = price + halfSpan
+
+    const toPercent = (value: number) => {
+        const pct = ((value - rangeMin) / (rangeMax - rangeMin)) * 100
+        return Math.max(0, Math.min(100, pct))
+    }
+
+    const zoneLeftPct = toPercent(price - minDist)
+    const zoneRightPct = toPercent(price + minDist)
+
+    return (
+        <div className="px-4 pt-2">
+            <div className="relative h-6 rounded bg-[#0b0e11] border border-[#2b3139] overflow-hidden">
+                {minDist > 0 && (
+                    <div
+                        className="absolute top-0 bottom-0 bg-[#f6465d]/15 border-x border-[#f6465d]/30"
+                        style={{ left: `${zoneLeftPct}%`, width: `${Math.max(0, zoneRightPct - zoneLeftPct)}%` }}
+                        title="Broker minimum-stop zone — a stop inside here gets auto-adjusted or rejected"
+                    />
+                )}
+                <div className={cn("absolute top-0 bottom-0 w-[2px] bg-white", isLive && "transition-[left] duration-500 ease-linear")} style={{ left: `${toPercent(price)}%` }} title={`Price: ${price}`} />
+                {sl !== undefined && (
+                    <div className={cn("absolute top-0 bottom-0 w-[2px] bg-[#f6465d]", slInZone && "animate-pulse")} style={{ left: `${toPercent(sl)}%` }} title={`SL: ${sl}${slInZone ? ' — inside minimum-stop zone' : ''}`} />
+                )}
+                {tp !== undefined && (
+                    <div className={cn("absolute top-0 bottom-0 w-[2px] bg-[#2ebc66]", tpInZone && "animate-pulse")} style={{ left: `${toPercent(tp)}%` }} title={`TP: ${tp}${tpInZone ? ' — inside minimum-stop zone' : ''}`} />
+                )}
+            </div>
+            <div className="flex justify-between text-[9px] mt-0.5">
+                <span className="text-[#f6465d] flex items-center gap-1">{sl !== undefined && <><span className={cn("w-1.5 h-1.5 rounded-full bg-[#f6465d]", slInZone && "animate-pulse")} />SL {sl.toFixed(2)}</>}</span>
+                <span className="text-white font-mono flex items-center gap-1">
+                    {isLive && <span className="w-1.5 h-1.5 rounded-full bg-[#2ebc66] animate-pulse" title="Live price feed" />}
+                    {price.toFixed(2)}
+                </span>
+                <span className="text-[#2ebc66] flex items-center gap-1">{tp !== undefined && <><span className={cn("w-1.5 h-1.5 rounded-full bg-[#2ebc66]", tpInZone && "animate-pulse")} />TP {tp.toFixed(2)}</>}</span>
+            </div>
+        </div>
+    )
+}
+
 interface PairAccountsModalProps {
     isOpen: boolean
     onClose: () => void
@@ -72,8 +167,24 @@ export const PairAccountsModal = ({
     const [pairs, setPairs] = React.useState<Pair[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
     const [isSuggesting, setIsSuggesting] = React.useState(false)
+    // The AI signal applied to the primary, sent with the pair so the trade links to its recorded explanation
+    const [aiSignal, setAiSignal] = React.useState<{ id: string; direction: 'buy' | 'sell' } | null>(null)
+    const [livePrice, setLivePrice] = React.useState<number | undefined>(undefined)
     const autoSuggestAttempted = React.useRef(false)
-    const multiplier = 0.01 // Default tick multiplier
+    // XAUUSD: $ per 1.00 price move per 1.0 lot. Must match the local server's
+    // calculate_price() (tick_value / tick_size = 1.0 / 0.01), which converts
+    // dollar SL/TP into price levels when the order is actually placed.
+    const CONTRACT_SIZE = 100
+
+    // Price level an SL/TP lands at. Dollar mode = risk in $ for this lot size;
+    // price mode = the value already is the literal price level.
+    const levelFor = (p: Pair, value: number, isTp: boolean, entry: number) => {
+        const mode = isTp ? p.tp_type : p.sl_type
+        if (mode === 'price') return value
+        const distance = value / (CONTRACT_SIZE * (Number(p.order_amount) || 0.01))
+        const up = (p.trade_type === 'buy') === isTp
+        return up ? entry + distance : entry - distance
+    }
 
     const getAccountSafeLimit = (acc: TradingAccount | Pair) => {
         const p = acc as Pair;
@@ -134,14 +245,13 @@ export const PairAccountsModal = ({
     const recalculateMetrics = (pair: Pair): Pair => {
         const lProfit = pair.sl_ticks;
         const wProfit = pair.tp_ticks;
-        const isBuy = pair.trade_type === 'buy';
 
         return {
             ...pair,
             loss_profit: lProfit,
             win_profit: wProfit,
-            loss_price: isBuy ? basePrice - (pair.sl_ticks * multiplier) : basePrice + (pair.sl_ticks * multiplier),
-            win_price: isBuy ? basePrice + (pair.tp_ticks * multiplier) : basePrice - (pair.tp_ticks * multiplier),
+            loss_price: levelFor(pair, pair.sl_ticks, false, basePrice),
+            win_price: levelFor(pair, pair.tp_ticks, true, basePrice),
             loss_balance: pair.starting_equity - lProfit,
             win_balance: pair.starting_equity + wProfit,
         };
@@ -258,8 +368,8 @@ export const PairAccountsModal = ({
 
                 loss_profit: lProfit,
                 win_profit: wProfit,
-                loss_price: isBuy ? basePrice - (slTicks * multiplier) : basePrice + (slTicks * multiplier),
-                win_price: isBuy ? basePrice + (tpTicks * multiplier) : basePrice - (tpTicks * multiplier),
+                loss_price: isBuy ? basePrice - slTicks / (CONTRACT_SIZE * orderAmount) : basePrice + slTicks / (CONTRACT_SIZE * orderAmount),
+                win_price: isBuy ? basePrice + tpTicks / (CONTRACT_SIZE * orderAmount) : basePrice - tpTicks / (CONTRACT_SIZE * orderAmount),
                 loss_balance: currentEquity - lProfit,
                 win_balance: currentEquity + wProfit,
             } as Pair
@@ -279,9 +389,9 @@ export const PairAccountsModal = ({
 
             // Sync reciprocal fields for the changed pair
             if (field === 'loss_price') {
-                newPair.sl_ticks = Math.abs((value - basePrice) / multiplier)
+                newPair.sl_ticks = Math.abs(value - basePrice) * CONTRACT_SIZE * (Number(newPair.order_amount) || 0.01)
             } else if (field === 'win_price') {
-                newPair.tp_ticks = Math.abs((value - basePrice) / multiplier)
+                newPair.tp_ticks = Math.abs(value - basePrice) * CONTRACT_SIZE * (Number(newPair.order_amount) || 0.01)
             } else if (field === 'symbol') {
                 updatedPairs = updatedPairs.map(p => ({ ...p, symbol: value.toUpperCase() }))
                 newPair = { ...updatedPairs[index] }
@@ -444,6 +554,7 @@ export const PairAccountsModal = ({
 
             toast.success(`AI Suggestion: ${data.summary}. Applying ${data.suggestion.toUpperCase()} to Primary.`)
             updatePair(pairs[0].id, 'trade_type', data.suggestion.toLowerCase() as 'buy' | 'sell')
+            setAiSignal(data.signal_id ? { id: data.signal_id, direction: data.suggestion.toLowerCase() } : null)
 
             // Apply direct target and stop values to position the device
             if (data.target) {
@@ -463,6 +574,44 @@ export const PairAccountsModal = ({
             if (!isAuto) toast.error(error.message || 'Error fetching market direction')
         } finally {
             setIsSuggesting(false)
+        }
+    }
+
+    const formatStopLoss = (slTicks: number, platform?: string | null) => {
+        // cTrader only accepts negative value in sl of target profit
+        return platform?.toLowerCase() === 'ctrader' ? -Math.abs(slTicks) : slTicks;
+    }
+
+    const getPlatform = (acc: Pair) => {
+        const creds = Array.isArray(acc.credentials) ? acc.credentials[0] : (acc.credentials as any);
+        const pkgCredsObj = (acc.package_ref as any)?.credential || (acc.package_ref as any)?.credentials;
+        const pkgCreds = Array.isArray(pkgCredsObj) ? pkgCredsObj[0] : pkgCredsObj;
+        return creds?.platform || pkgCreds?.platform;
+    }
+
+    const createRealtimePayload = (acc: Pair, operation: string) => {
+        const creds = Array.isArray(acc.credentials) ? acc.credentials[0] : (acc.credentials as any);
+        const pkgCredsObj = (acc.package_ref as any)?.credential || (acc.package_ref as any)?.credentials;
+        const pkgCreds = Array.isArray(pkgCredsObj) ? pkgCredsObj[0] : pkgCredsObj;
+        const platform = getPlatform(acc);
+
+        return {
+            event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : (platform?.toLowerCase().includes('mt5') || platform?.toLowerCase().includes('metatrader')) ? 'run_metatrader5' : 'run_tradelocker',
+            payload: {
+                username: creds?.username || pkgCreds?.username || "",
+                password: creds?.password || pkgCreds?.password || "",
+                server: creds?.server || pkgCreds?.server || "",
+                purchase_type: acc.trade_type,
+                order_amount: acc.order_amount,
+                take_profit: acc.tp_ticks,
+                stop_loss: formatStopLoss(acc.sl_ticks, platform),
+                account_id: creds?.platform_id || pkgCreds?.platform_id || "",
+                db_account_id: acc.id,
+                symbol: String(acc.symbol || "XAUUSD"),
+                sl_type: acc.sl_type || 'dollar',
+                tp_type: acc.tp_type || 'dollar',
+                operation: operation
+            }
         }
     }
 
@@ -505,15 +654,44 @@ export const PairAccountsModal = ({
         }
     };
 
+    // A signal belongs to the accounts it was applied to; never carry it over to another pairing
     React.useEffect(() => {
-        if (!isOpen) {
-            autoSuggestAttempted.current = false
-        } else if (isOpen && pairs.length === 2 && !autoSuggestAttempted.current) {
+        setAiSignal(null)
+    }, [selectedAccounts])
+
+    React.useEffect(() => {
+        if (isOpen && pairs.length === 2 && !autoSuggestAttempted.current) {
             autoSuggestAttempted.current = true
             handleSuggestDirection(true)
             fetchMarketLevelsAndCalculate(pairs)
         }
     }, [isOpen, pairs.length])
+
+    // Fast live price polling via Supabase Realtime (independent of authoritative quotes)
+    React.useEffect(() => {
+        if (!isOpen || pairs.length === 0) {
+            setLivePrice(undefined)
+            return
+        }
+
+        const supabase = createClient()
+        const expectedSymbol = pairs[0]?.symbol || 'XAUUSD'
+
+        const channel = supabase.channel('market-data')
+            .on('broadcast', { event: 'price-update' }, (payload: any) => {
+                if (payload.payload?.symbol === expectedSymbol) {
+                    setLivePrice(Number(payload.payload.price))
+                }
+            })
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [isOpen, pairs[0]?.symbol])
+
+    // removed pre-trade quote validation completely in favor of Strategy 1 & 2
+    // (Database Caching & Optimistic Execution)
 
     const handleConfirmButton = () => {
         if (pairs.length < 2) {
@@ -599,44 +777,6 @@ export const PairAccountsModal = ({
             const unit1Id = unit1.unit_id
             const unit2Id = unit2.unit_id
 
-            const formatStopLoss = (slTicks: number, platform?: string | null) => {
-                // cTrader only accepts negative value in sl of target profit
-                return platform?.toLowerCase() === 'ctrader' ? -Math.abs(slTicks) : slTicks;
-            }
-
-            const getPlatform = (acc: Pair) => {
-                const creds = Array.isArray(acc.credentials) ? acc.credentials[0] : (acc.credentials as any);
-                const pkgCredsObj = (acc.package_ref as any)?.credential || (acc.package_ref as any)?.credentials;
-                const pkgCreds = Array.isArray(pkgCredsObj) ? pkgCredsObj[0] : pkgCredsObj;
-                return creds?.platform || pkgCreds?.platform;
-            }
-
-            const createRealtimePayload = (acc: Pair, operation: string) => {
-                const creds = Array.isArray(acc.credentials) ? acc.credentials[0] : (acc.credentials as any);
-                const pkgCredsObj = (acc.package_ref as any)?.credential || (acc.package_ref as any)?.credentials;
-                const pkgCreds = Array.isArray(pkgCredsObj) ? pkgCredsObj[0] : pkgCredsObj;
-                const platform = getPlatform(acc);
-
-                return {
-                    event: platform?.toLowerCase() === 'ctrader' ? 'run_ctrader' : (platform?.toLowerCase().includes('mt5') || platform?.toLowerCase().includes('metatrader')) ? 'run_metatrader5' : 'run_tradelocker',
-                    payload: {
-                        username: creds?.username || pkgCreds?.username || "",
-                        password: creds?.password || pkgCreds?.password || "",
-                        server: creds?.server || pkgCreds?.server || "",
-                        purchase_type: acc.trade_type,
-                        order_amount: acc.order_amount,
-                        take_profit: acc.tp_ticks,
-                        stop_loss: formatStopLoss(acc.sl_ticks, platform),
-                        account_id: creds?.platform_id || pkgCreds?.platform_id || "",
-                        db_account_id: acc.id,
-                        symbol: String(acc.symbol || "XAUUSD"),
-                        sl_type: acc.sl_type || 'dollar',
-                        tp_type: acc.tp_type || 'dollar',
-                        operation: operation
-                    }
-                }
-            }
-
             // Call Orchestrator to handle the full pairing flow
             toast.loading("Initiating pairing via Orchestrator...", { id: 'pair-trade' });
 
@@ -675,6 +815,8 @@ export const PairAccountsModal = ({
                 p1Payload: p1Data.payload,
                 p2Event: p2Data.event,
                 p2Payload: p2Data.payload,
+                // Only when the primary still has the AI's direction (it may have been changed by hand)
+                signal_id: aiSignal && primary.trade_type === aiSignal.direction ? aiSignal.id : null,
                 fireAndForget: true
             };
 
@@ -883,6 +1025,66 @@ export const PairAccountsModal = ({
                                             </button>
                                         </div>
                                     </div>
+
+                                    {/* Live Quote Preview */}
+                                    {(() => {
+                                        // Construct an optimistic quote based on cached DB limits or generic default
+                                        const cachedMinDist = account.min_stop_distance ?? 0.25;
+                                        const entry = livePrice ?? basePrice;
+                                        const sl = levelFor(account, account.sl_ticks, false, entry);
+                                        const tp = levelFor(account, account.tp_ticks, true, entry);
+                                        const isBuy = account.trade_type === 'buy';
+                                        // SL must sit on the losing side and TP on the winning side, each at least min distance away
+                                        const slOk = !(account.sl_ticks > 0) || (isBuy ? entry - sl : sl - entry) >= cachedMinDist;
+                                        const tpOk = !(account.tp_ticks > 0) || (isBuy ? tp - entry : entry - tp) >= cachedMinDist;
+
+                                        const quote: QuoteResult = {
+                                            price: entry,
+                                            sl,
+                                            tp,
+                                            min_stop_distance: cachedMinDist,
+                                            valid: slOk && tpOk
+                                        };
+
+                                        return (
+                                            <div className="bg-[#0b0e11]/60">
+                                                <LiveQuoteRuler quote={quote} hasSl={account.sl_ticks > 0} hasTp={account.tp_ticks > 0} livePrice={livePrice} />
+                                            <div className="px-4 py-2.5 text-[11px] space-y-1">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[#848e9c] flex items-center gap-1">
+                                                        <span className={cn("w-1.5 h-1.5 rounded-full", livePrice ? "bg-[#2ebc66]" : "bg-[#f0b90b] animate-pulse")} />
+                                                        Live Price
+                                                    </span>
+                                                    <span className="font-mono text-white">{livePrice ?? '—'}</span>
+                                                </div>
+                                                {account.tp_ticks > 0 && (
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-[#848e9c]">TP →</span>
+                                                        <span className="font-mono text-white">{quote.tp?.toFixed(2) ?? '—'} <span className="text-[#848e9c]">({Math.abs(tp - entry).toFixed(2)} away)</span></span>
+                                                    </div>
+                                                )}
+                                                {account.sl_ticks > 0 && (
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-[#848e9c]">SL →</span>
+                                                        <span className="font-mono text-white">{quote.sl?.toFixed(2) ?? '—'} <span className="text-[#848e9c]">({Math.abs(entry - sl).toFixed(2)} away)</span></span>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[#848e9c]">Broker min distance</span>
+                                                    <span className="font-mono text-white">
+                                                        {cachedMinDist}{account.min_stop_distance == null && <span className="text-[#848e9c]"> (default — learned after first order)</span>}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className={cn("inline-block px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold", quote.valid ? "bg-[#2ebc66]/20 text-[#2ebc66]" : "bg-[#f6465d]/20 text-[#f6465d]")}>
+                                                        {quote.valid ? 'Valid' : `Too close (min ${cachedMinDist})`}
+                                                    </div>
+                                                    <span className="text-[9px] text-[#848e9c]/70 italic">Any final limits will be auto-adjusted on submit</span>
+                                                </div>
+                                            </div>
+                                            </div>
+                                        )
+                                    })()}
 
                                     {/* Purchase Type Row */}
                                     <div className="grid grid-cols-2 px-4 py-3 items-center hover:bg-[#2b3139]/30 transition-colors">

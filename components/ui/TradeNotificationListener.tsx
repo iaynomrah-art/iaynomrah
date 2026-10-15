@@ -4,18 +4,19 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { NOTIFICATION_SOUND } from '@/lib/notificationSound'
-import { CheckCircle2, Bell, BellRing, BellOff, X } from 'lucide-react'
+import { CheckCircle2, Bell, BellRing, BellOff, X, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 export function TradeNotificationListener() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const notifiedTrades = useRef<Set<string>>(new Set())
+  const notifiedCloseFailures = useRef<Set<string>>(new Set())
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default')
   const [showPrompt, setShowPrompt] = useState(false)
 
   // Centralized function to trigger all 3 notification types (Sound, Toast, Desktop)
-  const triggerAllNotifications = useCallback((title: string, body: string, id?: string) => {
+  const triggerAllNotifications = useCallback((title: string, body: string, id?: string, variant: 'success' | 'alert' = 'success') => {
 
     // 1. Audio Notification
     if (audioRef.current) {
@@ -25,7 +26,7 @@ export function TradeNotificationListener() {
 
     // 2. Browser Desktop Notification
     if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, { 
+      new Notification(title, {
         body,
         icon: '/favicon.ico'
       })
@@ -33,10 +34,16 @@ export function TradeNotificationListener() {
 
     // 3. UI Toast Notification (Custom Styled)
     const toastId = id || `notification-${Date.now()}`;
+    const isAlert = variant === 'alert'
     toast.custom(
       (t) => (
-        <div className="flex items-start gap-3 bg-gray-900 border border-green-500/40 rounded-xl shadow-xl px-4 py-4 min-w-[320px] max-w-sm animate-in fade-in slide-in-from-right-5">
-          <CheckCircle2 className="text-green-400 mt-0.5 shrink-0" size={20} />
+        <div className={cn(
+          "flex items-start gap-3 bg-gray-900 border rounded-xl shadow-xl px-4 py-4 min-w-[320px] max-w-sm animate-in fade-in slide-in-from-right-5",
+          isAlert ? "border-red-500/40" : "border-green-500/40"
+        )}>
+          {isAlert
+            ? <AlertTriangle className="text-red-400 mt-0.5 shrink-0" size={20} />
+            : <CheckCircle2 className="text-green-400 mt-0.5 shrink-0" size={20} />}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-white">{title}</p>
             <p className="text-xs text-gray-400 mt-0.5">{body}</p>
@@ -161,6 +168,48 @@ export function TradeNotificationListener() {
           const trade = payload.new as { id: string; symbol?: string; trade_status: string }
           if (trade.trade_status === 'done') {
             handleTradeDone(trade)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [triggerAllNotifications])
+
+  // Effect to listen for a leg failing to close — position may still be open live,
+  // needs manual intervention (Retry Close in Trade History). Fires even if nobody's
+  // looking at the history page.
+  useEffect(() => {
+    const supabase = createClient()
+
+    const handleCloseFailed = (trade: { id: string; symbol?: string }) => {
+      const key = `close-failed-${trade.id}`
+      if (notifiedCloseFailures.current.has(key)) return
+      notifiedCloseFailures.current.add(key)
+
+      triggerAllNotifications(
+        `⚠️ Trade leg failed to close`,
+        `A position for ${trade.symbol || 'your asset'} may still be open. Check Trade History to retry.`,
+        key,
+        'alert'
+      )
+    }
+
+    const channel = supabase
+      .channel('trade-close-failed-listener')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'paired_trading_accounts',
+        },
+        (payload) => {
+          const trade = payload.new as { id: string; symbol?: string; primary_termination_status?: string; secondary_termination_status?: string }
+          if (trade.primary_termination_status === 'close_failed' || trade.secondary_termination_status === 'close_failed') {
+            handleCloseFailed(trade)
           }
         }
       )
