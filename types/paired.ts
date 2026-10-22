@@ -28,6 +28,12 @@ export type PairedTradingAccount = {
   secondary_take_profit: number | null;
   secondary_order_type: string;
   
+  // Strategy (migration_delayed_hedge.sql)
+  strategy?: 'natural' | 'delayed_hedge';
+  hedge_status?: 'standby' | 'armed' | 'pending' | 'triggered' | 'placed' | 'cancelled' | 'failed' | null;
+  hedge_entry_price?: number | null;
+  hedge_fill_price?: number | null;
+
   // Status
   trade_status: TradeStatus;
   is_active: boolean;

@@ -42,6 +42,29 @@ export type PairConfig = {
     isRemoved?: boolean;
     status?: 'idle' | 'running' | 'success' | 'failed';
     errorMsg?: string;
+    pairedStrategy?: 'natural' | 'delayed_hedge'; // what the orchestrator actually paired with
+}
+
+type StrategyCheck = {
+    status: 'checking' | 'done' | 'error';
+    allowed?: boolean;
+    reason?: string;
+    score?: number | null;
+    swap?: boolean;
+    hedge?: { order_amount: number; stop_loss: number; take_profit: number } | null;
+}
+
+// Same event/operation mapping the pairing loop sends, for the read-only strategy check
+const getUnitEvent = (acc: any) => {
+    const creds = Array.isArray(acc.credentials) ? acc.credentials[0] : acc.credentials;
+    const pkgCredsObj = acc.package_ref?.credential || acc.package_ref?.credentials;
+    const pkgCreds = Array.isArray(pkgCredsObj) ? pkgCredsObj[0] : pkgCredsObj;
+    const platform = (creds?.platform || pkgCreds?.platform)?.toLowerCase();
+    return platform === 'ctrader' ? 'run_ctrader' : (platform?.includes('mt5') || platform?.includes('metatrader')) ? 'run_metatrader5' : 'run_tradelocker';
+}
+const getStagingOperation = (acc: any) => {
+    const automation = acc.package_ref?.funders?.automation || acc.funder?.automation || 'API';
+    return automation === 'GUI' ? 'input-order-gui' : 'input-order';
 }
 
 interface PairAllConfirmationModalProps {
@@ -65,6 +88,10 @@ export const PairAllConfirmationModal = ({
     // AI signal applied to each pair's primary, sent with the pair so the trade links to its recorded explanation
     const [signalMap, setSignalMap] = useState<Record<string, { id: string; direction: string }>>({})
     const [isSuggestingAll, setIsSuggestingAll] = useState(false)
+    // Per pair: is the delayed hedge allowed, and which strategy the user picked
+    const [strategyMap, setStrategyMap] = useState<Record<string, StrategyCheck>>({})
+    const [choiceMap, setChoiceMap] = useState<Record<string, 'delayed_hedge' | 'natural'>>({})
+    const userPicked = React.useRef<Set<string>>(new Set())
 
     useEffect(() => {
         if (isOpen) {
@@ -122,6 +149,61 @@ export const PairAllConfirmationModal = ({
         const allowance = Math.min(dailyAllowance, totalAllowance, consistencyAllowance);
         return Number((Math.max(0, allowance) * 0.70).toFixed(2));
     };
+
+    // Ask the orchestrator, per pending pair, whether the delayed hedge is allowed (read-only)
+    const pendingPairs = pairs.filter(p => !p.isRemoved && (!p.status || p.status === 'idle'))
+    const strategyInputs = pendingPairs.map(p => ({
+        id: p.id,
+        symbol: p.symbol || "XAUUSD",
+        primary_order_amount: p.primary_order_amount,
+        primary_order_type: p.primary_order_type,
+        primary_take_profit: p.primary_take_profit,
+        primary_stop_loss: p.primary_stop_loss,
+        primary_sl_type: 'dollar',
+        primary_tp_type: 'dollar',
+        p1Event: getUnitEvent(p.primary),
+        p2Event: getUnitEvent(p.secondary),
+        p1Payload: { operation: getStagingOperation(p.primary) },
+        p2Payload: { operation: getStagingOperation(p.secondary) },
+        signal_id: signalMap[p.id] && p.primary_order_type === signalMap[p.id].direction ? signalMap[p.id].id : null,
+        primary_safe_limit: getAccountSafeLimit(p.primary),
+        secondary_safe_limit: getAccountSafeLimit(p.secondary),
+    }))
+    const strategyKey = JSON.stringify(strategyInputs)
+
+    useEffect(() => {
+        if (!isOpen) { userPicked.current.clear(); setStrategyMap({}); return }
+        if (strategyInputs.length === 0) return
+        const timer = setTimeout(async () => {
+            const { data: { session } } = await createClient().auth.getSession()
+            const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud'
+            setStrategyMap(prev => Object.fromEntries(strategyInputs.map(s => [s.id, { ...prev[s.id], status: 'checking' as const }])))
+            await Promise.all(strategyInputs.map(async ({ id, ...body }) => {
+                let check: StrategyCheck
+                try {
+                    const res = await fetch(`${orchestratorUrl}/api/v1/units/pair/strategy`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+                        body: JSON.stringify(body)
+                    })
+                    const data = await res.json()
+                    if (!res.ok) throw new Error(data.message || "Strategy check failed")
+                    check = { status: 'done', allowed: data.delayed_allowed, reason: data.reason, score: data.score, swap: data.swap, hedge: data.hedge }
+                } catch (e: any) {
+                    check = { status: 'error', allowed: false, reason: e.message || "Strategy check failed" }
+                }
+                setStrategyMap(prev => ({ ...prev, [id]: check }))
+                // Default to delayed when allowed, unless the user already picked; never keep a pick that's no longer allowed
+                setChoiceMap(prev => ({
+                    ...prev,
+                    [id]: !check.allowed ? 'natural' : userPicked.current.has(id) ? (prev[id] ?? 'delayed_hedge') : 'delayed_hedge'
+                }))
+            }))
+        }, 600)
+        return () => clearTimeout(timer)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, strategyKey])
+    const isCheckingStrategy = pendingPairs.some(p => strategyMap[p.id]?.status === 'checking')
 
     const recalculatePairMetrics = (pair: PairConfig): PairConfig => {
         const primaryLimit = getAccountSafeLimit(pair.primary)
@@ -371,6 +453,10 @@ export const PairAllConfirmationModal = ({
                     signal_id: signalMap[currentPair.id] && currentPair.primary_order_type === signalMap[currentPair.id].direction
                         ? signalMap[currentPair.id].id
                         : null,
+                    // Lets the orchestrator check the delayed hedge's worst case fits an account
+                    primary_safe_limit: getAccountSafeLimit(primary),
+                    secondary_safe_limit: getAccountSafeLimit(secondary),
+                    strategy_choice: choiceMap[currentPair.id] ?? 'natural',
                     fireAndForget: true
                 };
 
@@ -404,7 +490,7 @@ export const PairAllConfirmationModal = ({
                 }
 
                 // Succeeded!
-                setPairs(prev => prev.map(p => p.id === currentPair.id ? { ...p, status: 'success' } : p))
+                setPairs(prev => prev.map(p => p.id === currentPair.id ? { ...p, status: 'success', pairedStrategy: data.strategy } : p))
                 completedCount++
             } catch (err: any) {
                 console.error(`Error pairing ${currentPair.id}:`, err)
@@ -471,7 +557,7 @@ export const PairAllConfirmationModal = ({
                                     <div className="px-4 py-2 bg-[#1a1f24] border-b border-[#2b3139] flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs font-bold text-gray-400">Pair #{pIdx + 1}</span>
-                                            {isSuccess && <span className="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Staged</span>}
+                                            {isSuccess && <span className="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Staged{pair.pairedStrategy === 'delayed_hedge' ? ' · Delayed hedge' : ''}</span>}
                                             {isFailed && <span className="bg-red-500/20 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Failed</span>}
                                             {isRunning && <span className="bg-blue-500/20 text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 animate-spin"><RefreshCw className="h-3 w-3" /> Staging...</span>}
                                         </div>
@@ -640,6 +726,54 @@ export const PairAllConfirmationModal = ({
                                         </div>
                                     </div>
 
+                                    {/* Hedge strategy */}
+                                    {isPending && (() => {
+                                        const check = strategyMap[pair.id]
+                                        const choice = choiceMap[pair.id] ?? 'natural'
+                                        return (
+                                            <div className="px-4 py-2.5 bg-[#13171b] border-t border-[#2b3139] flex items-center justify-between gap-3 flex-wrap">
+                                                <div className="text-[11px] leading-snug flex-1 min-w-[200px]">
+                                                    {!check || check.status === 'checking' ? (
+                                                        <span className="text-gray-400">Checking if the delayed hedge is allowed...</span>
+                                                    ) : check.allowed ? (
+                                                        <span className="text-[#2ebc66]">
+                                                            Delayed hedge allowed (score {check.score}).{' '}
+                                                            <span className="text-gray-400">
+                                                                {choice === 'delayed_hedge'
+                                                                    ? `Secondary waits; opens ${check.hedge?.order_amount} lots at a 10% loss (worst case $${check.hedge?.stop_loss}).${check.swap ? ' Accounts will be swapped.' : ''}`
+                                                                    : 'Both accounts open together.'}
+                                                            </span>
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-gray-400"><span className="text-[#f0b90b]">Delayed hedge not allowed:</span> {check.reason}.</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex rounded border border-[#2b3139] overflow-hidden">
+                                                    {([
+                                                        { value: 'delayed_hedge', label: 'Delayed' },
+                                                        { value: 'natural', label: 'Natural' },
+                                                    ] as const).map(opt => (
+                                                        <button
+                                                            key={opt.value}
+                                                            type="button"
+                                                            disabled={isExecuting || (opt.value === 'delayed_hedge' && !check?.allowed)}
+                                                            onClick={() => {
+                                                                userPicked.current.add(pair.id)
+                                                                setChoiceMap(prev => ({ ...prev, [pair.id]: opt.value }))
+                                                            }}
+                                                            className={cn(
+                                                                "px-2.5 h-7 text-[11px] font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+                                                                choice === opt.value ? "bg-blue-600 text-white" : "bg-[#0b0e11] text-gray-400 hover:text-white"
+                                                            )}
+                                                        >
+                                                            {opt.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )
+                                    })()}
+
                                     {/* Error Console */}
                                     {isFailed && pair.errorMsg && (
                                         <div className="bg-red-950/20 text-red-400 px-4 py-2 text-xs font-mono border-t border-red-900/50">
@@ -695,7 +829,7 @@ export const PairAllConfirmationModal = ({
 
                     <Button
                         onClick={executeSequentialPairing}
-                        disabled={isExecuting || activePairs.length === 0 || (activePairs.every(p => p.status === 'success'))}
+                        disabled={isExecuting || isCheckingStrategy || activePairs.length === 0 || (activePairs.every(p => p.status === 'success'))}
                         className={cn(
                             "text-white h-[38px] px-6 rounded-[4px] font-bold text-xs flex items-center gap-2 disabled:opacity-50 min-w-[150px]",
                             hasFailedPairs ? "bg-yellow-600 hover:bg-yellow-500" : "bg-blue-600 hover:bg-blue-500"

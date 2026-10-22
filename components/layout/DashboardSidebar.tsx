@@ -55,6 +55,8 @@ const menuItems: MenuItem[] = [
     children: [
       { title: "Make Money", href: "/dashboard/trade/make-money" },
       { title: "Trade History", href: "/dashboard/trade/history" },
+      { title: "Signal Results", href: "/dashboard/trade/signal-results" },
+      { title: "Prediction Monitor", href: "/dashboard/trade/prediction-monitor" },
     ],
   },
   {

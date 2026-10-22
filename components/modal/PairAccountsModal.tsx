@@ -55,6 +55,16 @@ type Pair = TradingAccount & {
     win_price: number
 }
 
+type StrategyCheck = {
+    status: 'idle' | 'checking' | 'done' | 'error'
+    allowed?: boolean
+    reason?: string
+    score?: number | null
+    swap?: boolean
+    hedge?: { order_amount: number; stop_loss: number; take_profit: number } | null
+    testModeAvailable?: boolean
+}
+
 type QuoteResult = {
     price?: number
     sl?: number
@@ -171,10 +181,23 @@ export const PairAccountsModal = ({
     const [aiSignal, setAiSignal] = React.useState<{ id: string; direction: 'buy' | 'sell' } | null>(null)
     const [livePrice, setLivePrice] = React.useState<number | undefined>(undefined)
     const autoSuggestAttempted = React.useRef(false)
+    // SL distance for a ~4-8h trade at current volatility; the lot is sized from it once, then editable
+    const [sizing, setSizing] = React.useState<{ distance: number; source: 'mt5' | 'atr' } | null>(null)
+    const lotAutoApplied = React.useRef(false)
     // XAUUSD: $ per 1.00 price move per 1.0 lot. Must match the local server's
     // calculate_price() (tick_value / tick_size = 1.0 / 0.01), which converts
     // dollar SL/TP into price levels when the order is actually placed.
     const CONTRACT_SIZE = 100
+    // Auto-sized lots never go above this; a bigger lot would mean a closer SL (faster trade), not more risk
+    const MAX_AUTO_LOT = 0.3
+
+    // Lot that puts the primary's dollar SL at the 4-8h distance (nearest 0.01; the $ risk
+    // stays as set either way, rounding only moves the SL slightly closer or further)
+    const suggestLot = (slDollars: number, distance: number) => {
+        const raw = slDollars / (distance * CONTRACT_SIZE)
+        const lot = Math.max(0.01, Math.min(MAX_AUTO_LOT, Math.round(raw * 100) / 100))
+        return { lot, capped: raw > MAX_AUTO_LOT }
+    }
 
     // Price level an SL/TP lands at. Dollar mode = risk in $ for this lot size;
     // price mode = the value already is the literal price level.
@@ -556,16 +579,12 @@ export const PairAccountsModal = ({
             updatePair(pairs[0].id, 'trade_type', data.suggestion.toLowerCase() as 'buy' | 'sell')
             setAiSignal(data.signal_id ? { id: data.signal_id, direction: data.suggestion.toLowerCase() } : null)
 
-            // Apply direct target and stop values to position the device
-            if (data.target) {
-                setTimeout(() => {
-                    updatePair(pairs[0].id, 'win_price', Number(data.target))
-                }, 50)
-            }
-            if (data.stop) {
-                setTimeout(() => {
-                    updatePair(pairs[0].id, 'loss_price', Number(data.stop))
-                }, 100)
+            // The signal sets the direction; the account's dollar SL/TP stay, and the lot is
+            // re-sized from the signal's 4-8h distance when it has fresh MT5 numbers
+            const distance = Number(data.data?.suggested_sl_distance)
+            if (distance > 0) {
+                lotAutoApplied.current = false
+                setSizing({ distance, source: 'mt5' })
             }
             localStorage.setItem('ai_signal_last_called', Date.now().toString())
 
@@ -615,57 +634,51 @@ export const PairAccountsModal = ({
         }
     }
 
-    const fetchMarketLevelsAndCalculate = async (currentPairs: Pair[]) => {
-        if (currentPairs.length < 2) return;
+    // SL distance for a ~4-8h trade (MT5 volatility, or 1.5x ATR when that's stale). No AI call.
+    const fetchSizing = async (symbol: string) => {
         try {
-            const symbol = currentPairs[0].symbol || 'XAUUSD';
             const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
-            const res = await fetch(`${orchestratorUrl}/api/v1/market/levels?symbol=${symbol}&timeframe=1h`);
-            
+            const res = await fetch(`${orchestratorUrl}/api/v1/market/volatility?symbol=${symbol}`);
             if (!res.ok) return;
             const data = await res.json();
-            
-            if (data.resistance1 && data.support1) {
-                const resistance = Number(data.resistance1);
-                const support = Number(data.support1);
-                
-                if (resistance > support) {
-                    const diff = resistance - support;
-                    
-                    currentPairs.forEach((pair, idx) => {
-                        const targetProfit = pair.remaining_target_profit ?? pair.package_ref?.profit_target ?? 0;
-                        if (targetProfit > 0) {
-                            // Calculate lot size: targetProfit / (diff * 100 for XAUUSD)
-                            // We use a 0.5 multiplier to be conservative (e.g., target 50% of the goal per trade)
-                            let lotSize = (targetProfit / (diff * 100)) * 0.5;
-                            
-                            // Safe cap between 0.01 and max 1.0 lots to avoid blowing up the account
-                            lotSize = Math.max(0.01, Math.min(lotSize, 1.0));
-                            
-                            setTimeout(() => {
-                                updatePair(pair.id, 'order_amount', Number(lotSize.toFixed(2)))
-                            }, 150 + (idx * 50));
-                        }
-                    });
-                }
-            }
+            if (Number(data.sl_distance) > 0) setSizing({ distance: Number(data.sl_distance), source: data.source })
         } catch (error) {
-            console.error('Failed to fetch market levels:', error);
+            console.error('Failed to fetch volatility for lot sizing:', error);
         }
     };
 
     // A signal belongs to the accounts it was applied to; never carry it over to another pairing
     React.useEffect(() => {
         setAiSignal(null)
+        setSizing(null)
+        lotAutoApplied.current = false
     }, [selectedAccounts])
 
     React.useEffect(() => {
         if (isOpen && pairs.length === 2 && !autoSuggestAttempted.current) {
             autoSuggestAttempted.current = true
             handleSuggestDirection(true)
-            fetchMarketLevelsAndCalculate(pairs)
         }
     }, [isOpen, pairs.length])
+
+    // Fields reset on every open, so size the lot again from fresh volatility each time
+    React.useEffect(() => {
+        if (!isOpen) return
+        lotAutoApplied.current = false
+        fetchSizing('XAUUSD')
+    }, [isOpen])
+
+    // Fill the lot once per sizing (opening the modal, or a new AI signal); edits after that stay
+    React.useEffect(() => {
+        if (!isOpen || !sizing || lotAutoApplied.current || pairs.length !== 2) return
+        if (pairs[0].sl_type !== 'dollar' || !(pairs[0].sl_ticks > 0)) return
+        lotAutoApplied.current = true
+        updatePair(pairs[0].id, 'order_amount', suggestLot(pairs[0].sl_ticks, sizing.distance).lot)
+    }, [isOpen, sizing, pairs.length, pairs[0]?.sl_ticks])
+
+    const lotSuggestion = sizing && pairs.length === 2 && pairs[0].sl_type === 'dollar' && pairs[0].sl_ticks > 0
+        ? { ...suggestLot(pairs[0].sl_ticks, sizing.distance), distance: sizing.distance, source: sizing.source }
+        : null
 
     // Fast live price polling via Supabase Realtime (independent of authoritative quotes)
     React.useEffect(() => {
@@ -754,6 +767,90 @@ export const PairAccountsModal = ({
         executePairing()
     }
 
+    const getOperation = (acc: any, baseOp: string) => {
+        const automation = acc.package_ref?.funders?.automation || acc.funder?.automation || 'API';
+        return automation === 'GUI' ? `${baseOp}-gui` : baseOp;
+    };
+
+    // The /pair request body. The strategy check is built from the same fields so its answer matches.
+    const buildPairPayload = (primary: Pair, secondary: Pair) => {
+        const p1Data = createRealtimePayload(primary, getOperation(primary, 'input-order'));
+        const p2Data = createRealtimePayload(secondary, getOperation(secondary, 'input-order'));
+
+        const payload = {
+            primary_id: primary.id,
+            secondary_id: secondary.id,
+            symbol: primary.symbol || "XAUUSD",
+            primary_order_amount: primary.order_amount,
+            primary_order_type: primary.trade_type,
+            primary_take_profit: primary.tp_ticks,
+            primary_stop_loss: primary.sl_ticks,
+            primary_sl_type: primary.sl_type,
+            primary_tp_type: primary.tp_type,
+            secondary_order_amount: secondary.order_amount,
+            secondary_order_type: secondary.trade_type,
+            secondary_take_profit: secondary.tp_ticks,
+            secondary_stop_loss: secondary.sl_ticks,
+            secondary_sl_type: secondary.sl_type,
+            secondary_tp_type: secondary.tp_type,
+            unit1Id: primary.accounts?.units?.unit_id,
+            unit2Id: secondary.accounts?.units?.unit_id,
+            p1Event: p1Data.event,
+            p1Payload: p1Data.payload,
+            p2Event: p2Data.event,
+            p2Payload: p2Data.payload,
+            // Only when the primary still has the AI's direction (it may have been changed by hand)
+            signal_id: aiSignal && primary.trade_type === aiSignal.direction ? aiSignal.id : null,
+            // Lets the orchestrator check the delayed hedge's worst case fits an account
+            primary_safe_limit: getAccountSafeLimit(primary),
+            secondary_safe_limit: getAccountSafeLimit(secondary),
+            // Demo testing: skip the AI score check (only honored when the orchestrator allows test mode)
+            test_mode: testMode,
+            fireAndForget: true
+        };
+        return { p1Data, p2Data, payload }
+    }
+
+    // ── Hedge strategy: ask the orchestrator whether the delayed hedge is allowed ──
+    const [strategyCheck, setStrategyCheck] = React.useState<StrategyCheck>({ status: 'idle' })
+    const [strategyChoice, setStrategyChoice] = React.useState<'delayed_hedge' | 'natural'>('natural')
+    const [testMode, setTestMode] = React.useState(false)
+    const userPickedStrategy = React.useRef(false)
+
+    React.useEffect(() => {
+        if (!isOpen) { userPickedStrategy.current = false; setTestMode(false); setStrategyCheck({ status: 'idle' }); return }
+        if (pairs.length !== 2) return
+        const { payload } = buildPairPayload(pairs[0], pairs[1])
+        const timer = setTimeout(async () => {
+            setStrategyCheck(prev => ({ ...prev, status: 'checking' }))
+            try {
+                const { data: { session } } = await createClient().auth.getSession()
+                const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud'
+                const res = await fetch(`${orchestratorUrl}/api/v1/units/pair/strategy`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+                    // Only what the rules need — no account credentials
+                    body: JSON.stringify({
+                        ...payload,
+                        p1Payload: { operation: payload.p1Payload.operation },
+                        p2Payload: { operation: payload.p2Payload.operation },
+                    })
+                })
+                const data = await res.json()
+                if (!res.ok) throw new Error(data.message || "Strategy check failed")
+                setStrategyCheck({ status: 'done', allowed: data.delayed_allowed, reason: data.reason, score: data.score, swap: data.swap, hedge: data.hedge, testModeAvailable: data.test_mode_available })
+                // Default to delayed when allowed, unless the user already picked; never keep a pick that's no longer allowed
+                if (!data.delayed_allowed) setStrategyChoice('natural')
+                else if (!userPickedStrategy.current) setStrategyChoice('delayed_hedge')
+            } catch (e: any) {
+                setStrategyCheck({ status: 'error', allowed: false, reason: e.message || "Strategy check failed" })
+                setStrategyChoice('natural')
+            }
+        }, 500)
+        return () => clearTimeout(timer)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, JSON.stringify(pairs.map(p => [p.id, p.trade_type, p.order_amount, p.sl_ticks, p.tp_ticks, p.sl_type, p.tp_type])), aiSignal?.id, testMode])
+
     const isExecutingRef = React.useRef(false);
 
     const executePairing = async () => {
@@ -785,40 +882,8 @@ export const PairAccountsModal = ({
             const token = session?.access_token;
             const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL || 'https://orchestrator.iaynomrah.cloud';
 
-            const getOperation = (acc: any, baseOp: string) => {
-                const automation = acc.package_ref?.funders?.automation || acc.funder?.automation || 'API';
-                return automation === 'GUI' ? `${baseOp}-gui` : baseOp;
-            };
-
-            const p1Data = createRealtimePayload(primary, getOperation(primary, 'input-order'));
-            const p2Data = createRealtimePayload(secondary, getOperation(secondary, 'input-order'));
-
-            const payload = {
-                primary_id: primary.id,
-                secondary_id: secondary.id,
-                symbol: primary.symbol || "XAUUSD",
-                primary_order_amount: primary.order_amount,
-                primary_order_type: primary.trade_type,
-                primary_take_profit: primary.tp_ticks,
-                primary_stop_loss: primary.sl_ticks,
-                primary_sl_type: primary.sl_type,
-                primary_tp_type: primary.tp_type,
-                secondary_order_amount: secondary.order_amount,
-                secondary_order_type: secondary.trade_type,
-                secondary_take_profit: secondary.tp_ticks,
-                secondary_stop_loss: secondary.sl_ticks,
-                secondary_sl_type: secondary.sl_type,
-                secondary_tp_type: secondary.tp_type,
-                unit1Id: unit1Id,
-                unit2Id: unit2Id,
-                p1Event: p1Data.event,
-                p1Payload: p1Data.payload,
-                p2Event: p2Data.event,
-                p2Payload: p2Data.payload,
-                // Only when the primary still has the AI's direction (it may have been changed by hand)
-                signal_id: aiSignal && primary.trade_type === aiSignal.direction ? aiSignal.id : null,
-                fireAndForget: true
-            };
+            const { p1Data, p2Data, payload: basePayload } = buildPairPayload(primary, secondary)
+            const payload = { ...basePayload, strategy_choice: strategyChoice }
 
             if (p1Data.event === 'run_tradelocker' && (!p1Data.payload.username || !p1Data.payload.password)) {
                 toast.error(`Primary Account is missing TradeLocker username or password in the database. Please edit the account credentials and ensure they are linked.`);
@@ -867,7 +932,11 @@ export const PairAccountsModal = ({
                 throw new Error(data.message || errorMessage || "Failed to pair accounts via Orchestrator");
             }
 
-            toast.success("Accounts successfully paired and staged! You can now start trading.", { id: 'pair-trade', duration: 5000 })
+            if (data.strategy === 'delayed_hedge') {
+                toast.success(`Paired with delayed hedge: only the primary opens; the secondary waits for a 10% loss.${data.swapped ? ' Accounts were swapped so the hedge is on the account with more room.' : ''}`, { id: 'pair-trade', duration: 8000 })
+            } else {
+                toast.success("Accounts successfully paired and staged! You can now start trading.", { id: 'pair-trade', duration: 5000 })
+            }
             onConfirm(pairs)
             onClose()
 
@@ -987,6 +1056,22 @@ export const PairAccountsModal = ({
                                             />
                                         </div>
                                     </div>
+
+                                    {lotSuggestion && (
+                                        <div className="px-4 pb-2 -mt-1 text-[11px] text-[#848e9c] text-right leading-snug">
+                                            Suggested {lotSuggestion.lot.toFixed(2)} lots: SL about ${lotSuggestion.distance.toFixed(1)} away,
+                                            {' '}~4-8h at {lotSuggestion.source === 'mt5' ? "today's" : 'ATR'} volatility
+                                            {lotSuggestion.capped && <span className="text-[#f0b90b]"> (capped at {MAX_AUTO_LOT.toFixed(2)}, so the SL sits closer)</span>}
+                                            {Number(account.order_amount) !== lotSuggestion.lot && (
+                                                <button
+                                                    onClick={() => updatePair(account.id, 'order_amount', lotSuggestion.lot)}
+                                                    className="ml-2 text-[#4788ff] font-semibold hover:text-white transition-colors"
+                                                >
+                                                    Apply
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
 
                                     <div className="grid grid-cols-2 px-4 py-2.5 items-center hover:bg-[#2b3139]/30 transition-colors">
                                         <span className="text-[#4788ff] text-[13px] font-medium">TP</span>
@@ -1108,6 +1193,67 @@ export const PairAccountsModal = ({
                     </div>
                 </div>
 
+                {/* Hedge strategy */}
+                {pairs.length === 2 && (
+                    <div className="px-5 py-3 bg-[#181a20] border-t border-[#2b3139] flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <span className="text-[#848e9c] text-[13px] font-medium">Hedge strategy</span>
+                            <div className="flex rounded-[4px] border border-[#2b3139] overflow-hidden">
+                                {([
+                                    { value: 'delayed_hedge', label: 'Delayed hedge' },
+                                    { value: 'natural', label: 'Natural hedge' },
+                                ] as const).map(opt => {
+                                    const disabled = isLoading || (opt.value === 'delayed_hedge' && !strategyCheck.allowed)
+                                    return (
+                                        <button
+                                            key={opt.value}
+                                            type="button"
+                                            disabled={disabled}
+                                            onClick={() => { userPickedStrategy.current = true; setStrategyChoice(opt.value) }}
+                                            className={cn(
+                                                "px-3 h-8 text-[12px] font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+                                                strategyChoice === opt.value ? "bg-[#2f66d4] text-white" : "bg-[#0b0e11] text-[#848e9c] hover:text-white"
+                                            )}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                        <div className="text-[12px] leading-snug">
+                            {strategyCheck.status === 'idle' || strategyCheck.status === 'checking' ? (
+                                <span className="text-[#848e9c]">Checking if the delayed hedge is allowed...</span>
+                            ) : strategyCheck.allowed ? (
+                                <span className="text-[#2ebc66]">
+                                    {testMode ? 'Delayed hedge allowed (test mode — AI score ignored).' : `Delayed hedge allowed (score ${strategyCheck.score}).`}{' '}
+                                    <span className="text-[#848e9c]">
+                                        {strategyChoice === 'delayed_hedge'
+                                            ? `Only the primary opens. If it loses 10% of its SL, the secondary opens ${strategyCheck.hedge?.order_amount} lots the other way (worst case $${strategyCheck.hedge?.stop_loss}).${strategyCheck.swap ? ' The accounts will be swapped so the hedge is on the one with more room.' : ''}`
+                                            : 'Both accounts will open at the same time.'}
+                                    </span>
+                                </span>
+                            ) : (
+                                <span className="text-[#848e9c]">
+                                    <span className="text-[#f0b90b]">Delayed hedge not allowed:</span> {strategyCheck.reason}. Both accounts will open at the same time.
+                                </span>
+                            )}
+                        </div>
+                        {(strategyCheck.testModeAvailable || testMode) && (
+                            <label className="flex items-center gap-2 text-[12px] text-[#f0b90b] cursor-pointer select-none w-fit">
+                                <input
+                                    type="checkbox"
+                                    checked={testMode}
+                                    disabled={isLoading}
+                                    onChange={(e) => setTestMode(e.target.checked)}
+                                    className="accent-[#f0b90b]"
+                                />
+                                Test mode: ignore AI score (demo accounts only)
+                            </label>
+                        )}
+                    </div>
+                )}
+
                 {/* Footer */}
                 <DialogFooter className="px-5 py-4 bg-[#1e2329] border-t border-[#2b3139] flex items-center justify-between sm:justify-between w-full">
                     <div className="flex items-center gap-3">
@@ -1134,7 +1280,7 @@ export const PairAccountsModal = ({
 
                     <Button
                         onClick={handleConfirmButton}
-                        disabled={isLoading || isSuggesting}
+                        disabled={isLoading || isSuggesting || strategyCheck.status === 'checking'}
                         className="bg-[#2f66d4] hover:bg-[#3b7ef6] text-white h-[38px] px-5 rounded-[4px] font-bold text-[13px] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px]"
                     >
                         {isLoading ? (

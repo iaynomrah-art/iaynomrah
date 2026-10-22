@@ -458,6 +458,18 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
                             <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
                                 {pair.secondary_account?.accounts?.units?.unit_name || "NO UNIT"}
                             </span>
+                            {pair.strategy === 'delayed_hedge' && (
+                                <div
+                                    className="bg-purple-500/15 text-purple-400 px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold uppercase"
+                                    title="Delayed hedge: the secondary opens only if the primary loses 10% of its SL amount"
+                                >
+                                    {pair.hedge_status === 'triggered' || pair.hedge_status === 'placed' ? 'Hedged'
+                                        : pair.hedge_status === 'failed' ? 'Hedge failed'
+                                        : pair.hedge_status === 'cancelled' ? 'Hedge not needed'
+                                        : pair.hedge_status === 'pending' ? `Hedge set @ ${pair.hedge_entry_price ?? ''}`
+                                        : 'Hedge waiting'}
+                                </div>
+                            )}
                             <a
                                 href="https://remotedesktop.google.com/access"
                                 target="_blank"
