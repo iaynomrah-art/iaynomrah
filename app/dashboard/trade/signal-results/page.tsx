@@ -23,8 +23,17 @@ type Results = {
     signals: number
     overall: Record<string, Tally>
     buckets: { label: string, sources: Record<string, Tally> }[]
+    checks?: Record<string, { passed: Tally, failed: Tally }>
     error?: string
 }
+
+// Support/resistance checks saved with each signal (tracked only, not in the score)
+const CHECKS: { key: string, label: string }[] = [
+    { key: 'trigger_beyond_8h', label: 'Hedge trigger beyond support/resistance (8h levels)' },
+    { key: 'trigger_beyond_24h', label: 'Hedge trigger beyond support/resistance (24h levels)' },
+    { key: 'sl_gt_range_8h', label: 'SL distance wider than the support-resistance range (8h)' },
+    { key: 'sl_gt_range_24h', label: 'SL distance wider than the support-resistance range (24h)' },
+]
 
 const SOURCES = [
     { key: 'ai', label: 'AI (qwen)' },
@@ -161,6 +170,31 @@ const SignalResultsPage = () => {
                                 </tbody>
                             </table>
                         </div>
+                        <div className="overflow-x-auto rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a]">
+                            <div className="px-4 pt-4 pb-1">
+                                <div className="text-sm font-semibold text-white">Support / resistance checks</div>
+                                <div className="text-xs text-muted-foreground">Tracked with every signal, not used in the score. AI signals only: did they hit TP without the hedge more often when the check passed?</div>
+                            </div>
+                            <table className="w-full text-sm text-left">
+                                <thead className="text-xs uppercase tracking-widest text-muted-foreground border-b border-[#1a1a1a]">
+                                    <tr>
+                                        <th className="px-4 py-3">Check</th>
+                                        <th className="px-4 py-3">When it passed</th>
+                                        <th className="px-4 py-3">When it didn&apos;t</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-[#1a1a1a]">
+                                    {CHECKS.map((c) => (
+                                        <tr key={c.key}>
+                                            <td className="px-4 py-3 text-white">{c.label}</td>
+                                            <Cell tally={results.checks?.[c.key]?.passed} luck={results.luck_a_rate} />
+                                            <Cell tally={results.checks?.[c.key]?.failed} luck={results.luck_a_rate} />
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
                         <p className="text-xs text-muted-foreground">
                             Green = above luck. Signals in the same direction within 4 hours count as one independent call.
                             The TradingView and coin-flip columns use the same signals, so you can see whether the AI adds anything.

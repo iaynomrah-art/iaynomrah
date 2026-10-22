@@ -47,3 +47,6 @@ RLS_OLD_CONFIG.txt
 data.json
 db schema
 *.sql
+
+# Local scratch files (never committed)
+scratch/

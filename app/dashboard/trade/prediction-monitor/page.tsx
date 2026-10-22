@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Activity, Brain, CandlestickChart, CheckCircle2, Clock, Coins, Gauge, LineChart, XCircle } from 'lucide-react'
+import GoldCandleChart from '@/components/chart/GoldCandleChart'
 
 type Signal = {
     id: string
@@ -186,9 +187,11 @@ const PredictionMonitorPage = () => {
                     <Card
                         icon={<Gauge className="h-4 w-4" />} label="Volatility" ok={volFresh}
                         value={s?.volatility ? `$${Number(s.volatility.forecast_6h).toFixed(1)}/h` : '—'}
-                        sub={s?.volatility ? <>Expected move next 6h{s.volatility.ratio_now != null ? ` · now ${Number(s.volatility.ratio_now).toFixed(1)}x normal` : ''} · {ago(s.volatility.computed_at, now)}</> : 'No numbers yet'}
+                        sub={s?.volatility ? <>Expected move next 6h{s.volatility.ratio_now != null ? ` · now ${Number(s.volatility.ratio_now).toFixed(1)}x normal` : ''} · {ago(s.volatility.computed_at, now)} · {s.volatility.source?.startsWith('VPS') ? 'VPS' : 'MT5'}</> : 'No numbers yet'}
                     />
                 </div>
+
+                <GoldCandleChart />
 
                 <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
                     {/* Live feed */}
