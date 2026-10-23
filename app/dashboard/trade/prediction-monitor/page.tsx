@@ -18,7 +18,11 @@ type Signal = {
     graded_at: string | null
     skipped: string | null
     outcome: { ai: string | null, tv: string | null, coin: string | null }
+    hours: number | null
+    trade: { lot: number, risk: number, entry: number, sl: number, tp: number, trigger: number, close: number | null, hedged: boolean | null, pnl: number | null } | null
 }
+
+type Tally = { graded: number, resolved: number, a: number, b: number, c: number, x: number, pnl: number, a_rate: number | null }
 
 type Status = {
     now: string
@@ -27,6 +31,8 @@ type Status = {
     volatility: { computed_at: string, forecast_6h: number, ratio_now: number | null, source: string } | null
     candles: { last: { minute: string, close: number, ticks: number } | null, last_hour: number }
     counts: { shadow: number, graded: number }
+    reference?: { risk: number, max_lot: number, trigger_pct: number, tp: string }
+    scoreboard?: Record<'ai' | 'tv' | 'coin', Tally>
     signals: Signal[]
     replay: {
         signals: number
@@ -40,6 +46,8 @@ type Status = {
 }
 
 const REFRESH_MS = 30000
+// Luck at a 10% trigger with TP = SL: 0.10 / (1 + 0.10), in %
+const LUCK_A_RATE = 9.1
 const GRADE_DELAY_H = 8
 
 const minutesAgo = (iso: string, now: number) => Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000))
@@ -104,6 +112,66 @@ const Bars = ({ title, data }: { title: string, data: { ai: number, tv: number, 
                 <span className="flex items-center gap-1.5"><span className="inline-block w-3 border-t-2 border-dashed border-amber-300/80" /> Luck {(data.luck / 10).toFixed(1)} in 10</span>
                 <span className="flex items-center gap-1.5"><span className="inline-block w-3 border-t-2 border-emerald-400/80" /> Goal 2 in 10</span>
                 <span>{data.resolved} finished trades</span>
+            </div>
+        </div>
+    )
+}
+
+const money = (v: number) => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(2)}`
+
+// Totals over every graded shadow signal, per picker
+const Scoreboard = ({ board, risk, luck }: { board: Record<'ai' | 'tv' | 'coin', Tally>, risk: number, luck: number | null }) => {
+    const rows: { key: 'ai' | 'tv' | 'coin', label: string, cls: string }[] = [
+        { key: 'ai', label: 'AI (qwen)', cls: 'text-violet-300' },
+        { key: 'tv', label: 'TradingView rating', cls: 'text-sky-300' },
+        { key: 'coin', label: 'Coin flip', cls: 'text-zinc-300' },
+    ]
+    return (
+        <div className="rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#1a1a1a] flex flex-col md:flex-row md:items-end justify-between gap-2">
+                <div>
+                    <div className="text-sm font-semibold text-white flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-400" /> Scoreboard: graded signals</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                        Each signal as if traded at ${risk} risk (lot sized to it, max 0.30), TP = SL distance, equal-lot hedge at a 10% dip
+                    </div>
+                </div>
+                {luck !== null && <div className="text-xs text-muted-foreground">Luck: about <span className="text-amber-300 font-semibold">{(luck / 10).toFixed(1)} in 10</span> hit TP without the hedge · goal <span className="text-emerald-400 font-semibold">2 in 10</span></div>}
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                        <tr className="border-b border-[#1a1a1a]">
+                            <th className="px-5 py-2.5 text-left">Picker</th>
+                            <th className="px-3 py-2.5 text-left">TP without hedge</th>
+                            <th className="px-3 py-2.5 text-left">Hedged, then SL</th>
+                            <th className="px-3 py-2.5 text-left">Hedged, then TP</th>
+                            <th className="px-3 py-2.5 text-left">Unfinished in 8h</th>
+                            <th className="px-3 py-2.5 text-right pr-5">Result at ${risk} risk</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#141414]">
+                        {rows.map((r) => {
+                            const t = board[r.key]
+                            return (
+                                <tr key={r.key}>
+                                    <td className={`px-5 py-3 font-semibold ${r.cls}`}>{r.label}</td>
+                                    <td className="px-3 py-3">
+                                        <span className="text-lg font-bold text-emerald-400">{t.a}</span>
+                                        <span className="text-muted-foreground"> of {t.resolved}</span>
+                                        {t.a_rate !== null && <span className="ml-2 text-xs text-white">({(t.a_rate / 10).toFixed(1)} in 10)</span>}
+                                    </td>
+                                    <td className="px-3 py-3 text-amber-400 font-semibold">{t.b}</td>
+                                    <td className="px-3 py-3 text-sky-400 font-semibold">{t.c}</td>
+                                    <td className="px-3 py-3 text-muted-foreground">{t.x}</td>
+                                    <td className={`px-3 py-3 pr-5 text-right font-bold ${t.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{money(t.pnl)}</td>
+                                </tr>
+                            )
+                        })}
+                    </tbody>
+                </table>
+            </div>
+            <div className="px-5 py-2.5 border-t border-[#1a1a1a] text-[11px] text-muted-foreground">
+                TP without hedge = +${risk} · hedged either way = −${(risk * 0.1).toFixed(0)} (the 10% dip) · unfinished = not counted. Spread and fees not included.
             </div>
         </div>
     )
@@ -191,44 +259,67 @@ const PredictionMonitorPage = () => {
                     />
                 </div>
 
+                {s?.scoreboard && <Scoreboard board={s.scoreboard} risk={s.reference?.risk ?? 100} luck={LUCK_A_RATE} />}
+
                 <GoldCandleChart />
 
-                <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                     {/* Live feed */}
-                    <div className="xl:col-span-3 rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] overflow-hidden">
+                    <div className="rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] overflow-hidden">
                         <div className="px-5 py-4 border-b border-[#1a1a1a] flex items-center justify-between">
-                            <div className="text-sm font-semibold text-white flex items-center gap-2"><Activity className="h-4 w-4 text-violet-400" /> Live signal feed</div>
-                            <div className="text-[11px] text-muted-foreground">Trigger 10%, TP = SL</div>
+                            <div className="text-sm font-semibold text-white flex items-center gap-2"><Activity className="h-4 w-4 text-violet-400" /> Trade log (every AI signal, as if traded)</div>
+                            <div className="text-[11px] text-muted-foreground">As if traded at ${s?.reference?.risk ?? 100} risk · trigger 10% · TP = SL</div>
                         </div>
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
                             <table className="w-full text-sm">
-                                <thead className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                                <thead className="text-[11px] uppercase tracking-widest text-muted-foreground sticky top-0 bg-[#0a0a0a] z-10">
                                     <tr className="border-b border-[#1a1a1a]">
-                                        <th className="px-5 py-2.5 text-left">Time</th>
-                                        <th className="px-3 py-2.5 text-left">AI</th>
-                                        <th className="px-3 py-2.5 text-left">Score</th>
-                                        <th className="px-3 py-2.5 text-left">AI result</th>
-                                        <th className="px-3 py-2.5 text-left">Rating</th>
-                                        <th className="px-3 py-2.5 text-left">Coin</th>
+                                        <th className="px-5 py-2.5 text-left">Opened</th>
+                                        <th className="px-3 py-2.5 text-left">Position</th>
+                                        <th className="px-3 py-2.5 text-right">Lots</th>
+                                        <th className="px-3 py-2.5 text-right">TP</th>
+                                        <th className="px-3 py-2.5 text-right">SL</th>
+                                        <th className="px-3 py-2.5 text-right">Open price</th>
+                                        <th className="px-3 py-2.5 text-right">Close price</th>
+                                        <th className="px-3 py-2.5 text-right">Profit / loss</th>
+                                        <th className="px-3 py-2.5 text-right">Hours</th>
+                                        <th className="px-3 py-2.5 text-left">How it ended</th>
+                                        <th className="px-3 py-2.5 text-left">Rating / Coin</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#141414]">
-                                    {(s?.signals || []).filter((x) => x.shadow).slice(0, 12).map((x) => {
+                                    {(s?.signals || []).filter((x) => x.shadow).map((x) => {
                                         const hoursLeft = Math.max(0, GRADE_DELAY_H - (now - new Date(x.created_at).getTime()) / 3600000)
                                         const pending = x.skipped ? 'skipped' : hoursLeft > 0 ? `grading in ${Math.ceil(hoursLeft)}h` : 'grading soon'
+                                        const t = x.trade
+                                        const px = (v?: number) => v ? v.toFixed(2) : '—'
                                         return (
                                             <tr key={x.id} className="hover:bg-white/[0.02]">
                                                 <td className="px-5 py-3 text-white whitespace-nowrap">{localTime(x.created_at)}</td>
-                                                <td className="px-3 py-3"><Dir d={x.ai} /></td>
-                                                <td className="px-3 py-3 text-white">{x.score ?? '—'}</td>
-                                                <td className="px-3 py-3"><Outcome story={x.outcome.ai} pendingLabel={pending} /></td>
-                                                <td className="px-3 py-3"><div className="flex items-center gap-2"><Dir d={x.tv} /><Outcome story={x.outcome.tv} pendingLabel="" /></div></td>
-                                                <td className="px-3 py-3"><div className="flex items-center gap-2"><Dir d={x.coin} /><Outcome story={x.outcome.coin} pendingLabel="" /></div></td>
+                                                <td className="px-3 py-3 whitespace-nowrap"><Dir d={x.ai} /> <span className="text-[11px] text-muted-foreground">score {x.score ?? '—'}</span></td>
+                                                <td className="px-3 py-3 text-right text-white tabular-nums">{t ? t.lot.toFixed(2) : '—'}</td>
+                                                <td className="px-3 py-3 text-right text-emerald-400 tabular-nums">{px(t?.tp)}</td>
+                                                <td className="px-3 py-3 text-right text-red-400 tabular-nums">{px(t?.sl)}</td>
+                                                <td className="px-3 py-3 text-right text-white tabular-nums">{px(t?.entry)}</td>
+                                                <td className="px-3 py-3 text-right text-white tabular-nums">{t?.close ? px(t.close) : <span className="text-muted-foreground text-[11px]">{x.graded_at ? '—' : 'still open'}</span>}</td>
+                                                <td className={`px-3 py-3 text-right font-bold tabular-nums ${t?.pnl == null ? 'text-muted-foreground' : t.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                    {t?.pnl == null ? '—' : money(t.pnl)}
+                                                </td>
+                                                <td className="px-3 py-3 text-right text-white tabular-nums">{x.hours != null ? `${x.hours.toFixed(1)}h` : '—'}</td>
+                                                <td className="px-3 py-3">
+                                                    <Outcome story={x.outcome.ai} pendingLabel={pending} />
+                                                    {t?.hedged && <div className="text-[11px] text-amber-300/80 mt-1 whitespace-nowrap">hedge opened at {px(t.trigger)}</div>}
+                                                    {!x.graded_at && t && <div className="text-[11px] text-muted-foreground mt-1 whitespace-nowrap">hedge would open at {px(t.trigger)}</div>}
+                                                </td>
+                                                <td className="px-3 py-3 whitespace-nowrap">
+                                                    <div className="flex items-center gap-1.5"><Dir d={x.tv} /><Outcome story={x.outcome.tv} pendingLabel="" /></div>
+                                                    <div className="flex items-center gap-1.5 mt-1"><Dir d={x.coin} /><Outcome story={x.outcome.coin} pendingLabel="" /></div>
+                                                </td>
                                             </tr>
                                         )
                                     })}
                                     {s && !s.signals.some((x) => x.shadow) && (
-                                        <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">No shadow signals yet. The first one comes at the next :05.</td></tr>
+                                        <tr><td colSpan={11} className="px-5 py-10 text-center text-sm text-muted-foreground">No shadow signals yet. The first one comes at the next :05.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -239,7 +330,7 @@ const PredictionMonitorPage = () => {
                     </div>
 
                     {/* Replay */}
-                    <div className="xl:col-span-2 rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] p-5 flex flex-col gap-6">
+                    <div className={`rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] p-5 flex flex-col gap-6 ${s?.replay ? '' : 'hidden'}`}>
                         <div>
                             <div className="text-sm font-semibold text-white flex items-center gap-2"><LineChart className="h-4 w-4 text-sky-400" /> Historical replay</div>
                             {s?.replay ? (
