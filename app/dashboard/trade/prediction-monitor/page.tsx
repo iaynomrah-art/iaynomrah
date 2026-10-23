@@ -25,6 +25,7 @@ type Signal = {
     natural?: { lot: number, main: number, backup: number, net: number } | null
 }
 
+type Cost = { per_lot_per_account: number, pairs: number, measured: boolean, avg_pair_net?: number | null }
 type StrategyTotals = { net: number, main: number, backup: number, backup_used: number }
 type Comparison = { trades: number, delayed: StrategyTotals, natural: StrategyTotals, series: { t: string, delayed: number, natural: number }[] }
 
@@ -37,7 +38,7 @@ type Status = {
     volatility: { computed_at: string, forecast_6h: number, ratio_now: number | null, source: string } | null
     candles: { last: { minute: string, close: number, ticks: number } | null, last_hour: number }
     counts: { shadow: number, graded: number }
-    reference?: { risk: number, max_lot: number, trigger_pct: number, tp: string }
+    reference?: { risk: number, max_lot: number, trigger_pct: number, tp: string, cost?: Cost }
     scoreboard?: Record<'ai' | 'tv' | 'coin', Tally>
     comparison?: Comparison
     signals: Signal[]
@@ -55,7 +56,7 @@ type Status = {
 type Past = {
     runs: { run: string, signals: number, from: string, to: string }[]
     run: string | null
-    reference?: { risk: number }
+    reference?: { risk: number, cost?: Cost }
     scoreboard?: Record<'ai' | 'tv' | 'coin', Tally>
     comparison?: Comparison
     signals: Signal[]
@@ -109,10 +110,14 @@ const Outcome = ({ story, pendingLabel }: { story: string | null, pendingLabel: 
     ? <span className={`px-2 py-0.5 rounded-md border text-[11px] font-semibold whitespace-nowrap ${STORY[story]?.cls}`}>{STORY[story]?.label ?? story}</span>
     : <span className="text-[11px] text-muted-foreground whitespace-nowrap">{pendingLabel}</span>
 
+const costText = (c?: Cost) => c
+    ? `Includes trading costs measured from your ${c.pairs} real normal-hedge pairs: about $${(c.per_lot_per_account / 100).toFixed(2)} per 0.01 lot for each account that trades${c.avg_pair_net != null ? ` (your pairs averaged ${c.avg_pair_net.toFixed(2)} per pair)` : ''}.`
+    : 'Spread and fees not included.'
+
 const money = (v: number) => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(2)}`
 
 // Totals over every graded shadow signal, per picker
-const Scoreboard = ({ board, risk, luck }: { board: Record<'ai' | 'tv' | 'coin', Tally>, risk: number, luck: number | null }) => {
+const Scoreboard = ({ board, risk, luck, cost }: { board: Record<'ai' | 'tv' | 'coin', Tally>, risk: number, luck: number | null, cost?: Cost }) => {
     const rows: { key: 'ai' | 'tv' | 'coin', label: string, cls: string }[] = [
         { key: 'ai', label: 'AI (qwen)', cls: 'text-violet-300' },
         { key: 'tv', label: 'TradingView rating', cls: 'text-sky-300' },
@@ -169,7 +174,7 @@ const Scoreboard = ({ board, risk, luck }: { board: Record<'ai' | 'tv' | 'coin',
                 </table>
             </div>
             <div className="px-5 py-2.5 border-t border-[#1a1a1a] text-[11px] text-muted-foreground">
-                TP without hedge = +${risk} · hedged either way = −${(risk * 0.1).toFixed(0)} (the 10% dip) · unfinished = not counted. Spread and fees not included.
+                TP without hedge = +${risk} · hedged either way = −${(risk * 0.1).toFixed(0)} (the 10% dip) · unfinished = not counted. {costText(cost)}
                 Slippage = (actual hedge loss − planned 10% loss) ÷ planned loss, from 1-minute prices (real broker fills can slip more).
             </div>
         </div>
@@ -177,7 +182,7 @@ const Scoreboard = ({ board, risk, luck }: { board: Record<'ai' | 'tv' | 'coin',
 }
 
 // Delayed hedge vs normal hedge on the same trades, explained for beginners
-const StrategyCompare = ({ c, risk }: { c: Comparison, risk: number }) => {
+const StrategyCompare = ({ c, risk, cost }: { c: Comparison, risk: number, cost?: Cost }) => {
     const diff = c.delayed.net - c.natural.net
     const spared = c.trades - c.delayed.backup_used
     const cls = (v: number) => v > 0 ? 'text-emerald-400' : v < 0 ? 'text-red-400' : 'text-white'
@@ -241,6 +246,9 @@ const StrategyCompare = ({ c, risk }: { c: Comparison, risk: number }) => {
                         </tr>
                     </tbody>
                 </table>
+                <div className="px-4 py-2.5 border-t border-[#1a1a1a] text-[11px] text-muted-foreground">
+                    Before costs. On top of this, every account that trades pays spread and commission, so normal hedging always pays it twice; the delayed hedge pays it only once when the backup never opens.
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -274,8 +282,8 @@ const StrategyCompare = ({ c, risk }: { c: Comparison, risk: number }) => {
                     </div>
                     <div className="flex flex-wrap gap-5 text-[11px] text-muted-foreground mt-1">
                         <span className="flex items-center gap-1.5"><span className="inline-block w-4 border-t-2 border-violet-400" /> Delayed hedge</span>
-                        <span className="flex items-center gap-1.5"><span className="inline-block w-4 border-t-2 border-zinc-400" /> Normal hedge (always about $0)</span>
-                        <span>Bottom axis = trade number. Spread and fees not included.</span>
+                        <span className="flex items-center gap-1.5"><span className="inline-block w-4 border-t-2 border-zinc-400" /> Normal hedge</span>
+                        <span>Bottom axis = trade number. {costText(cost)}</span>
                     </div>
                 </div>
             )}
@@ -288,7 +296,7 @@ const TradeLog = ({ signals, now, risk, title, emptyText }: { signals: Signal[],
     <div className="rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] overflow-hidden">
         <div className="px-5 py-4 border-b border-[#1a1a1a] flex items-center justify-between">
             <div className="text-sm font-semibold text-white flex items-center gap-2"><Activity className="h-4 w-4 text-violet-400" /> {title}</div>
-            <div className="text-[11px] text-muted-foreground">As if traded at ${risk} risk · trigger 10% · TP = SL</div>
+            <div className="text-[11px] text-muted-foreground">Each row is the AI&apos;s trade, as if traded at ${risk} risk · trigger 10% · TP = SL · costs included</div>
         </div>
         <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
             <table className="w-full text-sm">
@@ -301,10 +309,10 @@ const TradeLog = ({ signals, now, risk, title, emptyText }: { signals: Signal[],
                         <th className="px-3 py-2.5 text-right">SL</th>
                         <th className="px-3 py-2.5 text-right">Open price</th>
                         <th className="px-3 py-2.5 text-right">Close price</th>
-                        <th className="px-3 py-2.5 text-right">Profit / loss (each account)</th>
+                        <th className="px-3 py-2.5 text-right">AI trade: profit / loss</th>
                         <th className="px-3 py-2.5 text-right">Hours</th>
                         <th className="px-3 py-2.5 text-left">How it ended</th>
-                        <th className="px-3 py-2.5 text-left">Compared with</th>
+                        <th className="px-3 py-2.5 text-left">If instead this picked the side (net)</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-[#141414]">
@@ -328,7 +336,7 @@ const TradeLog = ({ signals, now, risk, title, emptyText }: { signals: Signal[],
                                             <div><span className="text-muted-foreground">Main </span><span className={t.primary_pnl! >= 0 ? 'text-emerald-400' : 'text-red-400'}>{money(t.primary_pnl!)}</span></div>
                                             <div><span className="text-muted-foreground">Hedge </span>{t.hedged ? <span className={t.hedge_pnl! >= 0 ? 'text-emerald-400' : 'text-red-400'}>{money(t.hedge_pnl!)}</span> : <span className="text-muted-foreground">not opened</span>}</div>
                                             <div className={`text-sm font-bold border-t border-[#1f1f1f] pt-0.5 ${t.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}><span className="text-[10px] font-normal text-muted-foreground uppercase mr-1">Net</span>{money(t.pnl)}</div>
-                                {x.natural && <div className="text-[10px] text-muted-foreground mt-0.5">Normal hedge: {money(x.natural.main)} / {money(x.natural.backup)} = $0</div>}
+                                {x.natural && <div className="text-[10px] text-muted-foreground mt-0.5">With normal hedge: {money(x.natural.main)} / {money(x.natural.backup)} = {money(x.natural.net)}</div>}
                                         </div>
                                     )}
                                 </td>
@@ -346,8 +354,8 @@ const TradeLog = ({ signals, now, risk, title, emptyText }: { signals: Signal[],
                                     {!x.graded_at && t && <div className="text-[11px] text-muted-foreground mt-1 whitespace-nowrap">hedge would open at {px(t.trigger)}</div>}
                                 </td>
                                 <td className="px-3 py-3 whitespace-nowrap">
-                                    <div className="flex items-center gap-1.5"><span className="w-12 text-[10px] uppercase tracking-wider text-sky-300/80">Rating</span><Dir d={x.tv} /><Outcome story={x.outcome.tv} pendingLabel="" />{x.compare?.tv != null && <span className={`text-[11px] font-semibold tabular-nums ${x.compare.tv >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{money(x.compare.tv)}</span>}</div>
-                                    <div className="flex items-center gap-1.5 mt-1"><span className="w-12 text-[10px] uppercase tracking-wider text-zinc-400">Coin</span><Dir d={x.coin} /><Outcome story={x.outcome.coin} pendingLabel="" />{x.compare?.coin != null && <span className={`text-[11px] font-semibold tabular-nums ${x.compare.coin >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{money(x.compare.coin)}</span>}</div>
+                                    <div className="flex items-center gap-1.5"><span className="w-20 text-[10px] uppercase tracking-wider text-sky-300/80">TV rating</span><Dir d={x.tv} /><Outcome story={x.outcome.tv} pendingLabel="" />{x.compare?.tv != null && <span className={`text-[11px] font-semibold tabular-nums ${x.compare.tv >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{money(x.compare.tv)}</span>}</div>
+                                    <div className="flex items-center gap-1.5 mt-1"><span className="w-20 text-[10px] uppercase tracking-wider text-zinc-400">Coin flip</span><Dir d={x.coin} /><Outcome story={x.outcome.coin} pendingLabel="" />{x.compare?.coin != null && <span className={`text-[11px] font-semibold tabular-nums ${x.compare.coin >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{money(x.compare.coin)}</span>}</div>
                                 </td>
                             </tr>
                         )
@@ -492,11 +500,11 @@ const PredictionMonitorPage = () => {
 
                 </>}
 
-                {view === 'live' && s?.scoreboard && <Scoreboard board={s.scoreboard} risk={s.reference?.risk ?? 100} luck={LUCK_A_RATE} />}
-                {view === 'past' && past?.scoreboard && <Scoreboard board={past.scoreboard} risk={past.reference?.risk ?? 100} luck={LUCK_A_RATE} />}
+                {view === 'live' && s?.scoreboard && <Scoreboard board={s.scoreboard} risk={s.reference?.risk ?? 100} luck={LUCK_A_RATE} cost={s.reference?.cost} />}
+                {view === 'past' && past?.scoreboard && <Scoreboard board={past.scoreboard} risk={past.reference?.risk ?? 100} luck={LUCK_A_RATE} cost={past.reference?.cost} />}
 
-                {view === 'live' && s?.comparison && s.comparison.trades > 0 && <StrategyCompare c={s.comparison} risk={s.reference?.risk ?? 100} />}
-                {view === 'past' && past?.comparison && past.comparison.trades > 0 && <StrategyCompare c={past.comparison} risk={past.reference?.risk ?? 100} />}
+                {view === 'live' && s?.comparison && s.comparison.trades > 0 && <StrategyCompare c={s.comparison} risk={s.reference?.risk ?? 100} cost={s.reference?.cost} />}
+                {view === 'past' && past?.comparison && past.comparison.trades > 0 && <StrategyCompare c={past.comparison} risk={past.reference?.risk ?? 100} cost={past.reference?.cost} />}
 
                 {view === 'live' && <GoldCandleChart />}
 
