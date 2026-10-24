@@ -123,7 +123,7 @@ const SignalResultsPage = () => {
                 {isLoading ? (
                     <div className="p-16 text-center text-sm text-muted-foreground">Loading results...</div>
                 ) : results?.error ? (
-                    <div className="p-6 border border-red-500/20 rounded-2xl bg-red-500/5 text-sm text-red-300">Could not load results: {results.error}</div>
+                    <div className="p-6 border border-red-500/20 rounded-2xl bg-red-500/5 text-sm text-red-300">Could not load results: {typeof results.error === 'object' ? JSON.stringify(results.error) : String(results.error)}</div>
                 ) : !results || results.signals === 0 ? (
                     <div className="flex flex-col items-center justify-center p-16 border border-dashed border-[#1a1a1a] rounded-2xl bg-[#0a0a0a]/30">
                         <FlaskConical className="h-7 w-7 text-muted-foreground mb-4" />

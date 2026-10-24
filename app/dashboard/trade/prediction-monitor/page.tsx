@@ -189,10 +189,15 @@ const costText = (c?: Cost) => c
     ? `Includes trading costs measured from your ${c.pairs} real normal-hedge pairs: about $${(c.per_lot_per_account / 100).toFixed(2)} per 0.01 lot for each account that trades${c.avg_pair_net != null ? ` (your pairs averaged ${c.avg_pair_net.toFixed(2)} per pair)` : ''}.`
     : 'Spread and fees not included.'
 
-const money = (v: number) => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(2)}`
+const money = (v: number | null | undefined) => {
+    if (v == null || isNaN(Number(v))) return '—'
+    const num = Number(v)
+    return `${num >= 0 ? '+' : '−'}$${Math.abs(num).toFixed(2)}`
+}
 
 // Totals over every graded shadow signal, per picker
-const Scoreboard = ({ board, risk, luck, cost, mainLabel = 'AI (qwen)', trig = 0.1 }: { board: Record<'ai' | 'tv' | 'coin', Tally>, risk: number, luck: number | null, cost?: Cost, mainLabel?: string, trig?: number }) => {
+const Scoreboard = ({ board, risk, luck, cost, mainLabel = 'AI (qwen)', trig = 0.1 }: { board?: Record<'ai' | 'tv' | 'coin', Tally> | null, risk: number, luck: number | null, cost?: Cost, mainLabel?: string, trig?: number }) => {
+    if (!board) return null
     const rows: { key: 'ai' | 'tv' | 'coin', label: string, cls: string }[] = [
         { key: 'ai', label: mainLabel, cls: 'text-violet-300' },
         { key: 'tv', label: 'TradingView rating', cls: 'text-sky-300' },
@@ -224,25 +229,25 @@ const Scoreboard = ({ board, risk, luck, cost, mainLabel = 'AI (qwen)', trig = 0
                     </thead>
                     <tbody className="divide-y divide-[#141414]">
                         {rows.map((r) => {
-                            const t = board[r.key]
+                            const t = board?.[r.key] ?? { a: 0, b: 0, c: 0, x: 0, resolved: 0, a_rate: null, a_rate_all: null, pnl: 0, hedges: 0, slippage_avg_pct: null, slippage_max_pct: null }
                             return (
                                 <tr key={r.key}>
                                     <td className={`px-5 py-3 font-semibold ${r.cls}`}>{r.label}</td>
                                     <td className="px-3 py-3">
-                                        <span className="text-lg font-bold text-emerald-400">{t.a}</span>
-                                        <span className="text-muted-foreground"> of {t.resolved}</span>
-                                        {t.a_rate !== null && <span className="ml-2 text-xs text-white">({(t.a_rate / 10).toFixed(1)} in 10)</span>}
-                                        {t.a_rate_all != null && t.x > 0 && <div className="text-[11px] text-muted-foreground">{(t.a_rate_all / 10).toFixed(1)} in 10 counting unfinished</div>}
+                                        <span className="text-lg font-bold text-emerald-400">{t.a ?? 0}</span>
+                                        <span className="text-muted-foreground"> of {t.resolved ?? 0}</span>
+                                        {t.a_rate != null && !isNaN(Number(t.a_rate)) && <span className="ml-2 text-xs text-white">({(Number(t.a_rate) / 10).toFixed(1)} in 10)</span>}
+                                        {t.a_rate_all != null && (t.x ?? 0) > 0 && <div className="text-[11px] text-muted-foreground">{(Number(t.a_rate_all) / 10).toFixed(1)} in 10 counting unfinished</div>}
                                     </td>
-                                    <td className="px-3 py-3 text-amber-400 font-semibold">{t.b}</td>
-                                    <td className="px-3 py-3 text-sky-400 font-semibold">{t.c}</td>
-                                    <td className="px-3 py-3 text-muted-foreground">{t.x}</td>
+                                    <td className="px-3 py-3 text-amber-400 font-semibold">{t.b ?? 0}</td>
+                                    <td className="px-3 py-3 text-sky-400 font-semibold">{t.c ?? 0}</td>
+                                    <td className="px-3 py-3 text-muted-foreground">{t.x ?? 0}</td>
                                     <td className="px-3 py-3 text-xs">
                                         {t.slippage_avg_pct != null
-                                            ? <><span className={t.slippage_avg_pct > 0 ? 'text-red-400 font-semibold' : 'text-white font-semibold'}>{t.slippage_avg_pct.toFixed(1)}% avg</span><span className="text-muted-foreground"> · max {t.slippage_max_pct?.toFixed(1)}% · {t.hedges} hedges</span></>
+                                            ? <><span className={Number(t.slippage_avg_pct) > 0 ? 'text-red-400 font-semibold' : 'text-white font-semibold'}>{Number(t.slippage_avg_pct).toFixed(1)}% avg</span><span className="text-muted-foreground"> · max {t.slippage_max_pct != null ? `${Number(t.slippage_max_pct).toFixed(1)}%` : '—'} · {t.hedges ?? 0} hedges</span></>
                                             : <span className="text-muted-foreground">no hedges</span>}
                                     </td>
-                                    <td className={`px-3 py-3 pr-5 text-right font-bold ${t.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{money(t.pnl)}</td>
+                                    <td className={`px-3 py-3 pr-5 text-right font-bold ${(t.pnl ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{money(t.pnl ?? 0)}</td>
                                 </tr>
                             )
                         })}
@@ -258,40 +263,47 @@ const Scoreboard = ({ board, risk, luck, cost, mainLabel = 'AI (qwen)', trig = 0
 }
 
 // Delayed hedge vs normal hedge on the same trades, explained for beginners
-const StrategyCompare = ({ c, risk, cost, trig = 0.1 }: { c: Comparison, risk: number, cost?: Cost, trig?: number }) => {
-    const diff = c.delayed.net - c.natural.net
-    const spared = c.trades - c.delayed.backup_used
+const StrategyCompare = ({ c, risk, cost, trig = 0.1 }: { c?: Comparison | null, risk: number, cost?: Cost, trig?: number }) => {
+    if (!c || !c.delayed || !c.natural) return null
+    const diff = (c.delayed.net ?? 0) - (c.natural.net ?? 0)
+    const spared = (c.trades ?? 0) - (c.delayed.backup_used ?? 0)
     const cls = (v: number) => v > 0 ? 'text-emerald-400' : v < 0 ? 'text-red-400' : 'text-white'
-    const Side = ({ title, how, t, tone }: { title: string, how: string, t: StrategyTotals, tone: string }) => (
-        <div className={`p-5 rounded-2xl border ${tone} bg-[#0a0a0a] flex flex-col gap-4`}>
-            <div>
-                <div className="text-base font-bold text-white">{title}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{how}</div>
-            </div>
-            <div>
-                <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Total, both accounts</div>
-                <div className={`text-3xl font-bold ${cls(t.net)}`}>{money(t.net)}</div>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="p-3 rounded-xl bg-white/[0.03] border border-[#1a1a1a]">
-                    <div className="text-[11px] text-muted-foreground">Main account</div>
-                    <div className={`font-bold ${cls(t.main)}`}>{money(t.main)}</div>
+    const Side = ({ title, how, t, tone }: { title: string, how: string, t?: StrategyTotals, tone: string }) => {
+        const net = t?.net ?? 0
+        const main = t?.main ?? 0
+        const backup = t?.backup ?? 0
+        const used = t?.backup_used ?? 0
+        return (
+            <div className={`p-5 rounded-2xl border ${tone} bg-[#0a0a0a] flex flex-col gap-4`}>
+                <div>
+                    <div className="text-base font-bold text-white">{title}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{how}</div>
                 </div>
-                <div className="p-3 rounded-xl bg-white/[0.03] border border-[#1a1a1a]">
-                    <div className="text-[11px] text-muted-foreground">Backup account</div>
-                    <div className={`font-bold ${cls(t.backup)}`}>{money(t.backup)}</div>
+                <div>
+                    <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Total, both accounts</div>
+                    <div className={`text-3xl font-bold ${cls(net)}`}>{money(net)}</div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="p-3 rounded-xl bg-white/[0.03] border border-[#1a1a1a]">
+                        <div className="text-[11px] text-muted-foreground">Main account</div>
+                        <div className={`font-bold ${cls(main)}`}>{money(main)}</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white/[0.03] border border-[#1a1a1a]">
+                        <div className="text-[11px] text-muted-foreground">Backup account</div>
+                        <div className={`font-bold ${cls(backup)}`}>{money(backup)}</div>
+                    </div>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                    Backup account had to trade in <span className="text-white font-semibold">{used} of {c.trades ?? 0}</span> trades
                 </div>
             </div>
-            <div className="text-xs text-muted-foreground">
-                Backup account had to trade in <span className="text-white font-semibold">{t.backup_used} of {c.trades}</span> trades
-            </div>
-        </div>
-    )
+        )
+    }
     return (
         <div className="rounded-2xl border border-[#1a1a1a] bg-[#080808] p-5 flex flex-col gap-5">
             <div>
                 <div className="text-lg font-bold text-white">Delayed hedge vs normal hedge</div>
-                <div className="text-sm text-muted-foreground">Same {c.trades} trades (unfinished ones at their 8-hour result), same lot sizes (about ${risk} risk each). Only the way the backup account is used changes.</div>
+                <div className="text-sm text-muted-foreground">Same {c.trades ?? 0} trades (unfinished ones at their 8-hour result), same lot sizes (about ${risk} risk each). Only the way the backup account is used changes.</div>
             </div>
 
             {/* The three situations, in plain words */}
@@ -338,11 +350,11 @@ const StrategyCompare = ({ c, risk, cost, trig = 0.1 }: { c: Comparison, risk: n
             </div>
 
             <div className={`p-4 rounded-xl border ${diff >= 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-red-500/30 bg-red-500/5'} text-sm text-white`}>
-                In plain words: over these {c.trades} trades the delayed hedge ended <b className={cls(diff)}>{money(diff)}</b> {diff >= 0 ? 'ahead of' : 'behind'} normal hedging,
+                In plain words: over these {c.trades ?? 0} trades the delayed hedge ended <b className={cls(diff)}>{money(diff)}</b> {diff >= 0 ? 'ahead of' : 'behind'} normal hedging,
                 and the backup account stayed out of <b>{spared}</b> trades ({c.trades ? Math.round((spared / c.trades) * 100) : 0}%). With normal hedging it trades every time.
             </div>
 
-            {c.series.length > 1 && (
+            {c.series && c.series.length > 1 && (
                 <div>
                     <div className="text-sm font-semibold text-white mb-1">Running total, both accounts together</div>
                     <div className="text-xs text-muted-foreground mb-3">Each step is one trade. A line going up means that strategy is making money overall.</div>
@@ -373,12 +385,19 @@ const StrategyCompare = ({ c, risk, cost, trig = 0.1 }: { c: Comparison, risk: n
 }
 
 // TP without the hedge per day: summary, how many days had 0 / 1 / 2 / 3+, and a bar per day
-const DailyTp = ({ daily, title }: { daily: Daily, title: string }) => {
+const DailyTp = ({ daily, title }: { daily?: Daily | null, title: string }) => {
     const [mode, setMode] = useState<'one_at_a_time' | 'every'>('one_at_a_time')
-    const { days, summary: m } = daily[mode]
-    if (!m.days) return null
-    const pct = (n: number) => `${Math.round((n / m.days) * 100)}%`
-    const dayLabel = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString([], { month: 'short', day: 'numeric', timeZone: 'UTC' })
+    const current = daily?.[mode]
+    if (!current || !current.summary || !current.summary.days) return null
+    const { days = [], summary: m } = current
+    const pct = (n: number) => `${Math.round(((n ?? 0) / (m.days || 1)) * 100)}%`
+    const dayLabel = (d: string) => {
+        try {
+            return new Date(`${d}T00:00:00Z`).toLocaleDateString([], { month: 'short', day: 'numeric', timeZone: 'UTC' })
+        } catch {
+            return String(d)
+        }
+    }
     return (
         <div className="rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] p-5 flex flex-col gap-5">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
@@ -397,17 +416,17 @@ const DailyTp = ({ daily, title }: { daily: Daily, title: string }) => {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="p-4 rounded-xl bg-white/[0.03] border border-[#1a1a1a]">
                     <div className="text-[11px] text-muted-foreground uppercase tracking-widest">TP without hedge a day</div>
-                    <div className="text-2xl font-bold text-emerald-400">{m.a_per_day.toFixed(2)}</div>
-                    <div className="text-[11px] text-muted-foreground">{m.a_per_day > 0 ? `about 1 every ${(1 / m.a_per_day).toFixed(1)} days` : 'none'} · out of {m.trades_per_day} trades a day</div>
+                    <div className="text-2xl font-bold text-emerald-400">{(m.a_per_day ?? 0).toFixed(2)}</div>
+                    <div className="text-[11px] text-muted-foreground">{(m.a_per_day ?? 0) > 0 ? `about 1 every ${(1 / (m.a_per_day || 1)).toFixed(1)} days` : 'none'} · out of {m.trades_per_day ?? 0} trades a day</div>
                 </div>
                 <div className="p-4 rounded-xl bg-white/[0.03] border border-[#1a1a1a]">
                     <div className="text-[11px] text-muted-foreground uppercase tracking-widest">Days with at least one</div>
-                    <div className="text-2xl font-bold text-white">{pct(m.days - m.days_by_tp['0'])}</div>
-                    <div className="text-[11px] text-muted-foreground">{m.days - m.days_by_tp['0']} of {m.days} trading days · best day {m.best_day}</div>
+                    <div className="text-2xl font-bold text-white">{pct(m.days - (m.days_by_tp?.['0'] ?? 0))}</div>
+                    <div className="text-[11px] text-muted-foreground">{m.days - (m.days_by_tp?.['0'] ?? 0)} of {m.days} trading days · best day {m.best_day ?? 0}</div>
                 </div>
                 <div className="p-4 rounded-xl bg-white/[0.03] border border-[#1a1a1a]">
                     <div className="text-[11px] text-muted-foreground uppercase tracking-widest">Result a day</div>
-                    <div className={`text-2xl font-bold ${m.pnl_per_day >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{money(m.pnl_per_day)}</div>
+                    <div className={`text-2xl font-bold ${(m.pnl_per_day ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{money(m.pnl_per_day ?? 0)}</div>
                     <div className="text-[11px] text-muted-foreground">both accounts, delayed hedge, costs included</div>
                 </div>
                 <div className="p-4 rounded-xl bg-white/[0.03] border border-[#1a1a1a]">
@@ -415,8 +434,8 @@ const DailyTp = ({ daily, title }: { daily: Daily, title: string }) => {
                     {(['0', '1', '2', '3+'] as const).map((k) => (
                         <div key={k} className="flex items-center gap-2 text-[11px]">
                             <span className="w-14 text-muted-foreground">{k} TP</span>
-                            <div className="flex-1 h-2 rounded bg-white/5 overflow-hidden"><div className={`h-full ${k === '0' ? 'bg-zinc-600' : 'bg-emerald-500'}`} style={{ width: pct(m.days_by_tp[k]) }} /></div>
-                            <span className="w-16 text-right text-white tabular-nums">{m.days_by_tp[k]} days</span>
+                            <div className="flex-1 h-2 rounded bg-white/5 overflow-hidden"><div className={`h-full ${k === '0' ? 'bg-zinc-600' : 'bg-emerald-500'}`} style={{ width: pct(m.days_by_tp?.[k] ?? 0) }} /></div>
+                            <span className="w-16 text-right text-white tabular-nums">{m.days_by_tp?.[k] ?? 0} days</span>
                         </div>
                     ))}
                 </div>
@@ -661,14 +680,14 @@ const ApproachCompare = ({ list, selected, onSelect, cost }: { list: Approach[],
 
                                                 {/* Daily TP */}
                                                 <td className="px-3 py-3 text-center whitespace-nowrap">
-                                                    {a.per_day ? (
+                                                    {a.per_day?.one_at_a_time?.a_per_day != null ? (
                                                         <div>
                                                             <div className="text-white font-bold">
                                                                 {a.per_day.one_at_a_time.a_per_day.toFixed(2)}{' '}
                                                                 <span className="text-[10px] font-normal text-muted-foreground">/ day</span>
                                                             </div>
                                                             <div className="text-[10px] text-muted-foreground">
-                                                                all signals {a.per_day.every.a_per_day.toFixed(2)}/d
+                                                                all signals {(a.per_day.every?.a_per_day ?? 0).toFixed(2)}/d
                                                             </div>
                                                         </div>
                                                     ) : (
@@ -890,8 +909,8 @@ const TradeLog = ({ signals, now, risk, title, emptyText, mainLabel = 'AI', tota
                                     {/* Outcome & Reason */}
                                     <td className="px-3 py-3">
                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                            <Outcome story={x.outcome.ai} pendingLabel={pending} />
-                                            {x.diagnostic?.reason && x.outcome.ai !== 'A' && (
+                                            <Outcome story={x.outcome?.ai ?? null} pendingLabel={pending} />
+                                            {x.diagnostic?.reason && x.outcome?.ai && x.outcome.ai !== 'A' && (
                                                 <span className="text-[10px] text-zinc-300 bg-zinc-800/90 px-1.5 py-0.5 rounded border border-zinc-700/60">
                                                     {x.diagnostic.reason}
                                                 </span>
@@ -913,7 +932,7 @@ const TradeLog = ({ signals, now, risk, title, emptyText, mainLabel = 'AI', tota
                                         <div className="flex items-center gap-1.5">
                                             <span className="w-14 text-[10px] uppercase tracking-wider text-sky-400 font-medium">TV</span>
                                             <Dir d={x.tv} />
-                                            <Outcome story={x.outcome.tv} pendingLabel="" />
+                                            <Outcome story={x.outcome?.tv ?? null} pendingLabel="" />
                                             {x.compare?.tv != null && (
                                                 <span className={`text-[11px] font-mono font-semibold ${x.compare.tv >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                                     {money(x.compare.tv)}
@@ -923,7 +942,7 @@ const TradeLog = ({ signals, now, risk, title, emptyText, mainLabel = 'AI', tota
                                         <div className="flex items-center gap-1.5 mt-1">
                                             <span className="w-14 text-[10px] uppercase tracking-wider text-zinc-400 font-medium">COIN</span>
                                             <Dir d={x.coin} />
-                                            <Outcome story={x.outcome.coin} pendingLabel="" />
+                                            <Outcome story={x.outcome?.coin ?? null} pendingLabel="" />
                                             {x.compare?.coin != null && (
                                                 <span className={`text-[11px] font-mono font-semibold ${x.compare.coin >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                                     {money(x.compare.coin)}
@@ -991,7 +1010,7 @@ const PredictionMonitorPage = () => {
     const lastSignal = s?.signals?.find((x) => x.shadow)
     const volFresh = !!s?.volatility && minutesAgo(s.volatility.computed_at, now) <= 15
     const candlesFresh = !!s?.candles?.last && minutesAgo(s.candles.last.minute, now) <= 3
-    const nextIn = s ? Math.max(0, Math.round((new Date(s.next_shadow_run).getTime() - now) / 1000)) : 0
+    const nextIn = s && s.next_shadow_run && !isNaN(new Date(s.next_shadow_run).getTime()) ? Math.max(0, Math.round((new Date(s.next_shadow_run).getTime() - now) / 1000)) : 0
     const pastTrig = (past?.reference?.trigger_pct ?? 10) / 100
 
     return (
@@ -1013,7 +1032,7 @@ const PredictionMonitorPage = () => {
                     </div>
                 </div>
 
-                {s?.error && <div className="p-4 border border-red-500/20 rounded-2xl bg-red-500/5 text-sm text-red-300">Could not reach the orchestrator: {s.error}</div>}
+                {s?.error && <div className="p-4 border border-red-500/20 rounded-2xl bg-red-500/5 text-sm text-red-300">Could not reach the orchestrator: {typeof s.error === 'object' ? JSON.stringify(s.error) : String(s.error)}</div>}
 
                 <div className="flex flex-wrap items-center gap-2">
                     {([['live', 'Live test (from now on)'], ['past', 'Past data test (8 months back)']] as const).map(([key, label]) => (
@@ -1041,7 +1060,7 @@ const PredictionMonitorPage = () => {
                                     </button>
                                 ))}
                             </div>
-                        ) : past?.error ? <div className="text-xs text-red-300">Could not load past data: {past.error}</div>
+                        ) : past?.error ? <div className="text-xs text-red-300">Could not load past data: {typeof past.error === 'object' ? JSON.stringify(past.error) : String(past.error)}</div>
                           : past ? <div className="text-xs text-muted-foreground">No past-data runs saved yet.</div>
                           : <div className="text-xs text-muted-foreground">Loading...</div>}
                     </div>
@@ -1066,18 +1085,18 @@ const PredictionMonitorPage = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                     <Card
                         icon={<Brain className="h-4 w-4" />} label="Shadow signals" ok={!!s?.shadow_enabled}
-                        value={s ? s.counts.shadow : '—'}
-                        sub={s ? <>Last {lastSignal ? ago(lastSignal.created_at, now) : 'none yet'} · next in {Math.floor(nextIn / 60)}:{String(nextIn % 60).padStart(2, '0')}</> : 'Loading...'}
+                        value={s?.counts ? s.counts.shadow : '—'}
+                        sub={s?.counts ? <>Last {lastSignal ? ago(lastSignal.created_at, now) : 'none yet'} · next in {isNaN(nextIn) ? '—' : `${Math.floor(nextIn / 60)}:${String(nextIn % 60).padStart(2, '0')}`}</> : s?.error ? 'Status unavailable' : 'Loading...'}
                     />
                     <Card
                         icon={<CheckCircle2 className="h-4 w-4" />} label="Graded"
-                        value={s ? `${s.counts.graded} / ${s.counts.shadow}` : '—'}
+                        value={s?.counts ? `${s.counts.graded ?? 0} / ${s.counts.shadow ?? 0}` : '—'}
                         sub="Each signal is graded 8 hours after it is made"
                     />
                     <Card
                         icon={<CandlestickChart className="h-4 w-4" />} label="Price recording" ok={candlesFresh}
                         value={s?.candles?.last ? `$${Number(s.candles.last.close).toFixed(2)}` : '—'}
-                        sub={s?.candles?.last ? <>{s.candles.last_hour} minute candles in the last hour · {ago(s.candles.last.minute, now)}</> : 'Not recording yet'}
+                        sub={s?.candles?.last ? <>{s.candles.last_hour ?? 0} minute candles in the last hour · {ago(s.candles.last.minute, now)}</> : 'Not recording yet'}
                     />
                     <Card
                         icon={<Gauge className="h-4 w-4" />} label="Volatility" ok={volFresh}
