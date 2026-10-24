@@ -1,8 +1,13 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { FlaskConical } from 'lucide-react'
-import VolatilityTimingCard from '@/components/chart/VolatilityTimingCard'
+
+const VolatilityTimingCard = dynamic(() => import('@/components/chart/VolatilityTimingCard'), {
+    ssr: false,
+    loading: () => null
+})
 
 type Tally = {
     graded: number

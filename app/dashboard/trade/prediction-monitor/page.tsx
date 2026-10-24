@@ -3,10 +3,20 @@
 // Temporary presentation page: live view of the AI prediction test (shadow mode)
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { Activity, Brain, CandlestickChart, CheckCircle2, Clock, Gauge, LineChart, Sparkles, Filter, ChevronDown, ChevronUp, ArrowRight, ShieldCheck, Trophy, Layers, TrendingUp, AlertTriangle } from 'lucide-react'
 import GoldCandleChart from '@/components/chart/GoldCandleChart'
-import VolatilityTimingCard from '@/components/chart/VolatilityTimingCard'
 import { Bar, BarChart as DailyBarChart, CartesianGrid, Line, LineChart as RunningTotalChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+
+const VolatilityTimingCard = dynamic(() => import('@/components/chart/VolatilityTimingCard'), {
+    ssr: false,
+    loading: () => (
+        <div className="rounded-2xl border border-[#1a1a1a] bg-[#080808] p-8 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+            <Clock className="h-4 w-4 animate-spin text-violet-400" />
+            Loading market volatility analytics...
+        </div>
+    )
+})
 
 type Signal = {
     id: string
@@ -460,8 +470,8 @@ const ApproachCompare = ({ list, selected, onSelect, cost }: { list: Approach[],
         return g.key === filter && sorted(g.key).length > 0
     })
 
-    const srWinner8 = list.find((a) => a.run === 'sr-budget-8')
-    const srWinner12 = list.find((a) => a.run === 'sr-budget-12')
+    const srWinner8 = (list || []).find((a) => a.run === 'sr-budget-8')
+    const srWinner12 = (list || []).find((a) => a.run === 'sr-budget-12')
 
     return (
         <div className="flex flex-col gap-4">
@@ -626,10 +636,10 @@ const ApproachCompare = ({ list, selected, onSelect, cost }: { list: Approach[],
                                                     <div className="text-white font-bold tabular-nums">{a.trades}</div>
                                                     {a.skipped ? (
                                                         <div className="text-[10px] text-emerald-400/90 font-medium">
-                                                            {a.skipped.moments.toLocaleString()} chop skipped
+                                                            {(a.skipped.moments ?? 0).toLocaleString()} chop skipped
                                                         </div>
                                                     ) : (
-                                                        <div className="text-[10px] text-muted-foreground">all {a.moments} hours</div>
+                                                        <div className="text-[10px] text-muted-foreground">all {a.moments ?? 0} hours</div>
                                                     )}
                                                 </td>
 
@@ -836,15 +846,15 @@ const TradeLog = ({ signals, now, risk, title, emptyText, mainLabel = 'AI', tota
                                                 </span>
                                             )}
                                         </div>
-                                        {x.rule && (
+                                        {x.rule && x.rule.support != null && x.rule.resistance != null && (
                                             <div className="text-[10px] text-muted-foreground mt-1 font-mono">
-                                                S/R: ${x.rule.support.toFixed(1)}–${x.rule.resistance.toFixed(1)} (gap ${x.rule.range.toFixed(1)})
+                                                S/R: ${Number(x.rule.support).toFixed(1)}–${Number(x.rule.resistance).toFixed(1)} (gap ${Number(x.rule.range ?? (x.rule.resistance - x.rule.support)).toFixed(1)})
                                             </div>
                                         )}
                                     </td>
 
                                     {/* Lots & Levels */}
-                                    <td className="px-3 py-3 text-right text-white font-mono">{t ? t.lot.toFixed(2) : '—'}</td>
+                                    <td className="px-3 py-3 text-right text-white font-mono">{t && t.lot != null ? Number(t.lot).toFixed(2) : '—'}</td>
                                     <td className="px-3 py-3 text-right text-emerald-400 font-mono">{px(t?.tp)}</td>
                                     <td className="px-3 py-3 text-right text-red-400 font-mono">{px(t?.sl)}</td>
                                     <td className="px-3 py-3 text-right text-white font-mono">{px(t?.entry)}</td>
@@ -874,7 +884,7 @@ const TradeLog = ({ signals, now, risk, title, emptyText, mainLabel = 'AI', tota
 
                                     {/* Duration */}
                                     <td className="px-3 py-3 text-right text-white tabular-nums">
-                                        {x.hours != null ? `${x.hours.toFixed(1)}h` : '—'}
+                                        {x.hours != null ? `${Number(x.hours).toFixed(1)}h` : '—'}
                                     </td>
 
                                     {/* Outcome & Reason */}
@@ -890,9 +900,9 @@ const TradeLog = ({ signals, now, risk, title, emptyText, mainLabel = 'AI', tota
                                         {t?.hedged && (
                                             <div className="text-[10px] text-amber-300/90 mt-1 whitespace-nowrap">
                                                 Hedge at <span className="font-mono font-bold">{px(t.hedge_price ?? t.trigger)}</span>
-                                                {t.hedge_hours != null && ` (+${t.hedge_hours.toFixed(1)}h)`}
-                                                {t.slippage_pct != null && t.slippage_pct > 0 && (
-                                                    <span className="text-rose-400 font-semibold"> (slip {t.slippage_pct.toFixed(1)}%)</span>
+                                                {t.hedge_hours != null && ` (+${Number(t.hedge_hours).toFixed(1)}h)`}
+                                                {t.slippage_pct != null && Number(t.slippage_pct) > 0 && (
+                                                    <span className="text-rose-400 font-semibold"> (slip {Number(t.slippage_pct).toFixed(1)}%)</span>
                                                 )}
                                             </div>
                                         )}

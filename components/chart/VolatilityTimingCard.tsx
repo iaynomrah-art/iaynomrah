@@ -66,10 +66,12 @@ const MONTH_DATA = [
 ]
 
 export const VolatilityTimingCard = () => {
+    const [mounted, setMounted] = useState(false)
     const [tab, setTab] = useState<'hour' | 'day' | 'month'>('hour')
     const [currentUtcHour, setCurrentUtcHour] = useState<number>(0)
 
     useEffect(() => {
+        setMounted(true)
         const updateHour = () => {
             const now = new Date()
             setCurrentUtcHour(now.getUTCHours())
@@ -78,6 +80,15 @@ export const VolatilityTimingCard = () => {
         const timer = setInterval(updateHour, 30000)
         return () => clearInterval(timer)
     }, [])
+
+    if (!mounted) {
+        return (
+            <div className="rounded-2xl border border-[#1a1a1a] bg-[#080808] p-8 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                <Clock className="h-4 w-4 animate-spin text-violet-400" />
+                Loading 1-year market volatility & timing analytics...
+            </div>
+        )
+    }
 
     const activeHourData = HOURLY_DATA[currentUtcHour] || HOURLY_DATA[0]
     const isQuietNow = activeHourData.category === 'quiet'
@@ -227,8 +238,8 @@ export const VolatilityTimingCard = () => {
             <div className="p-5">
                 {tab === 'hour' && (
                     <div className="flex flex-col gap-3">
-                        <div className="h-56">
-                            <ResponsiveContainer width="100%" height="100%">
+                        <div className="h-56 min-h-[220px] w-full">
+                            <ResponsiveContainer width="100%" height={220} minWidth={0}>
                                 <BarChart data={HOURLY_DATA} margin={{ top: 10, right: 10, bottom: 0, left: -10 }}>
                                     <CartesianGrid stroke="#18181b" vertical={false} strokeDasharray="3 3" />
                                     <XAxis
@@ -292,8 +303,8 @@ export const VolatilityTimingCard = () => {
 
                 {tab === 'day' && (
                     <div className="flex flex-col gap-3">
-                        <div className="h-56">
-                            <ResponsiveContainer width="100%" height="100%">
+                        <div className="h-56 min-h-[220px] w-full">
+                            <ResponsiveContainer width="100%" height={220} minWidth={0}>
                                 <BarChart data={DAY_DATA} margin={{ top: 10, right: 10, bottom: 0, left: -10 }}>
                                     <CartesianGrid stroke="#18181b" vertical={false} strokeDasharray="3 3" />
                                     <XAxis dataKey="day" stroke="#71717a" fontSize={11} />
@@ -338,8 +349,8 @@ export const VolatilityTimingCard = () => {
 
                 {tab === 'month' && (
                     <div className="flex flex-col gap-3">
-                        <div className="h-56">
-                            <ResponsiveContainer width="100%" height="100%">
+                        <div className="h-56 min-h-[220px] w-full">
+                            <ResponsiveContainer width="100%" height={220} minWidth={0}>
                                 <BarChart data={MONTH_DATA} margin={{ top: 10, right: 10, bottom: 0, left: -10 }}>
                                     <CartesianGrid stroke="#18181b" vertical={false} strokeDasharray="3 3" />
                                     <XAxis dataKey="month" stroke="#71717a" fontSize={10} />
