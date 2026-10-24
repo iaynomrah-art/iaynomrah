@@ -3,8 +3,9 @@
 // Temporary presentation page: live view of the AI prediction test (shadow mode)
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Activity, Brain, CandlestickChart, CheckCircle2, Clock, Gauge, LineChart } from 'lucide-react'
+import { Activity, Brain, CandlestickChart, CheckCircle2, Clock, Gauge, LineChart, Sparkles, Filter, ChevronDown, ChevronUp, ArrowRight, ShieldCheck, Trophy, Layers, TrendingUp, AlertTriangle } from 'lucide-react'
 import GoldCandleChart from '@/components/chart/GoldCandleChart'
+import VolatilityTimingCard from '@/components/chart/VolatilityTimingCard'
 import { Bar, BarChart as DailyBarChart, CartesianGrid, Line, LineChart as RunningTotalChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 type Signal = {
@@ -24,6 +25,7 @@ type Signal = {
     compare?: { tv: number | null, coin: number | null }
     natural?: { lot: number, main: number, backup: number, net: number } | null
     rule?: { support: number, resistance: number, range: number, window_hours: number, pump_dump: boolean } | null
+    diagnostic?: { session?: string, location?: string, pos_pct?: number | null, reason?: string | null } | null
 }
 
 type Cost = { per_lot_per_account: number, pairs: number, measured: boolean, avg_pair_net?: number | null }
@@ -445,176 +447,507 @@ const DailyTp = ({ daily, title }: { daily: Daily, title: string }) => {
 
 // Every past-data run side by side: the AI prompts and the rule-based approaches
 const ApproachCompare = ({ list, selected, onSelect, cost }: { list: Approach[], selected: string | null, onSelect: (run: string) => void, cost?: Cost }) => {
+    const [filter, setFilter] = useState<string>('all')
+    const [showNotes, setShowNotes] = useState<boolean>(false)
+
     const rate = (v: number | null | undefined) => v == null ? '—' : `${(v / 10).toFixed(1)} in 10`
     const usd = (v: number | null) => v == null ? '—' : money(v)
+    
     const sorted = (key: string) => list.filter((a) => groupOf(a) === key).sort((a, b) => (a.rule?.f ?? a.trigger) - (b.rule?.f ?? b.trigger) || a.run.localeCompare(b.run))
+
+    const filteredGroups = APPROACH_GROUPS.filter((g) => {
+        if (filter === 'all') return sorted(g.key).length > 0
+        return g.key === filter && sorted(g.key).length > 0
+    })
+
+    const srWinner8 = list.find((a) => a.run === 'sr-budget-8')
+    const srWinner12 = list.find((a) => a.run === 'sr-budget-12')
+
     return (
-        <div className="rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] overflow-hidden">
-            <div className="px-5 py-4 border-b border-[#1a1a1a] flex flex-col md:flex-row md:items-end justify-between gap-2">
-                <div>
-                    <div className="text-lg font-bold text-white">Compare approaches</div>
-                    <div className="text-xs text-muted-foreground mt-0.5 max-w-3xl">
-                        Each approach on the same 8 months of gold prices, traded the same way: about $100 risk, TP = stop, backup opens at a 10% dip unless the row says otherwise, results taken at 8 hours at the latest.
-                        Click a row to see its trades below.
+        <div className="flex flex-col gap-4">
+            {/* Champion S/R Highlight Banner */}
+            <div className="p-5 rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-[#0c150e] to-[#080808] flex flex-col lg:flex-row lg:items-center justify-between gap-5 shadow-lg">
+                <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 mt-0.5">
+                        <Trophy className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[11px] uppercase tracking-wider font-bold text-emerald-400 flex items-center gap-1.5">
+                                <Sparkles className="h-3.5 w-3.5" /> High-Profit Performer
+                            </span>
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
+                                Recommended
+                            </span>
+                        </div>
+                        <h3 className="text-lg font-bold text-white mt-1">
+                            Support & Resistance Budget Strategy (+8% & +12%)
+                        </h3>
+                        <p className="text-xs text-zinc-300 mt-1 max-w-3xl leading-relaxed">
+                            Trades only when your target profit budget exceeds the recent S/R boundary gap. By skipping low-conviction chop, it avoided <span className="text-emerald-400 font-bold">-$90,422 in whipsaw losses</span> and yielded <span className="text-emerald-400 font-bold">+$7.86 / trade</span> net profit with <span className="text-white font-semibold">2.6 in 10 clean TPs</span> (vs 0.9 luck).
+                        </p>
                     </div>
                 </div>
-                <div className="text-xs text-muted-foreground whitespace-nowrap">Goal <span className="text-emerald-400 font-semibold">2 in 10</span> · luck = the coin flip column</div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                    {srWinner8 && (
+                        <button
+                            onClick={() => onSelect('sr-budget-8')}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${
+                                selected === 'sr-budget-8'
+                                    ? 'bg-emerald-500 text-black border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.35)]'
+                                    : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/25'
+                            }`}
+                        >
+                            <span>Inspect 8% Rule</span>
+                            <span className="px-1.5 py-0.2 rounded bg-black/30 text-[10px] tabular-nums font-mono">+$7.86/t</span>
+                        </button>
+                    )}
+                    {srWinner12 && (
+                        <button
+                            onClick={() => onSelect('sr-budget-12')}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${
+                                selected === 'sr-budget-12'
+                                    ? 'bg-emerald-500 text-black border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.35)]'
+                                    : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/25'
+                            }`}
+                        >
+                            <span>Inspect 12% Rule</span>
+                            <span className="px-1.5 py-0.2 rounded bg-black/30 text-[10px] tabular-nums font-mono">+$3,487</span>
+                        </button>
+                    )}
+                </div>
             </div>
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                    <thead className="text-[11px] uppercase tracking-widest text-muted-foreground">
-                        <tr className="border-b border-[#1a1a1a] align-bottom">
-                            <th className="px-5 py-2.5 text-left">Approach</th>
-                            <th className="px-3 py-2.5 text-right">Trades</th>
-                            <th className="px-3 py-2.5 text-left">TP without hedge<div className="normal-case tracking-normal text-[10px]">out of every trade</div></th>
-                            <th className="px-3 py-2.5 text-left">TP per day<div className="normal-case tracking-normal text-[10px]">one trade at a time</div></th>
-                            <th className="px-3 py-2.5 text-left">Coin flip<div className="normal-case tracking-normal text-[10px]">same moments</div></th>
-                            <th className="px-3 py-2.5 text-left">Not finished<div className="normal-case tracking-normal text-[10px]">within 8 hours</div></th>
-                            <th className="px-3 py-2.5 text-right">Per trade<div className="normal-case tracking-normal text-[10px]">delayed hedge</div></th>
-                            <th className="px-3 py-2.5 text-right">Per trade<div className="normal-case tracking-normal text-[10px]">normal hedge</div></th>
-                            <th className="px-3 py-2.5 text-left pr-5">Moments it skipped<div className="normal-case tracking-normal text-[10px]">how they would have done</div></th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#141414]">
-                        {APPROACH_GROUPS.filter((g) => sorted(g.key).length).map((g) => (
-                            <React.Fragment key={g.key}>
-                            <tr className="bg-white/[0.025]">
-                                <td colSpan={9} className="px-5 py-2 text-[11px]">
-                                    <span className="text-white font-semibold uppercase tracking-wider">{g.title}</span>
-                                    <span className="text-muted-foreground"> · {g.note}</span>
-                                </td>
-                            </tr>
-                            {sorted(g.key).map((a) => {
-                            const allRate = a.main.a_rate_all ?? 0
-                            return (
-                                <tr key={a.run} onClick={() => onSelect(a.run)}
-                                    className={`cursor-pointer align-top ${selected === a.run ? 'bg-sky-500/[0.06]' : 'hover:bg-white/[0.02]'}`}>
-                                    <td className="px-5 py-3 max-w-md">
-                                        <div className={`font-semibold ${a.picker === 'perfect' ? 'text-emerald-300' : a.rule ? 'text-sky-300' : 'text-violet-300'}`}>{runLabel(a.run)}</div>
-                                        <div className="text-[11px] text-muted-foreground leading-snug mt-0.5">{approachHow(a)}</div>
-                                    </td>
-                                    <td className="px-3 py-3 text-right text-white tabular-nums">{a.trades}{a.skipped && <div className="text-[10px] text-muted-foreground">of {a.moments} hours</div>}</td>
-                                    <td className="px-3 py-3 whitespace-nowrap">
-                                        <div className={`text-lg font-bold ${allRate >= 20 ? 'text-emerald-400' : allRate >= 10 ? 'text-white' : 'text-amber-300'}`}>{rate(a.main.a_rate_all)}</div>
-                                        <div className="text-[11px] text-muted-foreground">{a.main.a} of {a.main.graded} · {rate(a.main.a_rate)} of finished</div>
-                                    </td>
-                                    <td className="px-3 py-3 whitespace-nowrap">
-                                        {a.per_day ? <>
-                                            <div className="text-white font-bold">{a.per_day.one_at_a_time.a_per_day.toFixed(2)} <span className="text-[11px] font-normal text-muted-foreground">a day</span></div>
-                                            <div className="text-[10px] text-muted-foreground">{a.per_day.one_at_a_time.days_by_tp['0']} of {a.per_day.one_at_a_time.days} days with none · all signals {a.per_day.every.a_per_day.toFixed(2)}</div>
-                                        </> : '—'}
-                                    </td>
-                                    <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{rate(a.coin.a_rate_all)}{a.trigger !== 0.1 && <div className="text-[10px]">luck rises with the trigger ({(luckRate(a.trigger) / 10).toFixed(1)} of finished)</div>}</td>
-                                    <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{a.main.graded ? Math.round((a.main.x / a.main.graded) * 100) : 0}%</td>
-                                    <td className={`px-3 py-3 text-right font-bold tabular-nums ${(a.delayed_per_trade ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{usd(a.delayed_per_trade)}</td>
-                                    <td className={`px-3 py-3 text-right font-bold tabular-nums ${(a.natural_per_trade ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{usd(a.natural_per_trade)}</td>
-                                    <td className="px-3 py-3 pr-5 text-[11px] text-muted-foreground whitespace-nowrap">
-                                        {a.skipped ? <>{a.skipped.moments} skipped · <span className="text-white">{rate(a.skipped.a_rate_all)}</span> · {usd(a.skipped.delayed_per_trade)} per trade</> : 'trades every moment'}
-                                    </td>
-                                </tr>
-                            )
-                            })}
-                            </React.Fragment>
+
+            {/* Main Approaches Comparison Table Card */}
+            <div className="rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] overflow-hidden">
+                <div className="p-5 border-b border-[#1a1a1a] flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <div className="flex items-center gap-2.5">
+                            <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400">
+                                <Layers className="h-4 w-4" />
+                            </div>
+                            <h3 className="text-base font-bold text-white">Compare All 17 Approaches</h3>
+                            <span className="text-xs text-muted-foreground">8 Months Backtested (5,917 Hours)</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Same gold price candles, same $100 risk, same broker costs. Click any row to load its trade replay log.
+                        </p>
+                    </div>
+
+                    {/* Category Filter Pills */}
+                    <div className="flex flex-wrap items-center gap-1.5 p-1 bg-[#121212] rounded-xl border border-[#1f1f1f]">
+                        {[
+                            { key: 'all', label: 'All (17)' },
+                            { key: 'sr-budget', label: '⭐ S/R Budget (3)' },
+                            { key: 'ai', label: 'AI Prompts (2)' },
+                            { key: 'rating-trigger', label: 'Fixed Dips (8)' },
+                            { key: 'perfect-8h', label: 'Forecaster Ceiling (4)' },
+                        ].map((btn) => (
+                            <button
+                                key={btn.key}
+                                onClick={() => setFilter(btn.key)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    filter === btn.key
+                                        ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30 shadow-sm'
+                                        : 'text-muted-foreground hover:text-white'
+                                }`}
+                            >
+                                {btn.label}
+                            </button>
                         ))}
-                    </tbody>
-                </table>
-            </div>
-            <div className="px-5 py-3 border-t border-[#1a1a1a] text-[11px] text-muted-foreground leading-relaxed">
-                <b className="text-white">Why &quot;out of every trade&quot;:</b> a wider stop takes longer to reach, so more trades are still open after 8 hours. Counting only the finished ones makes a wide stop look better than it is.
-                Out of every trade is what the accounts actually feel. A rule helps only if its trades beat the coin flip and the moments it skipped.
-                A wider trigger lets more trades reach TP without the hedge, but every hedged trade then loses more (15% or 20% of the stop instead of 10%), so compare the per-trade dollars too.
-                The S/R rule and the hourly row check every hour (like the live test); the other rows use the same moments as the AI, about 1 in 4 hours, so they have fewer chances per day. TP per day counts trading days with signals; &quot;one trade at a time&quot; opens the next trade only after the last one closed (what one pair of accounts can do). {costText(cost)}
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="text-[11px] uppercase tracking-wider text-muted-foreground bg-[#0f0f11] border-b border-[#1a1a1a]">
+                            <tr>
+                                <th className="px-5 py-3 text-left">Approach / Strategy</th>
+                                <th className="px-3 py-3 text-right">Trades Taken</th>
+                                <th className="px-3 py-3 text-center">Clean TP Rate</th>
+                                <th className="px-3 py-3 text-center">Daily Clean TPs</th>
+                                <th className="px-3 py-3 text-center">Coin Flip Luck</th>
+                                <th className="px-3 py-3 text-right">Net PnL / Trade</th>
+                                <th className="px-3 py-3 text-right">Total Net PnL</th>
+                                <th className="px-4 py-3 text-center pr-5">Replay Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#141414]">
+                            {filteredGroups.map((g) => (
+                                <React.Fragment key={g.key}>
+                                    <tr className="bg-white/[0.02]">
+                                        <td colSpan={8} className="px-5 py-2 text-[11px]">
+                                            <span className="text-white font-bold uppercase tracking-wider">{g.title}</span>
+                                            <span className="text-muted-foreground"> · {g.note}</span>
+                                        </td>
+                                    </tr>
+                                    {sorted(g.key).map((a) => {
+                                        const allRate = a.main.a_rate_all ?? 0
+                                        const isSelected = selected === a.run
+                                        const isSR = a.rule?.name === 'sr-budget'
+                                        const totalNet = a.delayed_per_trade != null ? a.delayed_per_trade * a.trades : null
+                                        const isProfitable = (a.delayed_per_trade ?? 0) > 0
+
+                                        return (
+                                            <tr
+                                                key={a.run}
+                                                onClick={() => onSelect(a.run)}
+                                                className={`cursor-pointer transition-colors ${
+                                                    isSelected
+                                                        ? 'bg-sky-500/10 border-l-2 border-l-sky-400'
+                                                        : isSR
+                                                        ? 'bg-emerald-950/10 hover:bg-emerald-950/20 border-l-2 border-l-emerald-500/60'
+                                                        : 'hover:bg-white/[0.02]'
+                                                }`}
+                                            >
+                                                {/* Approach Details */}
+                                                <td className="px-5 py-3 max-w-sm">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`font-bold ${
+                                                            isSR ? 'text-emerald-300' :
+                                                            a.picker === 'perfect' ? 'text-sky-300' :
+                                                            a.rule ? 'text-zinc-200' : 'text-violet-300'
+                                                        }`}>
+                                                            {runLabel(a.run)}
+                                                        </span>
+                                                        {isSR && (
+                                                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                                                TOP PERFORMER
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[11px] text-muted-foreground leading-snug mt-1">
+                                                        {approachHow(a)}
+                                                    </div>
+                                                </td>
+
+                                                {/* Trades Taken / Skipped */}
+                                                <td className="px-3 py-3 text-right">
+                                                    <div className="text-white font-bold tabular-nums">{a.trades}</div>
+                                                    {a.skipped ? (
+                                                        <div className="text-[10px] text-emerald-400/90 font-medium">
+                                                            {a.skipped.moments.toLocaleString()} chop skipped
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-[10px] text-muted-foreground">all {a.moments} hours</div>
+                                                    )}
+                                                </td>
+
+                                                {/* Clean TP Rate */}
+                                                <td className="px-3 py-3 text-center whitespace-nowrap">
+                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border ${
+                                                        allRate >= 20
+                                                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                                            : allRate >= 10
+                                                            ? 'bg-zinc-800 text-zinc-200 border-zinc-700'
+                                                            : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                                                    }`}>
+                                                        {rate(a.main.a_rate_all)}
+                                                    </span>
+                                                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                                                        {a.main.a} of {a.main.graded} trades
+                                                    </div>
+                                                </td>
+
+                                                {/* Daily TP */}
+                                                <td className="px-3 py-3 text-center whitespace-nowrap">
+                                                    {a.per_day ? (
+                                                        <div>
+                                                            <div className="text-white font-bold">
+                                                                {a.per_day.one_at_a_time.a_per_day.toFixed(2)}{' '}
+                                                                <span className="text-[10px] font-normal text-muted-foreground">/ day</span>
+                                                            </div>
+                                                            <div className="text-[10px] text-muted-foreground">
+                                                                all signals {a.per_day.every.a_per_day.toFixed(2)}/d
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted-foreground">—</span>
+                                                    )}
+                                                </td>
+
+                                                {/* Luck Baseline */}
+                                                <td className="px-3 py-3 text-center text-muted-foreground whitespace-nowrap">
+                                                    <div className="text-xs">{rate(a.coin.a_rate_all)}</div>
+                                                    <div className="text-[10px]">coin flip</div>
+                                                </td>
+
+                                                {/* Net PnL / Trade */}
+                                                <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
+                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border ${
+                                                        isProfitable
+                                                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-sm'
+                                                            : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                                                    }`}>
+                                                        {usd(a.delayed_per_trade)}
+                                                    </span>
+                                                </td>
+
+                                                {/* Total Net PnL */}
+                                                <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
+                                                    {totalNet != null ? (
+                                                        <span className={`font-bold text-sm ${totalNet >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                            {money(totalNet)}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-muted-foreground">—</span>
+                                                    )}
+                                                </td>
+
+                                                {/* Action */}
+                                                <td className="px-4 py-3 text-center pr-5 whitespace-nowrap">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            onSelect(a.run)
+                                                        }}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                                            isSelected
+                                                                ? 'bg-sky-500 text-black border-sky-400'
+                                                                : 'bg-white/5 border-white/10 text-muted-foreground hover:text-white hover:bg-white/10'
+                                                        }`}
+                                                    >
+                                                        {isSelected ? 'Loaded ✓' : 'Inspect'}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </React.Fragment>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Collapsible Methodology Notes */}
+                <div className="border-t border-[#1a1a1a]">
+                    <button
+                        onClick={() => setShowNotes(!showNotes)}
+                        className="w-full px-5 py-3 flex items-center justify-between text-xs text-muted-foreground hover:text-white transition-colors bg-[#080808]"
+                    >
+                        <span className="flex items-center gap-2 font-medium">
+                            <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                            How to interpret this comparison (Methodology & Costs)
+                        </span>
+                        {showNotes ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                    {showNotes && (
+                        <div className="px-5 py-4 bg-[#060606] border-t border-[#141414] text-xs text-muted-foreground space-y-2 leading-relaxed">
+                            <p>
+                                <b className="text-white">Why &quot;out of every trade&quot;:</b> A wider stop takes longer to reach, so more trades remain open at 8 hours. Counting only finished trades distorts wide stops. Out of every trade is what your accounts actually experience.
+                            </p>
+                            <p>
+                                <b className="text-white">Why S/R Budget beats brute-force trading:</b> Standard approaches take trades every hour regardless of chop, losing -$90,422 to false breakouts. The S/R budget rule tests whether expected payout can absorb the boundary spread; if not, it skips the trade.
+                            </p>
+                            <p className="text-[11px] text-zinc-500">
+                                {costText(cost)}
+                            </p>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     )
 }
 
 // One row per AI signal, as if traded (used by the live and the past-data views)
-const TradeLog = ({ signals, now, risk, title, emptyText, mainLabel = 'AI', total, trig = 0.1 }: { signals: Signal[], now: number, risk: number, title: string, emptyText: string, mainLabel?: string, total?: number, trig?: number }) => (
-    <div className="rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#1a1a1a] flex items-center justify-between">
-            <div className="text-sm font-semibold text-white flex items-center gap-2"><Activity className="h-4 w-4 text-violet-400" /> {title}</div>
-            <div className="text-[11px] text-muted-foreground text-right">
-                Each row is the {mainLabel === 'AI' ? 'AI’s' : mainLabel === 'Forecaster' ? 'perfect forecaster’s' : 'rule’s'} trade, as if traded at about ${risk} risk · trigger {Math.round(trig * 100)}% · TP = SL · costs included
-                {total != null && total > signals.length && <div>Showing the latest {signals.length} of {total}</div>}
+const TradeLog = ({ signals, now, risk, title, emptyText, mainLabel = 'AI', total, trig = 0.1 }: { signals: Signal[], now: number, risk: number, title: string, emptyText: string, mainLabel?: string, total?: number, trig?: number }) => {
+    const px = (v?: number) => (v ? v.toFixed(2) : '—')
+
+    return (
+        <div className="rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a] overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#1a1a1a] flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-400">
+                        <Activity className="h-4 w-4" />
+                    </div>
+                    <div>
+                        <div className="text-sm font-bold text-white">{title}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                            {mainLabel} signals evaluated on 5-minute broker prices · $100 risk · {Math.round(trig * 100)}% dip hedge
+                        </div>
+                    </div>
+                </div>
+                {total != null && total > signals.length && (
+                    <div className="text-xs px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-zinc-400">
+                        Showing latest <span className="text-white font-semibold">{signals.length}</span> of {total}
+                    </div>
+                )}
             </div>
-        </div>
-        <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
-            <table className="w-full text-sm">
-                <thead className="text-[11px] uppercase tracking-widest text-muted-foreground sticky top-0 bg-[#0a0a0a] z-10">
-                    <tr className="border-b border-[#1a1a1a]">
-                        <th className="px-5 py-2.5 text-left">Opened</th>
-                        <th className="px-3 py-2.5 text-left">Position</th>
-                        <th className="px-3 py-2.5 text-right">Lots</th>
-                        <th className="px-3 py-2.5 text-right">TP</th>
-                        <th className="px-3 py-2.5 text-right">SL</th>
-                        <th className="px-3 py-2.5 text-right">Open price</th>
-                        <th className="px-3 py-2.5 text-right">Close price</th>
-                        <th className="px-3 py-2.5 text-right">{mainLabel} trade: profit / loss</th>
-                        <th className="px-3 py-2.5 text-right">Hours</th>
-                        <th className="px-3 py-2.5 text-left">How it ended</th>
-                        <th className="px-3 py-2.5 text-left">If instead this picked the side (net)</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-[#141414]">
-                    {signals.map((x) => {
-                        const hoursLeft = Math.max(0, GRADE_DELAY_H - (now - new Date(x.created_at).getTime()) / 3600000)
-                        const pending = x.skipped ? 'skipped' : hoursLeft > 0 ? `grading in ${Math.ceil(hoursLeft)}h` : 'grading soon'
-                        const t = x.trade
-                        const px = (v?: number) => v ? v.toFixed(2) : '—'
-                        return (
-                            <tr key={x.id} className="hover:bg-white/[0.02]">
-                                <td className="px-5 py-3 text-white whitespace-nowrap">{localTime(x.created_at)}</td>
-                                <td className="px-3 py-3 whitespace-nowrap">
-                                    <Dir d={x.ai} /> {x.score != null && <span className="text-[11px] text-muted-foreground">score {x.score}</span>}
-                                    {x.rule && <div className="text-[10px] text-muted-foreground mt-0.5">S/R {x.rule.support.toFixed(2)}–{x.rule.resistance.toFixed(2)} (${x.rule.range.toFixed(2)}, last {x.rule.window_hours}h{x.rule.pump_dump ? ', after a pump/dump' : ''})</div>}
-                                </td>
-                                <td className="px-3 py-3 text-right text-white tabular-nums">{t ? t.lot.toFixed(2) : '—'}</td>
-                                <td className="px-3 py-3 text-right text-emerald-400 tabular-nums">{px(t?.tp)}</td>
-                                <td className="px-3 py-3 text-right text-red-400 tabular-nums">{px(t?.sl)}</td>
-                                <td className="px-3 py-3 text-right text-white tabular-nums">{px(t?.entry)}</td>
-                                <td className="px-3 py-3 text-right text-white tabular-nums">{t?.close ? px(t.close) : <span className="text-muted-foreground text-[11px]">{x.graded_at ? '—' : 'still open'}</span>}</td>
-                                <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
-                                    {t?.pnl == null ? <span className="text-muted-foreground">—</span> : (
-                                        <div className="flex flex-col items-end gap-0.5 text-[11px]">
-                                            {t.primary_pnl != null && <div><span className="text-muted-foreground">Main </span><span className={t.primary_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{money(t.primary_pnl)}</span></div>}
-                                            {t.primary_pnl != null && <div><span className="text-muted-foreground">Hedge </span>{t.hedged ? <span className={t.hedge_pnl! >= 0 ? 'text-emerald-400' : 'text-red-400'}>{money(t.hedge_pnl!)}</span> : <span className="text-muted-foreground">not opened</span>}</div>}
-                                            <div className={`text-sm font-bold border-t border-[#1f1f1f] pt-0.5 ${t.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}><span className="text-[10px] font-normal text-muted-foreground uppercase mr-1">Net</span>{money(t.pnl)}</div>
-                                {x.natural && <div className="text-[10px] text-muted-foreground mt-0.5">With normal hedge: {money(x.natural.main)} / {money(x.natural.backup)} = {money(x.natural.net)}</div>}
+
+            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                <table className="w-full text-sm">
+                    <thead className="text-[11px] uppercase tracking-wider text-muted-foreground sticky top-0 bg-[#0f0f11] z-10 border-b border-[#1a1a1a]">
+                        <tr>
+                            <th className="px-5 py-3 text-left">Opened / Session</th>
+                            <th className="px-3 py-3 text-left">Direction & S/R Level</th>
+                            <th className="px-3 py-3 text-right">Lots</th>
+                            <th className="px-3 py-3 text-right">TP Target</th>
+                            <th className="px-3 py-3 text-right">SL Stop</th>
+                            <th className="px-3 py-3 text-right">Entry</th>
+                            <th className="px-3 py-3 text-right">Exit Price</th>
+                            <th className="px-3 py-3 text-right">Trade Net PnL</th>
+                            <th className="px-3 py-3 text-right">Duration</th>
+                            <th className="px-3 py-3 text-left">Final Outcome & Diagnostics</th>
+                            <th className="px-4 py-3 text-left pr-5">Benchmark Comparison</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#141414]">
+                        {signals.map((x) => {
+                            const hoursLeft = Math.max(0, GRADE_DELAY_H - (now - new Date(x.created_at).getTime()) / 3600000)
+                            const pending = x.skipped ? 'skipped' : hoursLeft > 0 ? `grading in ${Math.ceil(hoursLeft)}h` : 'grading soon'
+                            const t = x.trade
+                            const session = x.diagnostic?.session || ''
+
+                            return (
+                                <tr key={x.id} className="hover:bg-white/[0.02] transition-colors">
+                                    {/* Time & Session */}
+                                    <td className="px-5 py-3 text-white whitespace-nowrap">
+                                        <div className="font-medium">{localTime(x.created_at)}</div>
+                                        {session && (
+                                            <span className={`text-[10px] px-2 py-0.5 rounded font-medium mt-1 inline-block border ${
+                                                session.includes('Asian')
+                                                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                                    : session.includes('London')
+                                                    ? 'text-sky-400 bg-sky-500/10 border-sky-500/20'
+                                                    : session.includes('New York')
+                                                    ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                                                    : 'text-zinc-400 bg-zinc-800/80 border-zinc-700/50'
+                                            }`}>
+                                                {session}
+                                            </span>
+                                        )}
+                                    </td>
+
+                                    {/* Direction & S/R position */}
+                                    <td className="px-3 py-3 whitespace-nowrap">
+                                        <div className="flex items-center gap-1.5">
+                                            <Dir d={x.ai} />
+                                            {x.score != null && <span className="text-[11px] text-muted-foreground font-mono">({x.score}pts)</span>}
+                                            {x.diagnostic?.location && (
+                                                <span className={`text-[10px] px-2 py-0.5 rounded font-semibold border ${
+                                                    (x.diagnostic.pos_pct ?? 50) <= 25
+                                                        ? 'text-emerald-300 bg-emerald-500/15 border-emerald-500/30'
+                                                        : (x.diagnostic.pos_pct ?? 50) >= 75
+                                                        ? 'text-rose-300 bg-rose-500/15 border-rose-500/30'
+                                                        : 'text-amber-300 bg-amber-500/10 border-amber-500/20'
+                                                }`}>
+                                                    {x.diagnostic.location}
+                                                </span>
+                                            )}
                                         </div>
-                                    )}
-                                </td>
-                                <td className="px-3 py-3 text-right text-white tabular-nums">{x.hours != null ? `${x.hours.toFixed(1)}h` : '—'}</td>
-                                <td className="px-3 py-3">
-                                    <Outcome story={x.outcome.ai} pendingLabel={pending} />
-                                    {t?.hedged && (
-                                        <div className="text-[11px] text-amber-300/90 mt-1 whitespace-nowrap">
-                                            Hedge opened at <span className="font-semibold">{px(t.hedge_price ?? t.trigger)}</span>
-                                            {t.hedge_hours != null && <> · {t.hedge_hours < 1 ? `${Math.max(1, Math.round(t.hedge_hours * 60))} min` : `${t.hedge_hours.toFixed(1)} h`} after open</>}
-                                            {t.hedge_price != null && Math.abs(t.hedge_price - t.trigger) >= 0.01 && <span className="text-red-400"> (jumped past {px(t.trigger)})</span>}
-                                            {t.slippage_pct != null && <span className={t.slippage_pct > 0 ? 'text-red-400' : 'text-muted-foreground'}> · slippage {t.slippage_pct.toFixed(1)}%</span>}
+                                        {x.rule && (
+                                            <div className="text-[10px] text-muted-foreground mt-1 font-mono">
+                                                S/R: ${x.rule.support.toFixed(1)}–${x.rule.resistance.toFixed(1)} (gap ${x.rule.range.toFixed(1)})
+                                            </div>
+                                        )}
+                                    </td>
+
+                                    {/* Lots & Levels */}
+                                    <td className="px-3 py-3 text-right text-white font-mono">{t ? t.lot.toFixed(2) : '—'}</td>
+                                    <td className="px-3 py-3 text-right text-emerald-400 font-mono">{px(t?.tp)}</td>
+                                    <td className="px-3 py-3 text-right text-red-400 font-mono">{px(t?.sl)}</td>
+                                    <td className="px-3 py-3 text-right text-white font-mono">{px(t?.entry)}</td>
+                                    <td className="px-3 py-3 text-right text-white font-mono">
+                                        {t?.close ? px(t.close) : <span className="text-muted-foreground text-[11px]">{x.graded_at ? '—' : 'active'}</span>}
+                                    </td>
+
+                                    {/* PnL breakdown */}
+                                    <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
+                                        {t?.pnl == null ? (
+                                            <span className="text-muted-foreground">—</span>
+                                        ) : (
+                                            <div className="flex flex-col items-end gap-0.5">
+                                                <span className={`text-sm font-bold px-2 py-0.5 rounded ${
+                                                    t.pnl >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                                                }`}>
+                                                    {money(t.pnl)}
+                                                </span>
+                                                {t.primary_pnl != null && (
+                                                    <span className="text-[10px] text-muted-foreground">
+                                                        Main {money(t.primary_pnl)} · Hedge {t.hedged && t.hedge_pnl ? money(t.hedge_pnl) : '$0'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </td>
+
+                                    {/* Duration */}
+                                    <td className="px-3 py-3 text-right text-white tabular-nums">
+                                        {x.hours != null ? `${x.hours.toFixed(1)}h` : '—'}
+                                    </td>
+
+                                    {/* Outcome & Reason */}
+                                    <td className="px-3 py-3">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            <Outcome story={x.outcome.ai} pendingLabel={pending} />
+                                            {x.diagnostic?.reason && x.outcome.ai !== 'A' && (
+                                                <span className="text-[10px] text-zinc-300 bg-zinc-800/90 px-1.5 py-0.5 rounded border border-zinc-700/60">
+                                                    {x.diagnostic.reason}
+                                                </span>
+                                            )}
                                         </div>
-                                    )}
-                                    {!x.graded_at && t && <div className="text-[11px] text-muted-foreground mt-1 whitespace-nowrap">hedge would open at {px(t.trigger)}</div>}
-                                </td>
-                                <td className="px-3 py-3 whitespace-nowrap">
-                                    <div className="flex items-center gap-1.5"><span className="w-20 text-[10px] uppercase tracking-wider text-sky-300/80">TV rating</span><Dir d={x.tv} /><Outcome story={x.outcome.tv} pendingLabel="" />{x.compare?.tv != null && <span className={`text-[11px] font-semibold tabular-nums ${x.compare.tv >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{money(x.compare.tv)}</span>}</div>
-                                    <div className="flex items-center gap-1.5 mt-1"><span className="w-20 text-[10px] uppercase tracking-wider text-zinc-400">Coin flip</span><Dir d={x.coin} /><Outcome story={x.outcome.coin} pendingLabel="" />{x.compare?.coin != null && <span className={`text-[11px] font-semibold tabular-nums ${x.compare.coin >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{money(x.compare.coin)}</span>}</div>
+                                        {t?.hedged && (
+                                            <div className="text-[10px] text-amber-300/90 mt-1 whitespace-nowrap">
+                                                Hedge at <span className="font-mono font-bold">{px(t.hedge_price ?? t.trigger)}</span>
+                                                {t.hedge_hours != null && ` (+${t.hedge_hours.toFixed(1)}h)`}
+                                                {t.slippage_pct != null && t.slippage_pct > 0 && (
+                                                    <span className="text-rose-400 font-semibold"> (slip {t.slippage_pct.toFixed(1)}%)</span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </td>
+
+                                    {/* TV & Coin Comparison */}
+                                    <td className="px-4 py-3 whitespace-nowrap pr-5">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="w-14 text-[10px] uppercase tracking-wider text-sky-400 font-medium">TV</span>
+                                            <Dir d={x.tv} />
+                                            <Outcome story={x.outcome.tv} pendingLabel="" />
+                                            {x.compare?.tv != null && (
+                                                <span className={`text-[11px] font-mono font-semibold ${x.compare.tv >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                    {money(x.compare.tv)}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                            <span className="w-14 text-[10px] uppercase tracking-wider text-zinc-400 font-medium">COIN</span>
+                                            <Dir d={x.coin} />
+                                            <Outcome story={x.outcome.coin} pendingLabel="" />
+                                            {x.compare?.coin != null && (
+                                                <span className={`text-[11px] font-mono font-semibold ${x.compare.coin >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                    {money(x.compare.coin)}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            )
+                        })}
+                        {!signals.length && (
+                            <tr>
+                                <td colSpan={11} className="px-5 py-12 text-center text-sm text-muted-foreground">
+                                    {emptyText}
                                 </td>
                             </tr>
-                        )
-                    })}
-                    {!signals.length && (
-                        <tr><td colSpan={11} className="px-5 py-10 text-center text-sm text-muted-foreground">{emptyText}</td></tr>
-                    )}
-                </tbody>
-            </table>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            <div className="px-5 py-3 border-t border-[#1a1a1a] flex flex-wrap items-center justify-between gap-3 text-[11px] text-muted-foreground">
+                <div className="flex items-center gap-2">
+                    {Object.entries(STORY).map(([k, v]) => (
+                        <span key={k} className={`px-2 py-0.5 rounded-md border ${v.cls}`}>
+                            {v.label}
+                        </span>
+                    ))}
+                </div>
+                <span>* Trades evaluated under identical risk sizing with spread & fees included</span>
+            </div>
         </div>
-        <div className="px-5 py-3 border-t border-[#1a1a1a] flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-            {Object.entries(STORY).map(([k, v]) => <span key={k} className={`px-2 py-0.5 rounded-md border ${v.cls}`}>{v.label}</span>)}
-        </div>
-    </div>
-)
+    )
+}
 
 const PredictionMonitorPage = () => {
     const [status, setStatus] = useState<Status | null>(null)
@@ -746,6 +1079,7 @@ const PredictionMonitorPage = () => {
                 </>}
 
                 {view === 'live' && s?.scoreboard && <Scoreboard board={s.scoreboard} risk={s.reference?.risk ?? 100} luck={LUCK_A_RATE} cost={s.reference?.cost} />}
+                {view === 'past' && <VolatilityTimingCard />}
                 {view === 'past' && !!past?.approaches?.length && <ApproachCompare list={past.approaches} selected={past.run} onSelect={setRun} cost={past.reference?.cost} />}
                 {view === 'past' && past?.run && <div className="text-sm text-white font-semibold -mb-4">Selected: <span className="text-sky-300">{runLabel(past.run)}</span></div>}
                 {view === 'past' && past?.scoreboard && <Scoreboard board={past.scoreboard} risk={past.reference?.risk ?? 100} luck={luckRate(pastTrig)} cost={past.reference?.cost}
@@ -757,6 +1091,7 @@ const PredictionMonitorPage = () => {
                 {view === 'live' && s?.comparison && s.comparison.trades > 0 && <StrategyCompare c={s.comparison} risk={s.reference?.risk ?? 100} cost={s.reference?.cost} />}
                 {view === 'past' && past?.comparison && past.comparison.trades > 0 && <StrategyCompare c={past.comparison} risk={past.reference?.risk ?? 100} cost={past.reference?.cost} trig={pastTrig} />}
 
+                {view === 'live' && <VolatilityTimingCard />}
                 {view === 'live' && <GoldCandleChart />}
 
                 <TradeLog

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { FlaskConical } from 'lucide-react'
+import VolatilityTimingCard from '@/components/chart/VolatilityTimingCard'
 
 type Tally = {
     graded: number
@@ -170,6 +171,8 @@ const SignalResultsPage = () => {
                                 </tbody>
                             </table>
                         </div>
+                        <VolatilityTimingCard />
+
                         <div className="overflow-x-auto rounded-2xl border border-[#1a1a1a] bg-[#0a0a0a]">
                             <div className="px-4 pt-4 pb-1">
                                 <div className="text-sm font-semibold text-white">Support / resistance checks</div>
