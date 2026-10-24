@@ -99,10 +99,15 @@ const RUN_LABEL: Record<string, string> = {
     'rating-t10': 'Hedge at a 10% dip',
     'rating-t15': 'Hedge at a 15% dip',
     'rating-t20': 'Hedge at a 20% dip',
+    'rating-t10-london-ny': 'Hedge at 10% dip (London & NY)',
+    'rating-t15-london-ny': 'Hedge at 15% dip (London & NY)',
+    'rating-t20-london-ny': 'Hedge at 20% dip (London & NY)',
     'perfect-t10': 'Perfect forecaster, hedge at 10%',
     'perfect-t15': 'Perfect forecaster, hedge at 15%',
     'perfect-t20': 'Perfect forecaster, hedge at 20%',
+    'perfect-t15-london-ny': 'Perfect forecaster, hedge at 15% (London & NY)',
     'rating-t10-hourly': 'Hourly signals, hedge at 10% (like live)',
+    'rating-t15-hourly': 'Hourly signals, hedge at 15%',
 }
 // Table sections, in order
 const APPROACH_GROUPS: { key: string, title: string, note: string }[] = [
@@ -117,10 +122,11 @@ const runLabel = (run: string) => RUN_LABEL[run] ?? run
 const approachHow = (a: Approach) => {
     const t = Math.round(a.trigger * 100)
     const r = a.rule
+    const sessionNote = a.run.includes('-london-ny') ? ' (London & NY: 07:00–17:00 UTC only)' : a.run.includes('-asia') ? ' (Asia/off-hours only)' : ''
     if (r?.name === 'sr-budget') return `Trades only when $${r.target?.toLocaleString()} × ${Math.round((r.f ?? 0) * 100)}% = $${r.budget} is more than the support–resistance gap × ${r.lot} lot. Stop = TP = $${r.sl_distance} move. Side from the TradingView rating.`
-    if (r?.name === 'rating-trigger') return `${a.run.endsWith('-hourly') ? 'A signal every hour, like the live test. ' : ''}The TradingView rating picks the side (the AI copies it). Backup opens once the price moves ${t}% of the way to the stop. Stop = 1.5 × hourly ATR (about $${a.avg_sl?.toFixed(0) ?? '—'}), TP = stop.`
-    if (r?.name === 'perfect-8h') return `Cheats: always picks the side gold will be on 8 hours later. Backup at a ${t}% dip, same stop as the AI (about $${a.avg_sl?.toFixed(0) ?? '—'}).`
-    return `The AI (qwen) picks buy or sell at about 1 moment in 4 hours; stop from the AI (about $${a.avg_sl?.toFixed(0) ?? '—'} move), TP = stop, backup at a ${t}% dip.`
+    if (r?.name === 'rating-trigger') return `${a.run.endsWith('-hourly') ? 'A signal every hour, like the live test. ' : ''}The TradingView rating picks the side (the AI copies it). Backup opens once the price moves ${t}% of the way to the stop. Stop = 1.5 × hourly ATR (about $${a.avg_sl?.toFixed(0) ?? '—'}), TP = stop.${sessionNote}`
+    if (r?.name === 'perfect-8h') return `Cheats: always picks the side gold will be on 8 hours later. Backup at a ${t}% dip, same stop as the AI (about $${a.avg_sl?.toFixed(0) ?? '—'}).${sessionNote}`
+    return `The AI (qwen) picks buy or sell at about 1 moment in 4 hours; stop from the AI (about $${a.avg_sl?.toFixed(0) ?? '—'} move), TP = stop, backup at a ${t}% dip.${sessionNote}`
 }
 // Luck at a trigger t with TP = SL: t / (1 + t), in %
 const luckRate = (trigger: number) => (trigger / (1 + trigger)) * 100
