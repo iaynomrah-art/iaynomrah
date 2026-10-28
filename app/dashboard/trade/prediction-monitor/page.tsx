@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { Activity, Brain, CandlestickChart, CheckCircle2, Clock, Gauge, LineChart, Sparkles, Filter, ChevronDown, ChevronUp, ArrowRight, ShieldCheck, Trophy, Layers, TrendingUp, AlertTriangle } from 'lucide-react'
+import { Activity, Brain, CandlestickChart, CheckCircle2, Clock, Gauge, LineChart, Filter, ChevronDown, ChevronUp, ArrowRight, ShieldCheck, Trophy, Layers, TrendingUp, AlertTriangle } from 'lucide-react'
 import GoldCandleChart from '@/components/chart/GoldCandleChart'
 import { Bar, BarChart as DailyBarChart, CartesianGrid, Line, LineChart as RunningTotalChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
@@ -180,25 +180,38 @@ const RUN_LABEL: Record<string, string> = {
     'rating-t10-hourly': 'Hourly signals, hedge at 10% (like live)',
     'rating-t15-hourly': 'Hourly signals, hedge at 15%',
 }
-// Table sections, in order - 30-Day Macro, Adaptive Regime, Combined Synergy, and S/R Budget
-// The run being considered for live: shown first in the ranking and in its table section
+// The run the orchestrator trades live, and the 9 AM-only version it replaced
 const FEATURED_RUN = 'sr-bounce-40-9am-8pm'
+const BASELINE_RUN = 'sr-bounce-40'
 const featuredFirst = (a: Approach, b: Approach) => Number(b.run === FEATURED_RUN) - Number(a.run === FEATURED_RUN)
+// Table sections: the live model, then every tested variation grouped by what it changed
 const APPROACH_GROUPS: { key: string, title: string, note: string }[] = [
-    { key: 'sr-bounce', title: 'S/R Bounce', note: 'Buy the bottom of the range, sell the top; variants by budget, lookback, zone and monthly bias' },
-    { key: 'sr-tv-30d', title: '30-Day Macro Trend + 6h Local S/R Synergy (New)', note: '30-day macro trend bias from daily chart + tight 6h Asian session S/R execution levels' },
-    { key: 'sr-adaptive', title: 'Adaptive Regime Model (Breakout + Bounce Synergy)', note: 'Bounce when TV agrees, breakout when it disagrees: either way the trade follows TradingView' },
-    { key: 'sr-tv-synergy', title: 'S/R + TradingView Synergy Model (Combined)', note: 'TradingView 18-indicator macro trend consensus + S/R value pullback entry (9:00 AM PHT)' },
-    { key: 'sr-budget', title: 'Support & Resistance Budget Strategy (× 8%, × 12%, × 15%)', note: '9:00 AM PHT trades within 25% of S/R boundary with past chart trend confirmation' },
+    { key: 'live', title: 'Live now', note: 'What the orchestrator trades, and the 9 AM-only version it replaced' },
+    { key: 'time', title: 'Different trading times', note: '8 AM, 8:30 AM / PM or 8 PM instead of, or next to, 9 AM' },
+    { key: 'levels', title: 'Different S/R lookback or zone', note: '2h or 6h levels instead of 12h; a 20% or 40% zone instead of 25%' },
+    { key: 'size', title: 'Different stop or lot size', note: '$50, $66.67 or $100 stops; 0.01 or 0.1 lot' },
+    { key: 'bias', title: 'With a trend filter', note: 'Only trades the side the last 30 days (or the month) moved' },
+    { key: 'older', title: 'Older models (not used)', note: 'Adaptive, TradingView synergy, 30-day macro and the S/R budget rules' },
 ]
 const groupOf = (a: Approach) => {
-    if (a.rule?.name === 'sr-tv-30d' || a.run === 'sr-tv-30d') return 'sr-tv-30d'
-    if (a.rule?.name === 'sr-adaptive' || a.run === 'sr-adaptive') return 'sr-adaptive'
-    if (a.rule?.name === 'sr-tv-synergy' || a.run === 'sr-tv-combined') return 'sr-tv-synergy'
-    if (a.rule?.name?.startsWith('sr-budget') || a.run.startsWith('sr-budget')) return 'sr-budget'
-    if (a.rule?.name === 'sr-bounce' || a.run === 'sr-bounce') return 'sr-bounce'
-    return a.rule?.name ?? 'ai'
+    const r = a.run
+    if (r === FEATURED_RUN || r === BASELINE_RUN) return 'live'
+    if (a.rule?.name !== 'sr-bounce') return a.rule && /^sr-/.test(a.rule.name) ? 'older' : 'ai'
+    if (/-m30|-month/.test(r)) return 'bias'
+    if (r === 'sr-bounce' || r.startsWith('sr-bounce-20') || r.includes('-lot')) return 'size'
+    if (/-(2h|6h)$|-z\d+/.test(r)) return 'levels'
+    return 'time'
 }
+// Best first: the live run, then by verdict, then by total profit
+const verdictRank = (a: Approach) => {
+    const l = a.luck
+    if (!l) return 0
+    const steady = l.halves.every((h) => h.pnl > 0) && l.slippage.pnl > 0
+    return l.beats_pct >= 95 && steady ? 2 : l.beats_pct >= 80 && steady ? 1 : 0
+}
+const totalOf = (a: Approach) => a.luck?.pnl ?? (a.delayed_per_trade ?? 0) * a.trades
+const bestFirst = (a: Approach, b: Approach) => featuredFirst(a, b) || Number(b.run === BASELINE_RUN) - Number(a.run === BASELINE_RUN)
+    || verdictRank(b) - verdictRank(a) || totalOf(b) - totalOf(a)
 const runLabel = (run: string) => RUN_LABEL[run] ?? run
 // How each approach works, in one line
 const approachHow = (a: Approach) => {
@@ -586,21 +599,34 @@ const DailyTp = ({ daily, title }: { daily?: Daily | null, title: string }) => {
 
 // Every past-data run side by side: the AI prompts and the rule-based approaches
 const ApproachCompare = ({ list, selected, onSelect, cost }: { list: Approach[], selected: string | null, onSelect: (run: string) => void, cost?: Cost }) => {
-    const [filter, setFilter] = useState<string>('all')
     const [showNotes, setShowNotes] = useState<boolean>(false)
+    const [open, setOpen] = useState<Set<string>>(new Set(['live']))
+    const [allChips, setAllChips] = useState<boolean>(false)
 
     const rate = (v: number | null | undefined) => v == null ? '—' : `${(v / 10).toFixed(1)} in 10`
     const usd = (v: number | null) => v == null ? '—' : money(v)
     
-    const sorted = (key: string) => list.filter((a) => groupOf(a) === key).sort((a, b) => featuredFirst(a, b) || (a.rule?.f ?? a.trigger) - (b.rule?.f ?? b.trigger) || a.run.localeCompare(b.run))
+    const sorted = (key: string) => list.filter((a) => groupOf(a) === key).sort(bestFirst)
+    const filteredGroups = APPROACH_GROUPS.filter((g) => sorted(g.key).length > 0)
+    // A section is open when clicked open, or when it holds the run being inspected
+    const holdsSelected = (key: string) => sorted(key).some((a) => a.run === selected)
+    const isOpen = (key: string) => open.has(key) || holdsSelected(key)
+    const toggle = (key: string) => {
+        const closing = isOpen(key)
+        setOpen((prev) => {
+            const next = new Set(prev)
+            if (closing) next.delete(key)
+            else next.add(key)
+            return next
+        })
+        // Closing the section of the inspected run goes back to the live model
+        if (closing && holdsSelected(key) && key !== 'live') onSelect(FEATURED_RUN)
+    }
 
-    const filteredGroups = APPROACH_GROUPS.filter((g) => {
-        if (filter === 'all') return sorted(g.key).length > 0
-        return g.key === filter && sorted(g.key).length > 0
-    })
-
-    // Runs with a luck test, best first
-    const ranked = (list || []).filter((a) => a.luck).sort((x, y) => featuredFirst(x, y) || y.luck!.beats_pct - x.luck!.beats_pct || y.luck!.pnl - x.luck!.pnl)
+    // Runs with a luck test, best first; the chips show the live runs and the ones that beat luck
+    const ranked = (list || []).filter((a) => a.luck && groupOf(a) !== 'ai').sort(bestFirst)
+    const contenders = ranked.filter((a) => groupOf(a) === 'live' || verdictRank(a) === 2)
+    const chips = allChips ? ranked : contenders
     const slip = ranked[0]?.luck?.slippage.per_hedge ?? 1.5
 
     return (
@@ -619,7 +645,7 @@ const ApproachCompare = ({ list, selected, onSelect, cost }: { list: Approach[],
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2.5">
-                        {ranked.map((a) => {
+                        {chips.map((a) => {
                             const v = verdict(a.luck)
                             return (
                                 <button
@@ -627,7 +653,10 @@ const ApproachCompare = ({ list, selected, onSelect, cost }: { list: Approach[],
                                     onClick={() => onSelect(a.run)}
                                     className={`px-3 py-2 rounded-xl text-xs border text-left transition-all ${selected === a.run ? 'bg-white/10 border-white/30' : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'}`}
                                 >
-                                    <div className="font-bold text-white">{runLabel(a.run)}</div>
+                                    <div className="font-bold text-white flex items-center gap-1.5">
+                                        {groupOf(a) === 'live' && <span className="px-1 rounded text-[9px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">{a.run === FEATURED_RUN ? 'LIVE' : 'OLD LIVE'}</span>}
+                                        {runLabel(a.run)}
+                                    </div>
                                     <div className="flex items-center gap-2 mt-1">
                                         <span className={`px-1.5 rounded text-[10px] font-bold border ${v.cls}`}>{v.label}</span>
                                         <span className="tabular-nums text-muted-foreground">beats {a.luck!.beats_pct}% · {money(a.luck!.pnl)}</span>
@@ -635,6 +664,12 @@ const ApproachCompare = ({ list, selected, onSelect, cost }: { list: Approach[],
                                 </button>
                             )
                         })}
+                        {ranked.length > contenders.length && (
+                            <button onClick={() => setAllChips(!allChips)}
+                                className="px-3 py-2 rounded-xl text-xs border border-dashed border-white/15 text-muted-foreground hover:text-white">
+                                {allChips ? 'Show only the ones that beat luck' : `Show all ${ranked.length} (${ranked.length - contenders.length} more)`}
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
@@ -647,20 +682,12 @@ const ApproachCompare = ({ list, selected, onSelect, cost }: { list: Approach[],
                             <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
                                 <Layers className="h-4 w-4" />
                             </div>
-                            <h3 className="text-base font-bold text-white">Support & Resistance & Combined Model Backtest</h3>
-                            <span className="text-xs text-muted-foreground">1+ Year Backtested (14 Months · Sept 2025 – Oct 2026)</span>
+                            <h3 className="text-base font-bold text-white">All Models Tested</h3>
+                            <span className="text-xs text-muted-foreground">14 months · Sept 2025 – Oct 2026</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                            Evaluated at 9:00 AM PHT with the 25% boundary rule. Low-conviction mid-range chop is skipped automatically. Click any row to load its trade replay log.
+                            The live model is on top. Every other run is folded into a group by what it changed: click a group to open it, and a row to load its trades.
                         </p>
-                    </div>
-
-                    {/* Mode Focus Indicator */}
-                    <div className="flex items-center gap-2 p-1.5 bg-[#121212] rounded-xl border border-emerald-500/30">
-                        <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 flex items-center gap-1.5">
-                            <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-                            <span>Active Focus: S/R & Combined TV Models</span>
-                        </span>
                     </div>
                 </div>
 
@@ -681,18 +708,24 @@ const ApproachCompare = ({ list, selected, onSelect, cost }: { list: Approach[],
                         <tbody className="divide-y divide-[#141414]">
                             {filteredGroups.map((g) => (
                                 <React.Fragment key={g.key}>
-                                    <tr className="bg-white/[0.02]">
-                                        <td colSpan={8} className="px-5 py-2 text-[11px]">
-                                            <span className="text-white font-bold uppercase tracking-wider">{g.title}</span>
-                                            <span className="text-muted-foreground"> · {g.note}</span>
+                                    <tr className="bg-white/[0.02] cursor-pointer hover:bg-white/[0.04]" onClick={() => toggle(g.key)}>
+                                        <td colSpan={8} className="px-5 py-2.5 text-[11px]">
+                                            <div className="flex items-center gap-2">
+                                                {isOpen(g.key) ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                                                <span className={`font-bold uppercase tracking-wider ${g.key === 'live' ? 'text-sky-300' : 'text-white'}`}>{g.title}</span>
+                                                <span className="text-muted-foreground">· {sorted(g.key).length} run{sorted(g.key).length === 1 ? '' : 's'} · {g.note}</span>
+                                                {!isOpen(g.key) && (() => {
+                                                    const best = sorted(g.key)[0]
+                                                    const v = verdict(best.luck)
+                                                    return <span className="ml-auto text-muted-foreground whitespace-nowrap">best: <span className="text-zinc-200">{runLabel(best.run)}</span> · <span className={`px-1 rounded text-[10px] font-bold border ${v.cls}`}>{v.label}</span> {money(totalOf(best))}</span>
+                                                })()}
+                                            </div>
                                         </td>
                                     </tr>
-                                    {sorted(g.key).map((a) => {
+                                    {isOpen(g.key) && sorted(g.key).map((a) => {
                                         const allRate = a.main.a_rate_all ?? 0
                                         const isSelected = selected === a.run
-                                        const isSR = a.rule?.name === 'sr-budget' || a.rule?.name === 'sr-tv-synergy' || a.rule?.name === 'sr-adaptive' || a.rule?.name === 'sr-bounce'
-                                        const isAdaptive = a.run === 'sr-adaptive'
-                                        const isCombined = a.run === 'sr-tv-combined'
+                                        const isLive = a.run === FEATURED_RUN
                                         const totalNet = a.delayed_per_trade != null ? a.delayed_per_trade * a.trades : null
                                         const isProfitable = (a.delayed_per_trade ?? 0) > 0
 
@@ -703,25 +736,16 @@ const ApproachCompare = ({ list, selected, onSelect, cost }: { list: Approach[],
                                                 className={`cursor-pointer transition-colors ${
                                                     isSelected
                                                         ? 'bg-amber-500/15 border-l-2 border-l-amber-400'
-                                                        : isAdaptive
-                                                        ? 'bg-amber-950/20 hover:bg-amber-950/30 border-l-2 border-l-amber-400/80'
-                                                        : isCombined
-                                                        ? 'bg-sky-950/10 hover:bg-sky-950/20 border-l-2 border-l-sky-400/60'
-                                                        : isSR
-                                                        ? 'bg-emerald-950/10 hover:bg-emerald-950/20 border-l-2 border-l-emerald-500/60'
+                                                        : isLive
+                                                        ? 'bg-sky-950/15 hover:bg-sky-950/25 border-l-2 border-l-sky-400/60'
                                                         : 'hover:bg-white/[0.02]'
                                                 }`}
                                             >
                                                 {/* Approach Details */}
                                                 <td className="px-5 py-3 max-w-sm">
                                                     <div className="flex items-center gap-2">
-                                                        <span className={`font-bold ${
-                                                            isAdaptive ? 'text-amber-300' :
-                                                            isCombined ? 'text-sky-300' :
-                                                            isSR ? 'text-emerald-300' :
-                                                            a.picker === 'perfect' ? 'text-sky-300' :
-                                                            a.rule ? 'text-zinc-200' : 'text-violet-300'
-                                                        }`}>
+                                                        {g.key === 'live' && <span className="px-1 rounded text-[9px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">{isLive ? 'LIVE' : 'OLD LIVE'}</span>}
+                                                        <span className={`font-bold ${isLive ? 'text-sky-200' : g.key === 'older' ? 'text-zinc-400' : 'text-emerald-300'}`}>
                                                             {runLabel(a.run)}
                                                         </span>
                                                         {(() => {
@@ -866,9 +890,6 @@ const ApproachCompare = ({ list, selected, onSelect, cost }: { list: Approach[],
                         <div className="px-5 py-4 bg-[#060606] border-t border-[#141414] text-xs text-muted-foreground space-y-2 leading-relaxed">
                             <p>
                                 <b className="text-white">Why &quot;out of every trade&quot;:</b> A wider stop takes longer to reach, so more trades remain open at 8 hours. Counting only finished trades distorts wide stops. Out of every trade is what your accounts actually experience.
-                            </p>
-                            <p>
-                                <b className="text-white">Why S/R Budget beats brute-force trading:</b> Standard approaches take trades every hour regardless of chop, losing -$90,422 to false breakouts. The S/R budget rule tests whether expected payout can absorb the boundary spread; if not, it skips the trade.
                             </p>
                             <p>
                                 <b className="text-white">Luck test:</b> every moment is also graded on the opposite side (with its own hedge trigger), and 1,000 coin flips pick a side at random on the same moments. &quot;Beats 90%&quot; means only 1 random picker in 10 did better. Even random sides make money here when gold trends, because the hedge caps a wrong side at about -$20 while a right side can win the whole range, so a profit alone does not show an edge.
@@ -1225,29 +1246,13 @@ const PredictionMonitorPage = () => {
 
                 {view === 'past' && (
                     <div className="p-5 rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/20 via-[#0d0d0d] to-[#080808] flex flex-col gap-3">
-                        <div className="text-white font-semibold flex items-center gap-2"><LineChart className="h-5 w-5 text-emerald-400" /> S/R & TradingView Backtest: 1+ Year of Historical Data (14 Months)</div>
+                        <div className="text-white font-semibold flex items-center gap-2"><LineChart className="h-5 w-5 text-emerald-400" /> Past data: 14 months of gold, replayed</div>
                         <p className="text-xs text-zinc-300 leading-relaxed max-w-4xl">
-                            Evaluates every trading day at 9:00 AM Philippine Time (01:00 UTC) over 14 months (80,000 5-minute candles) using the 25% boundary proximity rule. Low-conviction chop in the middle 50% is skipped automatically.
+                            Every model is replayed on 14 months of 5-minute candles, held until SL or TP, with overnight swaps and one pair at a time.
+                            Live now: <button onClick={() => setRun(FEATURED_RUN)} className="text-sky-300 font-semibold underline-offset-2 hover:underline">{runLabel(FEATURED_RUN)}</button>.
+                            Pick any other model from the table below.
                         </p>
-                        {past?.runs?.length ? (
-                            <div className="flex flex-wrap items-center gap-2 text-xs">
-                                <span className="text-muted-foreground font-medium">Select Model:</span>
-                                {past.runs.filter((r) => r.run.startsWith('sr-budget') || r.run === 'sr-tv-combined' || r.run === 'sr-adaptive').map((r) => (
-                                    <button key={r.run} onClick={() => setRun(r.run)}
-                                        className={`px-3 py-1.5 rounded-lg border font-semibold transition-all ${
-                                            past.run === r.run
-                                                ? (r.run === 'sr-adaptive'
-                                                    ? 'border-amber-400 bg-amber-500/25 text-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.3)]'
-                                                    : r.run === 'sr-tv-combined'
-                                                    ? 'border-sky-400 bg-sky-500/25 text-sky-200 shadow-[0_0_12px_rgba(56,189,248,0.3)]'
-                                                    : 'border-emerald-500/60 bg-emerald-500/25 text-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.3)]')
-                                                : 'border-[#1a1a1a] text-muted-foreground hover:text-white'
-                                        }`}>
-                                        {runLabel(r.run)} · {r.signals} trades
-                                    </button>
-                                ))}
-                            </div>
-                        ) : past?.error ? <div className="text-xs text-red-300">Could not load past data: {typeof past.error === 'object' ? JSON.stringify(past.error) : String(past.error)}</div>
+                        {past?.runs?.length ? null : past?.error ? <div className="text-xs text-red-300">Could not load past data: {typeof past.error === 'object' ? JSON.stringify(past.error) : String(past.error)}</div>
                           : past ? <div className="text-xs text-muted-foreground">No past-data runs saved yet.</div>
                           : <div className="text-xs text-muted-foreground">Loading...</div>}
                     </div>
@@ -1257,9 +1262,9 @@ const PredictionMonitorPage = () => {
                 {/* How it works */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {[
-                        { icon: <Clock className="h-5 w-5 text-emerald-400" />, title: '1. Daily 9:00 AM PH Time', text: 'Executes every market weekday at 9:00 AM Philippine Time (01:00 UTC) during the calm Asian session (78% S/R hold rate).' },
-                        { icon: <ShieldCheck className="h-5 w-5 text-sky-400" />, title: '2. S/R Budget Filter', text: 'Trades only when target profit budget exceeds recent range. Avoids whipsaws and skips low-conviction chop.' },
-                        { icon: <CheckCircle2 className="h-5 w-5 text-emerald-400" />, title: '3. Instant Results', text: 'All trades resolve completely to Clean TP, Hedged TP, or Hedged SL on broker prices. Zero unfinished trades.' },
+                        { icon: <Clock className="h-5 w-5 text-emerald-400" />, title: '1. 9:00 AM and 8:00 PM PHT', text: 'A signal at 9:00 AM and 8:00-8:15 PM Philippine Time, Monday to Friday.' },
+                        { icon: <ShieldCheck className="h-5 w-5 text-sky-400" />, title: '2. Delayed or normal hedge', text: 'Delayed hedge only when price is in the bottom or top 25% of the 12h S/R range, the range is under the $40 stop, no US high-impact news is near and no other delayed pair is open. Otherwise the normal hedge.' },
+                        { icon: <CheckCircle2 className="h-5 w-5 text-emerald-400" />, title: '3. Held until SL or TP', text: 'Pairs are never closed early. Each one is graded once it hits SL or TP, with overnight swaps included.' },
                     ].map((step) => (
                         <div key={step.title} className="p-5 rounded-2xl border border-[#1a1a1a] bg-gradient-to-br from-[#0d0d0d] to-[#080808]">
                             <div className="flex items-center gap-2 text-white font-semibold">{step.icon}{step.title}</div>
@@ -1272,13 +1277,13 @@ const PredictionMonitorPage = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                     <Card
                         icon={<Clock className="h-4 w-4" />} label="Trading Window" ok={true}
-                        value="9:00 AM PHT"
-                        sub="01:00 UTC · Mon–Fri (Asian Session Calm)"
+                        value="9 AM + 8 PM PHT"
+                        sub="01:00 and 12:00 UTC · Mon–Fri"
                     />
                     <Card
                         icon={<CheckCircle2 className="h-4 w-4" />} label="Resolved Trades"
                         value={s?.counts ? `${s.counts.graded ?? 0} / ${s.counts.shadow ?? 0}` : '—'}
-                        sub="Zero unfinished trades · Fully resolved"
+                        sub="Graded once they hit SL or TP"
                     />
                     <Card
                         icon={<CandlestickChart className="h-4 w-4" />} label="Price recording" ok={candlesFresh}
@@ -1298,10 +1303,10 @@ const PredictionMonitorPage = () => {
                     mainLabel={s.reference?.rule_mode ? 'S/R bounce (live)' : undefined} />}
                 {view === 'past' && <VolatilityTimingCard />}
                 {view === 'past' && !!past?.approaches?.length && <ApproachCompare list={past.approaches} selected={past.run} onSelect={setRun} cost={past.reference?.cost} />}
-                {view === 'past' && past?.run && <div className="text-sm text-white font-semibold -mb-4">Selected Model: <span className={past.run === 'sr-adaptive' ? "text-amber-300 font-bold" : past.run === 'sr-tv-combined' ? "text-sky-300 font-bold" : "text-emerald-400 font-bold"}>{runLabel(past.run)}</span></div>}
+                {view === 'past' && past?.run && <div className="text-sm text-white font-semibold -mb-4">Selected Model: <span className={past.run === FEATURED_RUN ? "text-sky-300 font-bold" : "text-emerald-400 font-bold"}>{runLabel(past.run)}</span>{past.run === FEATURED_RUN && <span className="ml-2 text-[10px] px-1 rounded font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">LIVE</span>}</div>}
                 {view === 'past' && past?.scoreboard && <Scoreboard board={past.scoreboard} risk={past.reference?.risk ?? 100} luck={luckRate(pastTrig)} cost={past.reference?.cost}
                     sizing={pastSizing}
-                    mainLabel={past.run === 'sr-adaptive' ? 'Adaptive Regime' : past.run === 'sr-tv-combined' ? 'S/R + TradingView Synergy' : past.run?.startsWith('sr-budget') ? `S/R Budget (${runLabel(past.run)})` : past.run?.startsWith('sr-bounce') ? 'Plain S/R bounce' : 'S/R Budget'} trig={pastTrig} />}
+                    mainLabel={past.run ? runLabel(past.run) : 'Model'} trig={pastTrig} />}
 
                 {view === 'live' && !!s?.daily?.every.summary.days && <DailyTp daily={s.daily} title="Live S/R signals" />}
                 {view === 'past' && !!past?.daily?.every.summary.days && past.run && <DailyTp daily={past.daily} title={runLabel(past.run)} />}

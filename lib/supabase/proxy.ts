@@ -61,6 +61,7 @@ export async function updateSession(request: NextRequest) {
   if (
     request.nextUrl.pathname !== "/" &&
     !user &&
+    !request.nextUrl.pathname.startsWith("/api") &&
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/auth") &&
     // The owner portal has its own login (portal_logins), not Supabase Auth
