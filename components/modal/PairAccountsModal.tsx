@@ -62,6 +62,7 @@ type StrategyCheck = {
     score?: number | null
     swap?: boolean
     hedge?: { order_amount: number; stop_loss: number; take_profit: number } | null
+    triggerPct?: number | null
     testModeAvailable?: boolean
 }
 
@@ -579,8 +580,21 @@ export const PairAccountsModal = ({
             updatePair(pairs[0].id, 'trade_type', data.suggestion.toLowerCase() as 'buy' | 'sell')
             setAiSignal(data.signal_id ? { id: data.signal_id, direction: data.suggestion.toLowerCase() } : null)
 
-            // The signal sets the direction; the account's dollar SL/TP stay, and the lot is
-            // re-sized from the signal's 4-8h distance when it has fresh MT5 numbers
+            // When the S/R rule picks the delayed hedge, use the trade it was tested with
+            // (0.03 lot, $40 stop, TP = the S/R range); otherwise the direction is all that
+            // changes and the account's dollar SL/TP stay
+            const rule = data.data
+            if (rule?.passed && rule.suggested_sl_dollars > 0 && rule.suggested_tp_dollars > 0) {
+                updatePair(pairs[0].id, 'sl_type', 'dollar')
+                updatePair(pairs[0].id, 'tp_type', 'dollar')
+                updatePair(pairs[0].id, 'sl_ticks', rule.suggested_sl_dollars)
+                updatePair(pairs[0].id, 'tp_ticks', rule.suggested_tp_dollars)
+                toast.info(`Delayed hedge setup: ${rule.suggested_lot} lot, SL $${rule.suggested_sl_dollars}, TP $${rule.suggested_tp_dollars}`)
+            } else if (rule?.skip_reason) {
+                toast.info(`Normal hedge today: ${rule.skip_reason}`)
+            }
+
+            // The lot is re-sized from the signal's SL distance (the rule's $40 gives 0.03 at a $120 SL)
             const distance = Number(data.data?.suggested_sl_distance)
             if (distance > 0) {
                 lotAutoApplied.current = false
@@ -838,7 +852,7 @@ export const PairAccountsModal = ({
                 })
                 const data = await res.json()
                 if (!res.ok) throw new Error(data.message || "Strategy check failed")
-                setStrategyCheck({ status: 'done', allowed: data.delayed_allowed, reason: data.reason, score: data.score, swap: data.swap, hedge: data.hedge, testModeAvailable: data.test_mode_available })
+                setStrategyCheck({ status: 'done', allowed: data.delayed_allowed, reason: data.reason, score: data.score, swap: data.swap, hedge: data.hedge, triggerPct: data.trigger_pct, testModeAvailable: data.test_mode_available })
                 // Default to delayed when allowed, unless the user already picked; never keep a pick that's no longer allowed
                 if (!data.delayed_allowed) setStrategyChoice('natural')
                 else if (!userPickedStrategy.current) setStrategyChoice('delayed_hedge')
@@ -1229,7 +1243,7 @@ export const PairAccountsModal = ({
                                     {testMode ? 'Delayed hedge allowed (test mode — AI score ignored).' : `Delayed hedge allowed (score ${strategyCheck.score}).`}{' '}
                                     <span className="text-[#848e9c]">
                                         {strategyChoice === 'delayed_hedge'
-                                            ? `Only the primary opens. If it loses 10% of its SL, the secondary opens ${strategyCheck.hedge?.order_amount} lots the other way (worst case $${strategyCheck.hedge?.stop_loss}).${strategyCheck.swap ? ' The accounts will be swapped so the hedge is on the one with more room.' : ''}`
+                                            ? `Only the primary opens. If it loses ${Math.round((strategyCheck.triggerPct ?? 0.1) * 1000) / 10}% of its SL, the secondary opens ${strategyCheck.hedge?.order_amount} lots the other way (worst case $${strategyCheck.hedge?.stop_loss}).${strategyCheck.swap ? ' The accounts will be swapped so the hedge is on the one with more room.' : ''}`
                                             : 'Both accounts will open at the same time.'}
                                     </span>
                                 </span>
