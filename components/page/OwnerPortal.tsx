@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import dynamic from "next/dynamic"
 import { portalLogout } from "@/lib/portal/owner-actions"
 import { PortalChangePasswordDialog } from "@/components/modal/PortalChangePasswordDialog"
 import {
@@ -32,10 +33,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
     AlertTriangle, ArrowDownRight, ArrowUpRight, Building2, CreditCard, History, KeyRound,
     LayoutDashboard, LogOut, ShieldCheck, TrendingUp, Wallet,
-    ChevronDown, ChevronRight, BrainCircuit, User
+    ChevronDown, ChevronRight, BrainCircuit, User, CandlestickChart, Clock
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { PortalAccount, PortalOwner, PortalPayout, PortalTrade } from "@/types/portal"
+import type { TradeSignal } from "@/components/chart/TradeVisualizerModal"
+
+const TradeVisualizerModal = dynamic(() => import("@/components/chart/TradeVisualizerModal"), {
+    ssr: false,
+})
 
 interface OwnerPortalProps {
     owner: PortalOwner | null
@@ -99,7 +105,9 @@ function describeClose(trade: PortalTrade): { text: string; tone: string } {
             if (trade.own_exit_signal === "pair_sl") return { text: "Stop loss hit", tone: "text-red-500" }
             return { text: "Closed at the broker", tone: "text-white/70" }
         case "paired_exit":
-            return { text: "Closed automatically when the paired position closed", tone: "text-white/70" }
+            return trade.pnl && trade.pnl > 0
+                ? { text: "Take profit hit", tone: "text-emerald-500" }
+                : { text: "Stop loss hit", tone: "text-red-500" }
         case "manual":
             return { text: "Closed manually by the trading team", tone: "text-white/70" }
         case "close_failed":
@@ -127,6 +135,104 @@ const FunderBadge = ({ account }: { account: PortalAccount | undefined }) => (
         {account?.funder_alias || account?.funder_name || "—"}
     </span>
 )
+
+/** Convert a portal trade to the format expected by the visualizer modal */
+function portalTradeToVisualizerSignal(trade: PortalTrade | null, allTrades?: PortalTrade[]): TradeSignal | null {
+    if (!trade) return null
+
+    // Look for paired companion leg to get close_time if missing on this leg
+    const companion = allTrades?.find(
+        (t) => t.trade_id === trade.trade_id && t.trading_account_id !== trade.trading_account_id && t.close_time
+    )
+    const effectiveCloseTime = trade.close_time || companion?.close_time || null
+
+    const isBuy = trade.side?.toLowerCase() === "buy"
+    const entryTime = trade.entry_time || trade.created_at
+    const entryMs = new Date(entryTime).getTime()
+    const closeMs = effectiveCloseTime ? new Date(effectiveCloseTime).getTime() : null
+    const hours = closeMs && !isNaN(closeMs) && !isNaN(entryMs) && closeMs > entryMs
+        ? (closeMs - entryMs) / (3600 * 1000)
+        : null
+
+    let outcomeAi = "TP"
+    if (trade.own_exit_signal === "pair_tp") {
+        outcomeAi = "TP"
+    } else if (trade.own_exit_signal === "pair_sl") {
+        outcomeAi = "SL"
+    } else if (trade.close_reason === "paired_exit") {
+        outcomeAi = trade.pnl && trade.pnl > 0 ? "TP" : "SL"
+    } else if (trade.close_reason === "manual") {
+        outcomeAi = "MANUAL"
+    } else if (trade.pnl != null) {
+        outcomeAi = trade.pnl >= 0 ? "TP" : "SL"
+    }
+
+    const lot = trade.lot || 0.02
+    const dollarsPerDollar = lot * 100
+    const entryPrice = trade.signal_inputs?.price || null
+
+    let slPrice: number | null = null
+    let tpPrice: number | null = null
+    let closePrice: number | null = null
+
+    if (entryPrice && dollarsPerDollar > 0) {
+        if (trade.stop_loss) {
+            const slDelta = trade.stop_loss / dollarsPerDollar
+            slPrice = isBuy ? entryPrice - slDelta : entryPrice + slDelta
+        }
+        if (trade.take_profit) {
+            const tpDelta = trade.take_profit / dollarsPerDollar
+            tpPrice = isBuy ? entryPrice + tpDelta : entryPrice - tpDelta
+        }
+        if (trade.pnl != null) {
+            const pnlDelta = trade.pnl / dollarsPerDollar
+            closePrice = isBuy ? entryPrice + pnlDelta : entryPrice - pnlDelta
+        }
+    }
+
+    const support = trade.signal_inputs?.sma_200
+        ? trade.signal_inputs.sma_200 - (trade.signal_inputs.atr ? trade.signal_inputs.atr * 2 : 10)
+        : undefined
+    const resistance = trade.signal_inputs?.sma_200
+        ? trade.signal_inputs.sma_200 + (trade.signal_inputs.atr ? trade.signal_inputs.atr * 2 : 10)
+        : undefined
+
+    return {
+        id: trade.trade_id,
+        created_at: entryTime,
+        close_at: effectiveCloseTime,
+        ai: trade.side?.toLowerCase() || "buy",
+        hours,
+        outcome: { ai: outcomeAi },
+        trade: {
+            lot,
+            risk: trade.stop_loss || 0,
+            entry: entryPrice,
+            sl: slPrice,
+            tp: tpPrice,
+            trigger: null,
+            close: closePrice,
+            hedged: false,
+            pnl: trade.pnl,
+            hedge_price: null,
+            hedge_hours: null,
+            primary_pnl: trade.pnl,
+            hedge_pnl: null,
+            slippage_pct: null,
+        },
+        rule: support && resistance ? {
+            support,
+            resistance,
+            range: resistance - support,
+            past_trend: trade.signal_inputs?.micro_trend || undefined,
+        } : null,
+        diagnostic: {
+            session: "New York",
+            location: trade.signal_source || undefined,
+            reason: trade.signal_reasoning || undefined,
+        },
+    }
+}
 
 // ─── Shell (same frame as the admin dashboard) ──────────────────────────────
 
@@ -431,32 +537,75 @@ const EmptyState = ({ text }: { text: string }) => (
     <div className="py-12 text-center text-sm text-muted-foreground">{text}</div>
 )
 
-function TradeDetailsPanel({ trade }: { trade: PortalTrade }) {
+function cleanSignalReasoning(reasoning: string | null | undefined, direction?: string | null): string {
+    if (!reasoning) return ""
+    let text = reasoning.trim()
+
+    // Clean up robotic boilerplate and any news mentions from earlier outputs
+    text = text.replace(/and the latest headlines do not provide enough information to override this signal\.?/gi, "")
+    text = text.replace(/headlines do not provide enough information to override[^.]*\.?/gi, "")
+    text = text.replace(/latest headlines [^.]*\.?/gi, "")
+    text = text.replace(/The macro trend is currently [A-Z]+, but the [0-9a-zA-Z ]+ trend takes precedence in the short-term horizon\.?/gi, "")
+    text = text.replace(/The [0-9a-zA-Z ]+ micro trend indicates a (BUY|SELL) signal\.?/gi, (match, dir) => {
+        return `Short-term technical momentum confirmed a ${dir} setup.`
+    })
+    text = text.replace(/\s{2,}/g, " ").trim()
+
+    return text
+}
+
+function TradeDetailsPanel({ trade, onInspectTrade }: { trade: PortalTrade; onInspectTrade?: (trade: PortalTrade) => void }) {
     if (!trade.signal_direction) {
         return (
-            <div className="p-4 pl-10 border-l-2 border-l-gray-600 bg-[#0d0d0d]">
-                <div className="flex items-center gap-2 mb-2">
-                    <User className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm font-semibold text-white">Manual Trade</span>
+            <div className="p-4 pl-10 border-l-2 border-l-gray-600 bg-[#0d0d0d] flex items-center justify-between gap-4">
+                <div>
+                    <div className="flex items-center gap-2 mb-2">
+                        <User className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm font-semibold text-white">Manual Trade</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">This trade was opened manually or the pair had no AI signal attached.</p>
                 </div>
-                <p className="text-xs text-muted-foreground">This trade was opened manually or the pair had no AI signal attached.</p>
+                {onInspectTrade && (
+                    <button
+                        type="button"
+                        onClick={() => onInspectTrade(trade)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 hover:border-emerald-400 transition-all inline-flex items-center gap-1.5 shadow-sm shrink-0"
+                    >
+                        <CandlestickChart className="h-3.5 w-3.5" />
+                        <span>View Chart</span>
+                    </button>
+                )}
             </div>
         )
     }
 
     if (!trade.signal_followed) {
         return (
-            <div className="p-4 pl-10 border-l-2 border-l-blue-600 bg-[#0d0d0d]">
-                <div className="flex items-center gap-2 mb-2">
-                    <ShieldCheck className="h-4 w-4 text-blue-400" />
-                    <span className="text-sm font-semibold text-white">Hedging Leg</span>
+            <div className="p-4 pl-10 border-l-2 border-l-blue-600 bg-[#0d0d0d] flex items-center justify-between gap-4">
+                <div>
+                    <div className="flex items-center gap-2 mb-2">
+                        <ShieldCheck className="h-4 w-4 text-blue-400" />
+                        <span className="text-sm font-semibold text-white">Execution Position</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Position placed on {trade.side?.toUpperCase()} based on risk distribution.
+                    </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                    This account took the opposite side ({trade.side?.toUpperCase()}) of the AI's {trade.signal_direction.toUpperCase()} signal to hedge risk.
-                </p>
+                {onInspectTrade && (
+                    <button
+                        type="button"
+                        onClick={() => onInspectTrade(trade)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 hover:border-emerald-400 transition-all inline-flex items-center gap-1.5 shadow-sm shrink-0"
+                    >
+                        <CandlestickChart className="h-3.5 w-3.5" />
+                        <span>View Chart</span>
+                    </button>
+                )}
             </div>
         )
     }
+
+    const cleanedText = cleanSignalReasoning(trade.signal_reasoning, trade.signal_direction)
 
     return (
         <div className="p-4 pl-10 border-l-2 border-l-emerald-600 bg-[#0d0d0d] flex flex-col gap-3">
@@ -484,12 +633,47 @@ function TradeDetailsPanel({ trade }: { trade: PortalTrade }) {
                         </p>
                     )}
                 </div>
+                {onInspectTrade && (
+                    <button
+                        type="button"
+                        onClick={() => onInspectTrade(trade)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 hover:border-emerald-400 transition-all inline-flex items-center gap-1.5 shadow-sm shrink-0"
+                    >
+                        <CandlestickChart className="h-3.5 w-3.5" />
+                        <span>View Chart</span>
+                    </button>
+                )}
             </div>
 
-            {trade.signal_reasoning && (
-                <div className="bg-[#111] p-3 rounded border border-[#1a1a1a]">
-                    <p className="text-xs text-white/80 leading-relaxed whitespace-pre-wrap">
-                        {trade.signal_reasoning}
+            {cleanedText && (
+                <div className="bg-[#111] p-3.5 rounded-xl border border-[#1f1f23] flex flex-col gap-2.5">
+                    {/* Technical Confluence Badges */}
+                    {trade.signal_inputs && (
+                        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                            {trade.signal_inputs.price != null && (
+                                <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 font-mono">
+                                    Base: ${trade.signal_inputs.price.toFixed(2)}
+                                </span>
+                            )}
+                            {trade.signal_inputs.sma_200 != null && (
+                                <span className="px-2 py-0.5 rounded-md bg-sky-500/10 border border-sky-500/20 text-sky-400 font-mono">
+                                    200 SMA: ${trade.signal_inputs.sma_200.toFixed(2)}
+                                </span>
+                            )}
+                            {trade.signal_inputs.micro_trend && (
+                                <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium uppercase">
+                                    Trend: {trade.signal_inputs.micro_trend}
+                                </span>
+                            )}
+                            {trade.signal_inputs.atr != null && (
+                                <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-zinc-400 font-mono">
+                                    ATR: ${trade.signal_inputs.atr.toFixed(2)}
+                                </span>
+                            )}
+                        </div>
+                    )}
+                    <p className="text-xs text-zinc-200 leading-relaxed font-normal">
+                        {cleanedText}
                     </p>
                 </div>
             )}
@@ -497,7 +681,7 @@ function TradeDetailsPanel({ trade }: { trade: PortalTrade }) {
     )
 }
 
-function TradesTable({ trades, accountsById }: { trades: PortalTrade[]; accountsById: Map<string, PortalAccount> }) {
+function TradesTable({ trades, accountsById, onInspectTrade }: { trades: PortalTrade[]; accountsById: Map<string, PortalAccount>; onInspectTrade?: (trade: PortalTrade) => void }) {
     const [expandedTradeId, setExpandedTradeId] = useState<string | null>(null)
     
     const toggleExpand = (id: string) => {
@@ -517,6 +701,7 @@ function TradesTable({ trades, accountsById }: { trades: PortalTrade[]; accounts
                         <TableHead className="text-muted-foreground text-xs">CLOSED</TableHead>
                         <TableHead className="text-muted-foreground text-xs text-right">RESULT</TableHead>
                         <TableHead className="text-muted-foreground text-xs">CLOSE REASON</TableHead>
+                        <TableHead className="text-muted-foreground text-xs text-center pr-4">CHART</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -563,14 +748,30 @@ function TradesTable({ trades, accountsById }: { trades: PortalTrade[]; accounts
                                     <TableCell className={`py-3 text-sm font-semibold text-right whitespace-nowrap ${pnlColor(trade.pnl)}`}>
                                         {trade.pnl == null ? "—" : formatCurrency(trade.pnl)}
                                     </TableCell>
-                                    <TableCell className={`py-3 text-xs ${close.tone} min-w-[220px]`}>
+                                    <TableCell className={`py-3 text-xs ${close.tone} min-w-[200px]`}>
                                         {close.text}
+                                    </TableCell>
+                                    <TableCell className="py-3 text-center whitespace-nowrap pr-4">
+                                        {onInspectTrade && (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    onInspectTrade(trade)
+                                                }}
+                                                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 hover:border-emerald-400 transition-all inline-flex items-center gap-1.5 shadow-sm mx-auto"
+                                                title="View exact candlestick chart for this trade"
+                                            >
+                                                <CandlestickChart className="h-3.5 w-3.5" />
+                                                <span>View Chart</span>
+                                            </button>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                                 {isExpanded && (
                                     <TableRow className="bg-[#0a0a0a] border-[#1a1a1a]">
-                                        <TableCell colSpan={7} className="p-0 border-b-0">
-                                            <TradeDetailsPanel trade={trade} />
+                                        <TableCell colSpan={8} className="p-0 border-b-0">
+                                            <TradeDetailsPanel trade={trade} onInspectTrade={onInspectTrade} />
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -632,7 +833,7 @@ const VIEW_TITLES: Record<View, { title: string; subtitle: string }> = {
     accounts: { title: "Accounts", subtitle: "Every funder account registered under your name." },
     trades: {
         title: "Trade Log",
-        subtitle: "Trades are placed by the trading team as paired positions. Each row shows your account's side and why it closed.",
+        subtitle: "Trades are placed by the trading team. Each row shows your account's side and why it closed.",
     },
     payouts: { title: "Payouts", subtitle: "Payout requests on your accounts." },
 }
@@ -641,6 +842,7 @@ export const OwnerPortal = ({ owner, email, accounts, trades, payouts, loadFaile
     const [view, setView] = useState<View>("overview")
     const [accountFilter, setAccountFilter] = useState("all")
     const [passwordOpen, setPasswordOpen] = useState(false)
+    const [inspectingTrade, setInspectingTrade] = useState<PortalTrade | null>(null)
 
     const viewTradesFor = (tradingAccountId: string) => {
         setAccountFilter(tradingAccountId)
@@ -719,7 +921,7 @@ export const OwnerPortal = ({ owner, email, accounts, trades, payouts, loadFaile
                                 <>
                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                                         {stats.map((stat) => (
-                                            <StatTile key={stat.title} {...stat} />
+                                             <StatTile key={stat.title} {...stat} />
                                         ))}
                                     </div>
 
@@ -750,7 +952,7 @@ export const OwnerPortal = ({ owner, email, accounts, trades, payouts, loadFaile
                                             )
                                         }
                                     >
-                                        <TradesTable trades={trades.slice(0, 5)} accountsById={accountsById} />
+                                        <TradesTable trades={trades.slice(0, 5)} accountsById={accountsById} onInspectTrade={setInspectingTrade} />
                                     </Panel>
                                 </>
                             )}
@@ -775,7 +977,7 @@ export const OwnerPortal = ({ owner, email, accounts, trades, payouts, loadFaile
 
                             {view === "trades" && (
                                 <Panel title={`All Trades (${filteredTrades.length})`} action={accountFilterSelect}>
-                                    <TradesTable trades={filteredTrades} accountsById={accountsById} />
+                                    <TradesTable trades={filteredTrades} accountsById={accountsById} onInspectTrade={setInspectingTrade} />
                                 </Panel>
                             )}
 
@@ -789,6 +991,13 @@ export const OwnerPortal = ({ owner, email, accounts, trades, payouts, loadFaile
                 </SidebarInset>
             </div>
             <PortalChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
+            {inspectingTrade && (
+                <TradeVisualizerModal
+                    isOpen={!!inspectingTrade}
+                    onClose={() => setInspectingTrade(null)}
+                    signal={portalTradeToVisualizerSignal(inspectingTrade, trades)}
+                />
+            )}
         </SidebarProvider>
     )
 }

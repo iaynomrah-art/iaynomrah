@@ -39,6 +39,10 @@ export type PairedTradingAccount = {
   is_active: boolean;
   notes: string | null;
   duration_seconds?: number | null;
+
+  // Execution IPs
+  primary_execution_ip?: string | null;
+  secondary_execution_ip?: string | null;
 };
 
 // Aliases for compatibility if needed

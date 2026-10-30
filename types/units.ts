@@ -13,6 +13,9 @@ export interface Unit {
   franchise?: Franchise;
   is_occupied: boolean;
   mobile_number: string | null;
+  public_ip?: string | null;
+  isp?: string | null;
+  ip_updated_at?: string | null;
 }
 
 export type CreateUnit = Omit<

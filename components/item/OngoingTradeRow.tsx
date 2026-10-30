@@ -401,7 +401,9 @@ export default function OngoingTradeRow({ pair }: { pair: any }) {
                 throw new Error(errData.message || errorMessage || "Force close failed on the orchestrator");
             }
 
-            toast.success("Force close executed successfully", { id: 'force-close' })
+            // 202 = a leg is waiting out the 125s minimum hold and closes after it
+            const result = await executeResponse.json().catch(() => ({}));
+            toast.success(result.holding ? result.message : "Force close executed successfully", { id: 'force-close' })
             setIsForceCloseModalOpen(false)
         } catch (error: any) {
             console.error("Force close error:", error)
